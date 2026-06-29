@@ -46,6 +46,12 @@ export const FORMATS: FormatDef[] = [
 
 export const LEVELS: SyncLevel[] = ["word", "line", "none"];
 
+export const LEVEL_RANK: Record<SyncLevel, number> = {
+  word: 2,
+  line: 1,
+  none: 0,
+};
+
 export interface DeezerArtist {
   id: number;
   name: string;

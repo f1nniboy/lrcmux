@@ -8,7 +8,7 @@
     LyricsResult,
     SyncLevel,
   } from "$lib/types";
-  import { FORMATS } from "$lib/types";
+  import { FORMATS, LEVEL_RANK } from "$lib/types";
 
   interface Props {
     track: DeezerTrack;
@@ -80,13 +80,15 @@
       activeFormat = format;
       err = null;
 
-      if (format !== "txt") void loadContent(format, activeLevel);
+      // clamp sync level to min level of selected format
+      const f = FORMATS.find((x) => x.id === format);
+      if (f?.minLevel && LEVEL_RANK[activeLevel] < LEVEL_RANK[f.minLevel]) {
+        activeLevel = f.minLevel;
+      }
     }}
     onlevel={(level) => {
       activeLevel = level;
       err = null;
-
-      if (activeFormat !== "txt") void loadContent(activeFormat, level);
     }}
   >
     <a

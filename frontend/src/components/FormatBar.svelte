@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import type { LyricsFormat, SyncLevel } from "$lib/types";
-  import { FORMATS, LEVELS } from "$lib/types";
+  import { FORMATS, LEVELS, LEVEL_RANK } from "$lib/types";
 
   interface Props {
     format: LyricsFormat;
@@ -15,19 +15,19 @@
     $props();
 
   const isRich = $derived(FORMATS.find((f) => f.id === format)?.rich ?? false);
-  const rank = { word: 2, line: 1, none: 0 } as const;
-  const levelRank = $derived(maxLevel ? rank[maxLevel] : 2);
+  const levelRank = $derived(maxLevel ? LEVEL_RANK[maxLevel] : 2);
   const formatMinLevel = $derived(
     FORMATS.find((f) => f.id === format)?.minLevel,
   );
   const disabledLevel = $derived((l: SyncLevel) => {
-    if (rank[l] > levelRank) return true;
-    if (formatMinLevel && rank[l] < rank[formatMinLevel]) return true;
+    if (LEVEL_RANK[l] > levelRank) return true;
+    if (formatMinLevel && LEVEL_RANK[l] < LEVEL_RANK[formatMinLevel])
+      return true;
     return false;
   });
   const disabledFormat = $derived((f: LyricsFormat) => {
     const def = FORMATS.find((x) => x.id === f);
-    return def?.minLevel ? rank[def.minLevel] > levelRank : false;
+    return def?.minLevel ? LEVEL_RANK[def.minLevel] > levelRank : false;
   });
 </script>
 

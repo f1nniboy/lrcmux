@@ -105,14 +105,10 @@ func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput,
 			kl.Syllabus = make([]KpoeSyllabus, len(l.Words))
 			for j, w := range l.Words {
 				wd := max(w.EndMs-w.StartMs, 0)
-				text := w.Text
-				if j < len(l.Words)-1 {
-					text += " "
-				}
 				kl.Syllabus[j] = KpoeSyllabus{
 					Time:     w.StartMs,
 					Duration: wd,
-					Text:     text,
+					Text:     w.Text,
 				}
 			}
 		}

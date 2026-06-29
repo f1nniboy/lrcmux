@@ -7,17 +7,16 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 )
 
-type richsyncEntry struct {
-	StartSec float64 `json:"ts"`
-	EndSec   float64 `json:"te"`
-	Lines    []struct {
-		Content   string  `json:"c"`
-		OffsetSec float64 `json:"o"`
-	} `json:"l"`
-}
-
 func parseRichsync(body string) []lyrics.Line {
-	var entries []richsyncEntry
+	var entries []struct {
+		StartSec float64 `json:"ts"`
+		EndSec   float64 `json:"te"`
+		Lines    []struct {
+			Content   string  `json:"c"`
+			OffsetSec float64 `json:"o"`
+		} `json:"l"`
+	}
+
 	if err := json.Unmarshal([]byte(body), &entries); err != nil {
 		return nil
 	}
@@ -27,46 +26,40 @@ func parseRichsync(body string) []lyrics.Line {
 		lineEnd := int64(e.EndSec * 1000)
 
 		words := make([]lyrics.Word, 0, len(e.Lines))
-		var parts []string
-		for i, w := range e.Lines {
-			text := strings.TrimSpace(w.Content)
-			if text == "" {
-				continue
-			}
+		for _, w := range e.Lines {
 			wStart := int64((e.StartSec + w.OffsetSec) * 1000)
-			var wEnd int64
-			if i+1 < len(e.Lines) {
-				wEnd = int64((e.StartSec + e.Lines[i+1].OffsetSec) * 1000)
-			} else {
-				wEnd = lineEnd
+			if len(words) > 0 {
+				words[len(words)-1].EndMs = wStart
 			}
-			words = append(words, lyrics.Word{StartMs: wStart, EndMs: wEnd, Text: text})
-			parts = append(parts, text)
+			words = append(words, lyrics.Word{StartMs: wStart, EndMs: lineEnd, Text: w.Content})
 		}
 
-		text := strings.Join(parts, " ")
-		if text == "" {
+		if len(words) == 0 {
 			continue
+		}
+
+		var b strings.Builder
+		for _, w := range words {
+			b.WriteString(w.Text)
 		}
 		lines = append(lines, lyrics.Line{
 			StartMs: lineStart,
 			EndMs:   lineEnd,
-			Text:    text,
+			Text:    b.String(),
 			Words:   words,
 		})
 	}
 	return lines
 }
 
-type subtitleEntry struct {
-	Text string `json:"text"`
-	Time struct {
-		Total float64 `json:"total"`
-	} `json:"time"`
-}
-
 func parseSubtitles(body string) []lyrics.Line {
-	var entries []subtitleEntry
+	var entries []struct {
+		Text string `json:"text"`
+		Time struct {
+			Total float64 `json:"total"`
+		} `json:"time"`
+	}
+
 	if err := json.Unmarshal([]byte(body), &entries); err != nil {
 		return nil
 	}

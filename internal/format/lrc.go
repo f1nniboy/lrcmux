@@ -32,7 +32,7 @@ func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 				continue
 			}
 			for _, word := range line.Words {
-				fmt.Fprintf(bw, "<%s>%s ", formatStamp(word.StartMs), word.Text)
+				fmt.Fprintf(bw, "<%s>%s", formatStamp(word.StartMs), word.Text)
 			}
 			fmt.Fprintln(bw)
 		}

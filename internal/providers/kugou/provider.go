@@ -86,7 +86,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 		if cand == nil {
 			continue
 		}
-		return p.download(ctx, cand, q)
+		return p.download(ctx, cand)
 	}
 	return nil, lyrics.ErrNotFound
 }
@@ -139,7 +139,7 @@ func abs64(n int64) int64 {
 	return n
 }
 
-func (p *Provider) download(ctx context.Context, cand *searchCandidate, q lyrics.Query) (*lyrics.Result, error) {
+func (p *Provider) download(ctx context.Context, cand *searchCandidate) (*lyrics.Result, error) {
 	params := url.Values{}
 	params.Set("ver", "1")
 	params.Set("client", "pc")
@@ -159,15 +159,6 @@ func (p *Provider) download(ctx context.Context, cand *searchCandidate, q lyrics
 	krcText, err := decodeKRC(dr.Content)
 	if err != nil {
 		return nil, err
-	}
-
-	artist := cand.SingerName
-	if artist == "" {
-		artist = q.Artist
-	}
-	title := cand.SongName
-	if title == "" {
-		title = q.Title
 	}
 
 	lines := parseKRC(krcText)

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -19,16 +18,15 @@ import (
 )
 
 type GetLyricsInput struct {
-	Artist       string `query:"artist" doc:"Artist name" example:"Rick Astley"`
-	Title        string `query:"title" doc:"Song title" example:"Never Gonna Give You Up"`
-	Album        string `query:"album" doc:"Album name"`
-	Duration     int64  `query:"duration" doc:"Track duration in seconds"`
-	ISRC         string `query:"isrc" doc:"ISRC of the track, has priority over artist and title"`
-	Level        string `query:"level" doc:"Highest sync level to accept, or exact level if strict is set" enum:"word,line,none" default:"word"`
-	Format       string `query:"format" doc:"Response format" enum:"lrc,txt,json,srt,vtt" default:"json"`
-	Strict       bool   `query:"strict" doc:"Fail instead of falling back to a lower sync level"`
-	Force        bool   `query:"force" doc:"Bypass cache and re-fetch from providers"`
-	CacheControl string `header:"Cache-Control" doc:"If set to \"no-cache\", bypasses the cache and re-fetches from providers"`
+	Artist   string `query:"artist" doc:"Artist name" example:"Rick Astley"`
+	Title    string `query:"title" doc:"Song title" example:"Never Gonna Give You Up"`
+	Album    string `query:"album" doc:"Album name"`
+	Duration int64  `query:"duration" doc:"Track duration in seconds"`
+	ISRC     string `query:"isrc" doc:"ISRC of the track, has priority over artist and title"`
+	Level    string `query:"level" doc:"Highest sync level to accept, or exact level if strict is set" enum:"word,line,none" default:"word"`
+	Format   string `query:"format" doc:"Response format" enum:"lrc,txt,json,srt,vtt" default:"json"`
+	Strict   bool   `query:"strict" doc:"Fail instead of falling back to a lower sync level"`
+	Force    bool   `query:"force" doc:"Bypass cache and re-fetch from providers (private IP only)"`
 }
 
 var responseHeaders = map[string]*huma.Param{
@@ -65,7 +63,10 @@ func (s *Server) getOp() huma.Operation {
 }
 
 func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.StreamResponse, error) {
-	force := input.Force || strings.Contains(input.CacheControl, "no-cache")
+	force := input.Force
+	if force && !utils.IsPrivateIP(clientIP(ctx)) {
+		return nil, huma.Error403Forbidden("you can't force-refresh, sorry")
+	}
 
 	level, err := lyrics.ParseLevel(input.Level)
 	if err != nil {

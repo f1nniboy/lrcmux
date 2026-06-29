@@ -12,7 +12,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /app/frontend/build ./frontend/build
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o lrcmux ./cmd/lrcmux
+RUN apk add --no-cache git && \
+  CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w -X 'github.com/f1nniboy/lrcmux/internal/meta.Commit=$(git rev-parse --short HEAD)'" \
+    -o lrcmux ./cmd/lrcmux
 
 FROM gcr.io/distroless/static-debian12
 COPY --from=builder /app/lrcmux /lrcmux

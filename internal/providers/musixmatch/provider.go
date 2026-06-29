@@ -15,26 +15,26 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
+// mostly borrowed from https://github.com/OrfiDev/orpheusdl-musixmatch
+
 const (
-	baseURL       = "https://www.musixmatch.com/ws/1.1/"
-	appID         = "web-desktop-app-v1.0"
-	userAgent     = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-	sessionCookie = "mxm_bab=AB"
+	desktopBaseURL   = "https://apic-desktop.musixmatch.com/ws/1.1/"
+	desktopAppID     = "web-desktop-app-v1.0"
+	desktopUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Musixmatch/0.19.4 Chrome/58.0.3029.110 Electron/1.7.6 Safari/537.36"
 )
 
 type tier struct {
 	endpoint     string
 	extra        url.Values
-	syncLevel    lyrics.SyncLevel
 	bodyKey      string
 	contentField string
 	parse        func(string) []lyrics.Line
 }
 
-var tiers = []tier{
-	{endpoint: "track.richsync.get", syncLevel: lyrics.SyncWord, bodyKey: "richsync", contentField: "richsync_body", parse: parseRichsync},
-	{endpoint: "track.subtitle.get", syncLevel: lyrics.SyncLine, bodyKey: "subtitle", contentField: "subtitle_body", parse: parseSubtitles, extra: url.Values{"subtitle_format": {"mxm"}}},
-	{endpoint: "track.lyrics.get", syncLevel: lyrics.SyncNone, bodyKey: "lyrics", contentField: "lyrics_body", parse: parseLyrics},
+var tierByLevel = map[lyrics.SyncLevel]tier{
+	lyrics.SyncWord: {endpoint: "track.richsync.get", bodyKey: "richsync", contentField: "richsync_body", parse: parseRichsync},
+	lyrics.SyncLine: {endpoint: "track.subtitle.get", bodyKey: "subtitle", contentField: "subtitle_body", parse: parseSubtitles, extra: url.Values{"subtitle_format": {"mxm"}}},
+	lyrics.SyncNone: {endpoint: "track.lyrics.get", bodyKey: "lyrics", contentField: "lyrics_body", parse: parseLyrics},
 }
 
 func init() {
@@ -44,14 +44,14 @@ func init() {
 func factory(args providers.FactoryArgs) (providers.Impl, error) {
 	return &Provider{
 		client: args.Client,
-		signer: newSigner(args.Cache, args.Log),
+		tokens: newTokenClient(args.Client, args.Cache, args.Log),
 		log:    args.Log,
 	}, nil
 }
 
 type Provider struct {
 	client *http.Client
-	signer *signer
+	tokens *tokenClient
 	log    *slog.Logger
 }
 
@@ -63,18 +63,22 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 	if q.ISRC == "" {
 		return nil, lyrics.ErrNotFound
 	}
-	if err := p.signer.Ensure(); err != nil {
-		return nil, fmt.Errorf("bootstrap: %w", err)
+
+	meta, err := p.fetchTrackMeta(ctx, q.ISRC)
+	if err != nil {
+		return nil, err
+	}
+	if meta == nil {
+		return nil, lyrics.ErrNotFound
 	}
 
-	for _, t := range tiers {
-		lines, err := p.fetchTier(ctx, t, q.ISRC)
-		if err != nil {
-			return nil, err
-		}
-		if len(lines) > 0 {
-			return &lyrics.Result{Lines: lines, SyncLevel: t.syncLevel}, nil
-		}
+	t := tierByLevel[meta.syncLevel]
+	lines, err := p.fetchTier(ctx, t, q.ISRC)
+	if err != nil {
+		return nil, err
+	}
+	if len(lines) > 0 {
+		return &lyrics.Result{Lines: lines, SyncLevel: meta.syncLevel}, nil
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -82,17 +86,49 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 	return nil, lyrics.ErrNotFound
 }
 
+type trackMeta struct {
+	syncLevel lyrics.SyncLevel
+}
+
+func (p *Provider) fetchTrackMeta(ctx context.Context, isrc string) (*trackMeta, error) {
+	body, err := p.getDesktop(ctx, "track.get", url.Values{"track_isrc": {isrc}})
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Track struct {
+			HasRichsync  int `json:"has_richsync"`
+			HasSubtitles int `json:"has_subtitles"`
+			HasLyrics    int `json:"has_lyrics"`
+		} `json:"track"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, nil
+	}
+	track := resp.Track
+	switch {
+	case track.HasRichsync == 1:
+		return &trackMeta{syncLevel: lyrics.SyncWord}, nil
+	case track.HasSubtitles == 1:
+		return &trackMeta{syncLevel: lyrics.SyncLine}, nil
+	case track.HasLyrics == 1:
+		return &trackMeta{syncLevel: lyrics.SyncNone}, nil
+	}
+	return nil, nil
+}
+
 func (p *Provider) fetchTier(ctx context.Context, t tier, isrc string) ([]lyrics.Line, error) {
 	params := url.Values{"track_isrc": {isrc}}
 	maps.Copy(params, t.extra)
 
-	body, err := p.get(ctx, t.endpoint, params)
+	body, err := p.getDesktop(ctx, t.endpoint, params)
 	if err != nil {
 		if errors.Is(err, providers.ErrRateLimited) {
 			return nil, err
 		}
 		if ctx.Err() == nil && !errors.Is(err, lyrics.ErrNotFound) {
 			p.log.Debug("fetch failed", "tier", t.bodyKey, "isrc", isrc, "err", err)
+			return nil, err
 		}
 		return nil, nil
 	}
@@ -108,50 +144,39 @@ func (p *Provider) fetchTier(ctx context.Context, t tier, isrc string) ([]lyrics
 	return t.parse(content), nil
 }
 
-func buildURL(endpoint string, extra url.Values) string {
-	q := url.Values{}
-	q.Set("app_id", appID)
-	q.Set("format", "json")
-	maps.Copy(q, extra)
-	return baseURL + endpoint + "?" + q.Encode()
-}
-
-type mxmResponse struct {
-	Message struct {
-		Header struct {
-			StatusCode int    `json:"status_code"`
-			Hint       string `json:"hint"`
-		} `json:"header"`
-		Body json.RawMessage `json:"body"`
-	} `json:"message"`
-}
-
-// Refreshes the secret and retries once on invalid_signature.
-func (p *Provider) get(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
-	body, err := p.sendSigned(ctx, endpoint, extra)
-	if errors.Is(err, errInvalidSignature) {
-		if rerr := p.signer.Refresh(); rerr != nil {
-			return nil, fmt.Errorf("refresh secret: %w", rerr)
+func (p *Provider) getDesktop(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
+	for range 2 {
+		body, err := p.doDesktopRequest(ctx, endpoint, extra)
+		if !errors.Is(err, errRenew) {
+			return body, err
 		}
-		body, err = p.sendSigned(ctx, endpoint, extra)
+		p.log.Debug("token expired, refreshing")
+		if rerr := p.tokens.Refresh(ctx); rerr != nil {
+			return nil, rerr
+		}
 	}
-	return body, err
+	return nil, errors.New("token renew retry exhausted")
 }
 
-func (p *Provider) sendSigned(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
-	signed, err := p.signer.Sign(buildURL(endpoint, extra))
+func (p *Provider) doDesktopRequest(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
+	token, err := p.tokens.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signed, nil)
+
+	params := url.Values{}
+	params.Set("app_id", desktopAppID)
+	params.Set("format", "json")
+	params.Set("usertoken", token)
+	maps.Copy(params, extra)
+
+	u := desktopBaseURL + endpoint + "?" + params.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Referer", "https://www.musixmatch.com/")
-	req.Header.Set("Cookie", sessionCookie)
+	req.Header.Set("User-Agent", desktopUserAgent)
 
 	resp, err := p.client.Do(req)
 	if err != nil {
@@ -162,7 +187,6 @@ func (p *Provider) sendSigned(ctx context.Context, endpoint string, extra url.Va
 	switch resp.StatusCode {
 	case http.StatusOK:
 	case http.StatusServiceUnavailable:
-		// 503 here is a rate-limit symptom (the edge serves wrong-vhost HTML).
 		return nil, providers.ErrRateLimited
 	default:
 		return nil, fmt.Errorf("http %d", resp.StatusCode)
@@ -172,21 +196,30 @@ func (p *Provider) sendSigned(ctx context.Context, endpoint string, extra url.Va
 	if err != nil {
 		return nil, fmt.Errorf("read: %w", err)
 	}
-	var r mxmResponse
-	if err := json.Unmarshal(raw, &r); err != nil {
+
+	var res struct {
+		Message struct {
+			Header struct {
+				StatusCode int    `json:"status_code"`
+				Hint       string `json:"hint"`
+			} `json:"header"`
+			Body json.RawMessage `json:"body"`
+		} `json:"message"`
+	}
+	if err := json.Unmarshal(raw, &res); err != nil {
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 
 	switch {
-	case r.Message.Header.StatusCode == 200:
-		return r.Message.Body, nil
-	case r.Message.Header.StatusCode == 401 && r.Message.Header.Hint == "invalid_signature":
-		return nil, errInvalidSignature
-	case r.Message.Header.StatusCode == 401 && r.Message.Header.Hint == "captcha":
+	case res.Message.Header.StatusCode == 200:
+		return res.Message.Body, nil
+	case res.Message.Header.StatusCode == 401 && res.Message.Header.Hint == "renew":
+		return nil, errRenew
+	case res.Message.Header.StatusCode == 401 && res.Message.Header.Hint == "captcha":
 		return nil, providers.ErrRateLimited
-	case r.Message.Header.StatusCode == 404:
+	case res.Message.Header.StatusCode == 404:
 		return nil, lyrics.ErrNotFound
 	}
-	p.log.Debug("api error", "status", r.Message.Header.StatusCode, "hint", r.Message.Header.Hint)
-	return nil, fmt.Errorf("api %d (%s)", r.Message.Header.StatusCode, r.Message.Header.Hint)
+	p.log.Debug("api error", "status", res.Message.Header.StatusCode, "hint", res.Message.Header.Hint)
+	return nil, fmt.Errorf("api %d (%s)", res.Message.Header.StatusCode, res.Message.Header.Hint)
 }

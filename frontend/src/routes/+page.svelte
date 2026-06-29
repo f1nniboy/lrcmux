@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import Link from "$lib/Link.svelte";
   import SearchBar from "$components/SearchBar.svelte";
   import TrendingGrid from "$components/TrendingGrid.svelte";
   import UseItInYourApp from "$components/UseItInYourApp.svelte";
@@ -94,12 +95,7 @@
           <code class="text-ink font-mono text-sm"
             >https://lrcmux.dev/api/compat/lrclib</code
           >, or set
-          <a
-            href="https://github.com/ibratabian17/YouLyPlus"
-            class="text-ink hover:text-cue underline-offset-4 hover:underline"
-            target="_blank"
-            rel="noopener">YouLy+</a
-          >
+          <Link href="https://github.com/ibratabian17/YouLyPlus">YouLy+</Link>
           and other LyricsPlus clients to
           <code class="text-ink font-mono text-sm"
             >https://lrcmux.dev/api/compat/kpoe</code
@@ -112,19 +108,9 @@
           Music library tagging
         </h3>
         <p class="text-muted leading-relaxed">
-          Tools like <a
-            href="https://beets.io"
-            class="text-ink hover:text-cue underline-offset-4 hover:underline"
-            target="_blank"
-            rel="noopener">beets</a
-          >
+          Tools like <Link href="https://beets.io">beets</Link>
           and
-          <a
-            href="https://picard.musicbrainz.org"
-            class="text-ink hover:text-cue underline-offset-4 hover:underline"
-            target="_blank"
-            rel="noopener">MusicBrainz Picard</a
-          >
+          <Link href="https://picard.musicbrainz.org">MusicBrainz Picard</Link>
           tag your audio files with ISRCs. You can use those ISRCs to fetch synced
           LRC sidecar files from <Wordmark />
           and place them next to your audio, which players pick up automatically.
@@ -163,26 +149,10 @@
       <Wordmark /> is purely an aggregator with no lyric database of its own. If a
       song has wrong, missing, or badly synchronized lyrics, the fix needs to happen
       at the source:
-      <a
-        href="https://lrclib.net"
-        class="text-ink hover:text-cue underline-offset-4 hover:underline"
-        target="_blank"
-        rel="noopener">LRCLIB</a
-      >,
-      <a
-        href="https://www.musixmatch.com"
-        class="text-ink hover:text-cue underline-offset-4 hover:underline"
-        target="_blank"
-        rel="noopener">Musixmatch</a
-      >, or
-      <a
-        href="https://genius.com"
-        class="text-ink hover:text-cue underline-offset-4 hover:underline"
-        target="_blank"
-        rel="noopener">Genius</a
-      >. Once a correction is live upstream, it will appear in <Wordmark /> after
-      some time (or immediately with
-      <code class="text-ink font-mono text-sm">force=true</code>).
+      <Link href="https://lrclib.net">LRCLIB</Link>,
+      <Link href="https://www.musixmatch.com">Musixmatch</Link>, or
+      <Link href="https://genius.com">Genius</Link>. Once a correction is live
+      upstream, it will appear in <Wordmark /> after some time.
     </p>
   </section>
 

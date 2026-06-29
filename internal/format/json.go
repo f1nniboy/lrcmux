@@ -45,12 +45,7 @@ func (jsonEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 			}
 			if len(l.Words) > 0 {
 				line.Words = make([]lyrics.Word, len(l.Words))
-				for j, w := range l.Words {
-					if j < len(l.Words)-1 {
-						w.Text += " "
-					}
-					line.Words[j] = w
-				}
+				copy(line.Words, l.Words)
 			}
 			lines[i] = line
 		}

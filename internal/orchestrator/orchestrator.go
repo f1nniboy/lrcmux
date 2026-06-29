@@ -208,13 +208,7 @@ func respond(r *lyrics.Result, cached bool, level lyrics.SyncLevel, q lyrics.Que
 	return &Response{
 		Result: lyrics.Downgrade(r, level),
 		Cached: cached,
-		Track: lyrics.Track{
-			Artist:   q.Artist,
-			Title:    q.Title,
-			Album:    q.Album,
-			Duration: q.Duration,
-			ISRC:     q.ISRC,
-		},
+		Track: lyrics.Track(q),
 	}
 }
 

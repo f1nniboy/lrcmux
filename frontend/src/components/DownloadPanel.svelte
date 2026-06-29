@@ -93,6 +93,7 @@
   >
     <a
       href={dlURL}
+      download
       class="ml-auto inline-flex items-center gap-1.5 bg-cue text-ink dark:text-paper px-3 py-1.5 rounded-md text-xs font-medium hover:brightness-110 transition-all shadow-sm no-underline"
     >
       Download .{activeFormat} <span aria-hidden="true">↓</span>

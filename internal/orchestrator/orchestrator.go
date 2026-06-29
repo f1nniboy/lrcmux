@@ -3,7 +3,9 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
+	"net"
 	"sort"
 	"sync"
 	"time"
@@ -208,7 +210,7 @@ func respond(r *lyrics.Result, cached bool, level lyrics.SyncLevel, q lyrics.Que
 	return &Response{
 		Result: lyrics.Downgrade(r, level),
 		Cached: cached,
-		Track: lyrics.Track(q),
+		Track:  lyrics.Track(q),
 	}
 }
 
@@ -292,19 +294,24 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 }
 
 func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) {
+	log := o.log.With("provider", out.id, "latency_ms", out.latency.Milliseconds())
+
 	switch {
 	case out.err == nil && out.result != nil:
-		o.log.Debug("provider ok", "provider", out.id, "sync", out.result.SyncLevel.String(), "latency_ms", out.latency.Milliseconds())
+		log.Debug("provider ok", "sync", out.result.SyncLevel.String())
 	case errors.Is(out.err, lyrics.ErrNotFound):
-		o.log.Debug("provider not found", "provider", out.id, "latency_ms", out.latency.Milliseconds())
+		log.Debug("provider not found")
 	case errors.Is(out.err, providers.ErrRateLimited):
-		o.log.Info("provider rate limited", "provider", out.id, "latency_ms", out.latency.Milliseconds())
+		log.Info("provider rate limited")
 	case errors.Is(out.err, context.DeadlineExceeded) || errors.Is(out.err, lyrics.ErrTimeout):
-		o.log.Info("provider timeout", "provider", out.id, "latency_ms", out.latency.Milliseconds())
+		log.Info("provider timeout")
 	case errors.Is(out.err, context.Canceled):
-		o.log.Debug("provider cancelled", "provider", out.id, "latency_ms", out.latency.Milliseconds())
+		log.Debug("provider cancelled")
+	case isNetworkNoise(out.err):
+		log.Info("provider network error", "err", out.err)
 	default:
-		o.log.Warn("provider error", "provider", out.id, "err", out.err, "latency_ms", out.latency.Milliseconds())
+		log.Warn("provider error", "err", out.err)
+
 		sentry.WithScope(func(scope *sentry.Scope) {
 			scope.SetTag("provider", out.id)
 			scope.SetContext("query", sentry.Context{
@@ -317,8 +324,6 @@ func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) {
 	}
 }
 
-// rankResult reports whether a is a better result than b.
-// Primary criterion: sync level. Secondary: line count (fewer lines may indicate truncated lyrics).
 func rankResult(a, b *lyrics.Result) bool {
 	if a.SyncLevel != b.SyncLevel {
 		return a.SyncLevel > b.SyncLevel
@@ -346,4 +351,14 @@ func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *l
 	}
 	o.log.Debug("pick: no result meets target level")
 	return nil
+}
+
+func isNetworkNoise(err error) bool {
+	if _, ok := errors.AsType[*net.OpError](err); ok {
+		return true
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	return false
 }

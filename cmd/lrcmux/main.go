@@ -95,7 +95,7 @@ func main() {
 	}
 
 	isrcClient := &http.Client{Timeout: 3 * time.Second}
-	isrcResolver := isrc.New(isrcClient, cacheLayer, logging.New("isrc"))
+	isrcResolver := isrc.New(isrcClient, cacheLayer, cfg.Cache.MissTTL.Duration, logging.New("isrc"))
 
 	breaker := orchestrator.NewBreaker(cacheLayer, logging.New("breaker"))
 	orch := orchestrator.New(provs, cacheLayer, breaker, isrcResolver, orchestrator.Options{

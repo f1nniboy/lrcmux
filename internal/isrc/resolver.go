@@ -22,14 +22,15 @@ import (
 const lookupBase = "https://api.deezer.com/search"
 
 type Resolver struct {
-	group  singleflight.Group
-	cache  cache.Cache
-	client *http.Client
-	log    *slog.Logger
+	group   singleflight.Group
+	cache   cache.Cache
+	client  *http.Client
+	log     *slog.Logger
+	missTTL time.Duration
 }
 
-func New(client *http.Client, c cache.Cache, log *slog.Logger) *Resolver {
-	return &Resolver{client: client, cache: c, log: log}
+func New(client *http.Client, c cache.Cache, missTTL time.Duration, log *slog.Logger) *Resolver {
+	return &Resolver{client: client, cache: c, missTTL: missTTL, log: log}
 }
 
 type TrackMeta struct {
@@ -71,7 +72,7 @@ func (r *Resolver) Resolve(ctx context.Context, q lyrics.Query) (string, error) 
 		}
 		if isrc == "" {
 			r.log.Debug("isrc not found on deezer", "artist", q.Artist, "title", q.Title)
-			go cache.SetMiss(context.Background(), r.cache, key, 0)
+			go cache.SetMiss(context.Background(), r.cache, key, r.missTTL)
 			return "", lyrics.ErrNotFound
 		}
 
@@ -108,7 +109,7 @@ func (r *Resolver) LookupMeta(ctx context.Context, isrc string) (TrackMeta, bool
 	meta, err := r.lookupMeta(lookupCtx, isrc)
 	if errors.Is(err, lyrics.ErrNotFound) {
 		r.log.Debug("isrc not found on deezer", "isrc", isrc)
-		cache.SetMiss(context.Background(), r.cache, key, 0)
+		cache.SetMiss(context.Background(), r.cache, key, r.missTTL)
 		return TrackMeta{}, false
 	}
 	if err != nil {

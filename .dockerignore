@@ -1,0 +1,13 @@
+# binaries
+bin/
+main
+lrcmux
+
+# secrets
+.env
+config.dev.toml
+
+# frontend (re-built inside the image)
+frontend/node_modules
+frontend/.svelte-kit
+frontend/build

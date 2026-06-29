@@ -1,0 +1,62 @@
+name: Provider issue
+description: Report a problem with a lyrics provider
+labels: [provider]
+body:
+  - type: input
+    id: track
+    attributes:
+      label: Track
+      description: Artist and title of the song
+      placeholder: "e.g. Rick Astley - Never Gonna Give You Up"
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      description: Which provider has the issue?
+      multiple: true
+      options:
+        - Genius
+        - Kugou
+        - LRCLIB
+        - Musixmatch
+        - YouTube Music
+    validations:
+      required: true
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue type
+      options:
+        - Lyrics not found (should exist at provider)
+        - Wrong/incorrect lyrics (wrong track matched)
+        - Wrong output (e.g. other text that doesn't belong to lyrics)
+        - Poor sync quality (e.g. line-level when word-level exists at provider)
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What did you expect and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: response
+    attributes:
+      label: API response
+      description: The JSON response from `/api/get?format=json`, or the relevant snippet if there's a specific issue.
+      render: json
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server logs
+      description: "Only if you're self-hosting: paste relevant logs with DEBUG level enabled"
+      render: text
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: "Only if you're self-hosting: your config.toml (redact any secrets/keys!)"
+      render: toml

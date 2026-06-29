@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a bug
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened and what did you expect?
+      placeholder: "Requesting /api/get?isrc=... returns a 500 instead of lyrics."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Send GET /api/get?format=json&artist=...&title=...
+        2. Observe 500 response
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: The `commit` field from `GET /api/stats`
+      placeholder: "abc1234"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server logs
+      description: "Only if you're self-hosting: paste relevant logs with DEBUG level enabled"
+      render: text
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: "Only if you're self-hosting: your config.toml (redact any secrets/keys!)"
+      render: toml

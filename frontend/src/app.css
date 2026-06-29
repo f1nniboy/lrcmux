@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-2);
+  --color-rule: var(--rule);
+  --color-cue: var(--cue);
+  --color-peak: var(--peak);
+}
+
+@layer base {
+  :root {
+    --paper: oklch(0.972 0.008 85);
+    --paper-2: oklch(0.94 0.01 85);
+    --ink: oklch(0.16 0.012 60);
+    --ink-2: oklch(0.46 0.008 60);
+    --rule: oklch(0.85 0.008 60);
+    --cue: oklch(0.74 0.165 75);
+    --peak: oklch(0.6 0.22 25);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: oklch(0.13 0.006 60);
+      --paper-2: oklch(0.175 0.006 60);
+      --ink: oklch(0.96 0.005 60);
+      --ink-2: oklch(0.6 0.012 60);
+      --rule: oklch(0.26 0.006 60);
+      --cue: oklch(0.83 0.18 75);
+      --peak: oklch(0.72 0.24 25);
+    }
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background: var(--cue);
+    color: var(--paper);
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--cue);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+}
+
+@layer utilities {
+  .panel {
+    background: color-mix(in srgb, var(--paper-2) 92%, transparent);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+  }
+}

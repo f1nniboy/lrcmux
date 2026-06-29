@@ -14,6 +14,7 @@ export class LyricsError extends Error {
   constructor(
     public status: number,
     message: string,
+    public retryAfter = 0,
   ) {
     super(message);
     this.name = "LyricsError";
@@ -28,7 +29,11 @@ export async function getLyricsJSON(
     signal: opts.signal,
   });
   if (!res.ok) {
-    throw new LyricsError(res.status, await failureMessage(res));
+    throw new LyricsError(
+      res.status,
+      await failureMessage(res),
+      retryAfterSeconds(res),
+    );
   }
   return (await res.json()) as LyricsResult;
 }
@@ -42,7 +47,11 @@ export async function getLyricsText(
     signal: opts.signal,
   });
   if (!res.ok) {
-    throw new LyricsError(res.status, await failureMessage(res));
+    throw new LyricsError(
+      res.status,
+      await failureMessage(res),
+      retryAfterSeconds(res),
+    );
   }
   return res.text();
 }
@@ -67,7 +76,6 @@ export function downloadURL(
 async function failureMessage(res: Response): Promise<string> {
   if (res.status === 404)
     return "No provider has this track, or it doesn't exist.";
-  if (res.status === 429) return "Rate limited, try again in a bit.";
   try {
     const text = await res.text();
     if (text) {
@@ -75,7 +83,7 @@ async function failureMessage(res: Response): Promise<string> {
         const body = JSON.parse(text);
         if (body.detail) return String(body.detail).slice(0, 500);
       } catch {
-        /* not json */
+        /* not JSON */
       }
       return text.slice(0, 500);
     }
@@ -83,4 +91,8 @@ async function failureMessage(res: Response): Promise<string> {
     // ignore
   }
   return `Request failed (${res.status})`;
+}
+
+function retryAfterSeconds(res: Response): number {
+  return parseInt(res.headers.get("Retry-After") ?? "0", 10) || 0;
 }

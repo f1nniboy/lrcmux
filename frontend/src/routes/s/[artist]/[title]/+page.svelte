@@ -13,7 +13,18 @@
   let track = $state<DeezerTrack | null>(null);
   let result = $state<LyricsResult | null>(null);
   let loading = $state(true);
-  let error = $state<{ status?: number; message: string } | null>(null);
+  let error = $state<{
+    status?: number;
+    message: string;
+    retryAfter?: number;
+  } | null>(null);
+
+  function formatRetryTime(seconds: number): string {
+    return new Date(Date.now() + seconds * 1000).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
 
   function syntheticTrack(): DeezerTrack {
     return {
@@ -52,11 +63,14 @@
     }
 
     try {
-      const r = await getLyricsJSON(track!);
-      result = r;
+      result = await getLyricsJSON(track!);
     } catch (e) {
       if (e instanceof LyricsError) {
-        error = { status: e.status, message: e.message };
+        error = {
+          status: e.status,
+          message: e.message,
+          retryAfter: e.retryAfter,
+        };
       } else {
         error = { message: (e as Error).message };
       }
@@ -82,9 +96,23 @@
   {:else if error}
     <div class="flex flex-col items-center justify-center py-16">
       <h1 class="text-2xl sm:text-3xl font-semibold text-ink mb-2 text-center">
-        {error?.status === 404 ? "No lyrics found." : "Something went wrong."}
+        {#if error?.status === 404}
+          No lyrics found.
+        {:else if error?.status === 429}
+          Slow down a bit.
+        {:else}
+          Something went wrong.
+        {/if}
       </h1>
-      <p class="text-muted text-center">{error.message}</p>
+      <p class="text-muted text-center">
+        {#if error?.status === 429 && error.retryAfter}
+          Try again at <strong class="text-ink"
+            >{formatRetryTime(error.retryAfter)}</strong
+          >.
+        {:else}
+          {error.message}
+        {/if}
+      </p>
     </div>
   {/if}
 

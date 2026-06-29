@@ -63,8 +63,7 @@
       <div>
         <h3 class="text-lg font-semibold text-ink mb-1.5">Free and public</h3>
         <p class="text-muted text-base sm:text-sm leading-relaxed">
-          No keys, no sign-up, no costs. Use this public instance or host it
-          yourself.
+          Use this public instance or host it yourself.
         </p>
       </div>
       <div>

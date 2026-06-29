@@ -3,12 +3,23 @@ package ratelimit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+type LimitError struct {
+	RetryAfter time.Duration
+}
+
+func (e *LimitError) Error() string {
+	return fmt.Sprintf("rate limit exceeded, retry after %s", e.RetryAfter)
+}
+
+func (e *LimitError) Unwrap() error { return ErrRateLimited }
 
 var ErrRateLimited = errors.New("rate limit exceeded")
 
@@ -55,7 +66,8 @@ func (l *Limiter) Allow(ctx context.Context, ip string) error {
 		return nil
 	}
 	if res == 0 {
-		return ErrRateLimited
+		retryAfter := time.Until(time.Unix((bucket+1)*int64(l.window.Seconds()), 0))
+		return &LimitError{RetryAfter: retryAfter}
 	}
 	return nil
 }

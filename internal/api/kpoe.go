@@ -82,7 +82,7 @@ func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput,
 		Level:    lyrics.SyncWord,
 	})
 	if err != nil {
-		return nil, s.mapOrchError(err)
+		return nil, s.mapError(err)
 	}
 
 	elapsed := time.Since(start).Milliseconds()

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -92,7 +93,13 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.St
 		Force:    force,
 	})
 	if err != nil {
-		return nil, s.mapOrchError(err)
+		if e, ok := errors.AsType[*ratelimit.LimitError](err); ok {
+			return nil, huma.ErrorWithHeaders(
+				huma.Error429TooManyRequests("rate limit exceeded"),
+				http.Header{"Retry-After": {strconv.Itoa(int(e.RetryAfter.Seconds()))}},
+			)
+		}
+		return nil, s.mapError(err)
 	}
 
 	if min := encoder.MinLevel(); resp.Result.SyncLevel < min {
@@ -165,7 +172,7 @@ func (s *Server) fetch(ctx context.Context, p fetchParams) (*orchestrator.Respon
 	})
 }
 
-func (s *Server) mapOrchError(err error) error {
+func (s *Server) mapError(err error) error {
 	if e, ok := errors.AsType[*huma.ErrorModel](err); ok {
 		return e
 	}

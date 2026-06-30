@@ -20,6 +20,7 @@ type JSONMeta struct {
 type JSONResponse struct {
 	Meta  JSONMeta      `json:"meta"`
 	Lines []lyrics.Line `json:"lines"`
+	Track lyrics.Track  `json:"track"`
 }
 
 type jsonEncoder struct{ anyLevel }
@@ -31,6 +32,7 @@ func (jsonEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	out := JSONResponse{
 		Meta:  JSONMeta{Level: r.SyncLevel.String()},
 		Lines: r.Lines,
+		Track: r.Track,
 	}
 	if r.Source.ID != "" {
 		out.Meta.Source = &JSONSource{ID: r.Source.ID, Name: r.Source.Name}

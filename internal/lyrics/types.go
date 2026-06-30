@@ -61,19 +61,22 @@ func ParseLevel(s string) (SyncLevel, error) {
 }
 
 type Query struct {
-	Artist   string
-	Title    string
-	Album    string
-	Duration int64 // seconds
-	ISRC     string
+	Track Track
+}
+
+type TrackCover struct {
+	Small  string `json:"small,omitempty"`
+	Medium string `json:"medium,omitempty"`
+	Big    string `json:"big,omitempty"`
 }
 
 type Track struct {
-	Artist   string
-	Title    string
-	Album    string
-	Duration int64
-	ISRC     string
+	ISRC     string     `json:"isrc"`
+	Title    string     `json:"title"`
+	Duration int64      `json:"duration"`
+	Artist   string     `json:"artist"`
+	Album    string     `json:"album"`
+	Cover    TrackCover `json:"cover"`
 }
 
 type Word struct {
@@ -98,6 +101,7 @@ type Result struct {
 	Lines     []Line
 	SyncLevel SyncLevel
 	Source    Source
+	Track     Track
 }
 
 // filters out empty lines and bracketed section labels such as

@@ -1,15 +1,7 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import Wordmark from "./Wordmark.svelte";
   import SearchBar from "./SearchBar.svelte";
-  import type { DeezerTrack } from "$lib/types";
-
-  function pick(t: DeezerTrack) {
-    goto(
-      `/s/${encodeURIComponent(t.artist.name)}/${encodeURIComponent(t.title)}`,
-    );
-  }
 
   const isHome = $derived(page.url.pathname === "/");
 </script>
@@ -24,7 +16,7 @@
 
     {#if !isHome}
       <div class="flex-1 max-w-md min-w-0">
-        <SearchBar onselect={pick} slim={true} />
+        <SearchBar slim={true} />
       </div>
     {/if}
 

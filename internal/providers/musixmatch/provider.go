@@ -60,11 +60,11 @@ func (p *Provider) Desc() string               { return "Extensive library and g
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
-	if q.ISRC == "" {
+	if q.Track.ISRC == "" {
 		return nil, lyrics.ErrNotFound
 	}
 
-	meta, err := p.fetchTrackMeta(ctx, q.ISRC)
+	meta, err := p.fetchTrackMeta(ctx, q.Track.ISRC)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 	}
 
 	t := tierByLevel[meta.syncLevel]
-	lines, err := p.fetchTier(ctx, t, q.ISRC)
+	lines, err := p.fetchTier(ctx, t, q.Track.ISRC)
 	if err != nil {
 		return nil, err
 	}

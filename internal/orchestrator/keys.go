@@ -13,5 +13,5 @@ func cacheKey(isrc, source string) string {
 }
 
 func queryKey(q lyrics.Query) string {
-	return q.ISRC
+	return q.Track.ISRC
 }

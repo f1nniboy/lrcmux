@@ -1,9 +1,4 @@
-import type {
-  DeezerTrack,
-  LyricsFormat,
-  LyricsResult,
-  SyncLevel,
-} from "./types";
+import type { LyricsFormat, LyricsResult, SyncLevel } from "./types";
 
 export interface GetLyricsOptions {
   level?: SyncLevel;
@@ -22,10 +17,11 @@ export class LyricsError extends Error {
 }
 
 export async function getLyricsJSON(
-  track: DeezerTrack,
+  artist: string,
+  title: string,
   opts: Omit<GetLyricsOptions, "format"> = {},
 ): Promise<LyricsResult> {
-  const res = await fetch(downloadURL(track, "json", opts), {
+  const res = await fetch(downloadURL(artist, title, "json", opts), {
     signal: opts.signal,
   });
   if (!res.ok) {
@@ -39,11 +35,12 @@ export async function getLyricsJSON(
 }
 
 export async function getLyricsText(
-  track: DeezerTrack,
+  artist: string,
+  title: string,
   format: LyricsFormat,
   opts: Omit<GetLyricsOptions, "format"> = {},
 ): Promise<string> {
-  const res = await fetch(downloadURL(track, format, opts), {
+  const res = await fetch(downloadURL(artist, title, format, opts), {
     signal: opts.signal,
   });
   if (!res.ok) {
@@ -57,17 +54,14 @@ export async function getLyricsText(
 }
 
 export function downloadURL(
-  track: DeezerTrack,
+  artist: string,
+  title: string,
   format: LyricsFormat,
   opts: GetLyricsOptions = {},
 ): string {
   const params = new URLSearchParams();
-  if (track.isrc) {
-    params.set("isrc", track.isrc);
-  } else {
-    params.set("artist", track.artist.name);
-    params.set("title", track.title);
-  }
+  params.set("artist", artist);
+  params.set("title", title);
   params.set("format", format);
   if (opts.level) params.set("level", opts.level);
   return `/api/get?${params.toString()}`;

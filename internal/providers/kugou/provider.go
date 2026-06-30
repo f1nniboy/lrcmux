@@ -68,8 +68,8 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 		return strings.TrimSpace(reBrackets.ReplaceAllString(s, ""))
 	}
 	attempts := []attempt{
-		{q.Artist, q.Title},
-		{stripped(q.Artist), stripped(q.Title)},
+		{q.Track.Artist, q.Track.Title},
+		{stripped(q.Track.Artist), stripped(q.Track.Title)},
 	}
 
 	for _, a := range attempts {
@@ -79,7 +79,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		cand, err := p.search(ctx, a.artist, a.title, q.Duration*1000)
+		cand, err := p.search(ctx, a.artist, a.title, q.Track.Duration*1000)
 		if err != nil {
 			return nil, err
 		}

@@ -55,13 +55,13 @@ type apiResult struct {
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
 	params := url.Values{}
-	params.Set("artist_name", q.Artist)
-	params.Set("track_name", q.Title)
-	if q.Album != "" {
-		params.Set("album_name", q.Album)
+	params.Set("artist_name", q.Track.Artist)
+	params.Set("track_name", q.Track.Title)
+	if q.Track.Album != "" {
+		params.Set("album_name", q.Track.Album)
 	}
-	if q.Duration > 0 {
-		params.Set("duration", strconv.FormatInt(q.Duration, 10))
+	if q.Track.Duration > 0 {
+		params.Set("duration", strconv.FormatInt(q.Track.Duration, 10))
 	}
 	endpoint := p.baseURL + "/api/get?" + params.Encode()
 

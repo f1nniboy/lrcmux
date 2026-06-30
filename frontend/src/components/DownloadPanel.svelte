@@ -2,8 +2,9 @@
   import { getLyricsText, downloadURL, LyricsError } from "$lib/api";
   import Spinner from "$components/Spinner.svelte";
   import FormatBar from "$components/FormatBar.svelte";
+  import ActionButton from "$components/ActionButton.svelte";
   import type {
-    DeezerTrack,
+    Track,
     LyricsFormat,
     LyricsResult,
     SyncLevel,
@@ -11,7 +12,7 @@
   import { FORMATS, LEVEL_RANK } from "$lib/types";
 
   interface Props {
-    track: DeezerTrack;
+    track: Track;
     result: LyricsResult;
   }
   let { track, result }: Props = $props();
@@ -32,7 +33,9 @@
     loading = true;
     err = null;
     try {
-      const text = await getLyricsText(track, format, { level });
+      const text = await getLyricsText(track.artist, track.title, format, {
+        level,
+      });
       cache = { ...cache, [key]: text };
     } catch (e) {
       err = e instanceof LyricsError ? e.message : (e as Error).message;
@@ -47,7 +50,6 @@
   });
 
   const text = $derived.by(() => {
-    // so we don't do a useless request for .txt format
     if (activeFormat === "txt" && result) {
       return result.lines.map((l) => l.text).join("\n");
     }
@@ -64,7 +66,9 @@
     return raw;
   });
   const dlURL = $derived(
-    downloadURL(track, activeFormat, { level: activeLevel }),
+    downloadURL(track.artist, track.title, activeFormat, {
+      level: activeLevel,
+    }),
   );
   const isRich = $derived(
     FORMATS.find((f) => f.id === activeFormat)?.rich ?? false,
@@ -80,7 +84,6 @@
       activeFormat = format;
       err = null;
 
-      // clamp sync level to min level of selected format
       const f = FORMATS.find((x) => x.id === format);
       if (f?.minLevel && LEVEL_RANK[activeLevel] < LEVEL_RANK[f.minLevel]) {
         activeLevel = f.minLevel;
@@ -91,13 +94,45 @@
       err = null;
     }}
   >
-    <a
-      href={dlURL}
-      download
-      class="ml-auto inline-flex items-center gap-1.5 bg-cue text-ink dark:text-paper px-3 py-1.5 rounded-md text-xs font-medium hover:brightness-110 transition-all shadow-sm no-underline"
+    <ActionButton
+      onclick={async () => {
+        if (text) await navigator.clipboard.writeText(text);
+      }}
+      label="Copy"
     >
-      Download .{activeFormat} <span aria-hidden="true">↓</span>
-    </a>
+      {#snippet icon()}
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-4H4a2 2 0 0 1-2-2zm8 12v4h10V10h-4v4a2 2 0 0 1-2 2zm4-2V4H4v10z"
+            fill="currentColor"
+          />
+        </svg>
+      {/snippet}
+    </ActionButton>
+
+    <ActionButton href={dlURL} download label="Download">
+      {#snippet icon()}
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M14 9a1 1 0 0 1 1 1v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-3a1 1 0 0 1 2 0v3h10v-3a1 1 0 0 1 1-1M8 1a1 1 0 0 1 1 1v4.586l1.293-1.293a1 1 0 1 1 1.414 1.414L8 10.414 4.293 6.707a1 1 0 0 1 1.414-1.414L7 6.586V2a1 1 0 0 1 1-1"
+            fill="currentColor"
+          />
+        </svg>
+      {/snippet}
+    </ActionButton>
   </FormatBar>
 
   <div class="relative">

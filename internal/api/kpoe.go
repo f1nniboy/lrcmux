@@ -10,6 +10,7 @@ import (
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/meta"
+	"github.com/f1nniboy/lrcmux/internal/orchestrator"
 )
 
 type KpoeInput struct {
@@ -73,7 +74,7 @@ func (s *Server) kpoeOp() huma.Operation {
 func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput, error) {
 	start := time.Now()
 
-	resp, err := s.fetch(ctx, fetchParams{
+	resp, err := s.fetch(ctx, orchestrator.Request{
 		Artist:   input.Artist,
 		Title:    input.Title,
 		Album:    input.Album,
@@ -120,7 +121,7 @@ func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput,
 		cached = "Database"
 	}
 
-	src := ""
+	src := meta.AppDomain
 	if !s.hide && resp.Result.Source.ID != "" {
 		src = fmt.Sprintf("%s at %s", resp.Result.Source.Name, meta.AppDomain)
 	}

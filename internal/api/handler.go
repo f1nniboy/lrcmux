@@ -82,7 +82,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.St
 		level = min
 	}
 
-	resp, err := s.fetch(ctx, fetchParams{
+	resp, err := s.fetch(ctx, orchestrator.Request{
 		Artist:   input.Artist,
 		Title:    input.Title,
 		Album:    input.Album,
@@ -115,7 +115,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.St
 		return nil, huma.Error500InternalServerError(err.Error())
 	}
 
-	filename := fmt.Sprintf("%s - %s.%s", utils.SanitizeFilename(resp.Track.Artist), utils.SanitizeFilename(resp.Track.Title), input.Format)
+	filename := fmt.Sprintf("%s - %s.%s", utils.SanitizeFilename(resp.Result.Track.Artist), utils.SanitizeFilename(resp.Result.Track.Title), input.Format)
 
 	return &huma.StreamResponse{
 		Body: func(ctx huma.Context) {
@@ -136,40 +136,20 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.St
 	}, nil
 }
 
-type fetchParams struct {
-	Artist, Title, Album, ISRC string
-	Duration                   int64
-	Level                      lyrics.SyncLevel
-	Strict, Force              bool
-}
-
-func (s *Server) fetch(ctx context.Context, p fetchParams) (*orchestrator.Response, error) {
-	if p.ISRC == "" && (p.Artist == "" || p.Title == "") {
+func (s *Server) fetch(ctx context.Context, req orchestrator.Request) (*orchestrator.Response, error) {
+	if req.ISRC == "" && (req.Artist == "" || req.Title == "") {
 		return nil, huma.Error400BadRequest("provide either ISRC or both artist and title")
 	}
 
-	var charge func(context.Context) error
 	if s.rl != nil {
 		ip := clientIP(ctx)
-		charge = func(ctx context.Context) error {
+		req.Charge = func(ctx context.Context) error {
 			return s.rl.Allow(ctx, ip)
 		}
 	}
 
-	artist, title := utils.CleanQuery(p.Artist, p.Title)
-	return s.orch.Get(ctx, orchestrator.Request{
-		Query: lyrics.Query{
-			Artist:   artist,
-			Title:    title,
-			Album:    p.Album,
-			Duration: p.Duration,
-			ISRC:     p.ISRC,
-		},
-		Level:  p.Level,
-		Strict: p.Strict,
-		Force:  p.Force,
-		Charge: charge,
-	})
+	req.Artist, req.Title = utils.CleanQuery(req.Artist, req.Title)
+	return s.orch.Get(ctx, req)
 }
 
 func (s *Server) mapError(err error) error {

@@ -1,16 +1,15 @@
 <script lang="ts">
-  import type { DeezerTrack, LyricsResult } from "$lib/types";
+  import type { LyricsResult, Track } from "$lib/types";
   import DownloadPanel from "./DownloadPanel.svelte";
 
-  let { track, result }: { track: DeezerTrack; result: LyricsResult } =
-    $props();
+  let { track, result }: { track: Track; result: LyricsResult } = $props();
 </script>
 
 <section class="space-y-6">
   <header class="flex items-start gap-4">
-    {#if track.album.cover_medium}
+    {#if track.cover.medium}
       <img
-        src={track.album.cover_medium}
+        src={track.cover.medium}
         alt=""
         class="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-md shadow-md shrink-0"
       />
@@ -23,7 +22,7 @@
       <h2 class="text-2xl sm:text-3xl font-semibold text-ink leading-tight">
         {track.title}
       </h2>
-      <p class="text-muted mt-1">{track.artist.name}</p>
+      <p class="text-muted mt-1">{track.artist}</p>
     </div>
   </header>
 

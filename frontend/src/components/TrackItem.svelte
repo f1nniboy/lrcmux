@@ -1,15 +1,18 @@
 <script lang="ts">
-  import type { DeezerTrack } from "$lib/types";
+  import type { Track } from "$lib/types";
 
   interface Props {
-    track: DeezerTrack;
+    track: Track;
     variant?: "row" | "tile";
-    onclick: () => void;
+    onclick?: () => void;
   }
   let { track, variant = "row", onclick }: Props = $props();
 
+  const href = $derived(
+    `/s/${encodeURIComponent(track.artist)}/${encodeURIComponent(track.title)}`,
+  );
+
   function fmtDuration(s: number): string {
-    if (!s) return "";
     const m = Math.floor(s / 60);
     const sec = (s % 60).toString().padStart(2, "0");
     return `${m}:${sec}`;
@@ -17,14 +20,10 @@
 </script>
 
 {#if variant === "tile"}
-  <button
-    type="button"
-    {onclick}
-    class="block w-full text-left group cursor-pointer"
-  >
-    {#if track.album.cover_medium}
+  <a {href} {onclick} class="block w-full text-left group cursor-pointer">
+    {#if track.cover.medium}
       <img
-        src={track.album.cover_medium}
+        src={track.cover.medium}
         alt=""
         loading="lazy"
         class="w-full aspect-square object-cover rounded-md bg-paper-2 shadow-sm group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-200"
@@ -37,17 +36,17 @@
     >
       {track.title}
     </p>
-    <p class="text-xs text-muted truncate">{track.artist.name}</p>
-  </button>
+    <p class="text-xs text-muted truncate">{track.artist}</p>
+  </a>
 {:else}
-  <button
-    type="button"
+  <a
+    {href}
     {onclick}
     class="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-cue/10 transition-colors cursor-pointer"
   >
-    {#if track.album.cover_small}
+    {#if track.cover.small}
       <img
-        src={track.album.cover_small}
+        src={track.cover.small}
         alt=""
         class="w-10 h-10 rounded object-cover bg-paper-2"
         loading="lazy"
@@ -57,12 +56,10 @@
     {/if}
     <div class="flex-1 min-w-0">
       <p class="text-sm font-medium truncate text-ink">{track.title}</p>
-      <p class="text-xs text-muted truncate">{track.artist.name}</p>
+      <p class="text-xs text-muted truncate">{track.artist}</p>
     </div>
-    {#if track.duration}
-      <span class="font-mono text-xs text-muted tabular-nums"
-        >{fmtDuration(track.duration)}</span
-      >
-    {/if}
-  </button>
+    <span class="font-mono text-xs text-muted tabular-nums"
+      >{fmtDuration(track.duration)}</span
+    >
+  </a>
 {/if}

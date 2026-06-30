@@ -26,6 +26,22 @@ export interface LyricsMeta {
 export interface LyricsResult {
   meta: LyricsMeta;
   lines: Line[];
+  track: Track;
+}
+
+export interface TrackCover {
+  small?: string;
+  medium?: string;
+  big?: string;
+}
+
+export interface Track {
+  isrc: string;
+  title: string;
+  duration: number;
+  artist: string;
+  album: string;
+  cover: TrackCover;
 }
 
 export type LyricsFormat = "lrc" | "txt" | "json" | "srt" | "vtt";
@@ -71,7 +87,7 @@ export interface DeezerTrack {
   id: number;
   title: string;
   title_short: string;
-  isrc?: string;
+  isrc: string;
   duration: number;
   preview?: string;
   explicit_lyrics?: boolean;

@@ -10,6 +10,7 @@ import (
 
 	"github.com/f1nniboy/lrcmux/internal/format"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
+	"github.com/f1nniboy/lrcmux/internal/orchestrator"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
 )
 
@@ -47,7 +48,7 @@ func (s *Server) lrclibOp() huma.Operation {
 }
 
 func (s *Server) handleLrclib(ctx context.Context, input *LrclibInput) (*LrclibOutput, error) {
-	resp, err := s.fetch(ctx, fetchParams{
+	resp, err := s.fetch(ctx, orchestrator.Request{
 		Artist:   input.ArtistName,
 		Title:    input.TrackName,
 		Album:    input.AlbumName,

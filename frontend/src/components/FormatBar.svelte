@@ -40,7 +40,7 @@
       type="button"
       onclick={() => onformat(f.id)}
       {disabled}
-      class="px-3 py-1.5 text-sm font-medium rounded transition-colors
+      class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors
                 {disabled
         ? 'text-muted opacity-35 cursor-not-allowed'
         : format === f.id
@@ -52,7 +52,9 @@
   {/each}
 </header>
 
-<div class="flex items-center gap-2 px-3 py-2 border-b border-rule">
+<div
+  class="flex items-center gap-2 px-3 py-2 border-b border-rule overflow-x-auto"
+>
   {#if !isRich}
     <span class="text-xs font-semibold text-ink">Sync</span>
     {#each LEVELS as l}
@@ -73,6 +75,8 @@
     {/each}
   {/if}
   {#if children}
-    {@render children()}
+    <div class="ml-auto flex items-center gap-2">
+      {@render children()}
+    </div>
   {/if}
 </div>

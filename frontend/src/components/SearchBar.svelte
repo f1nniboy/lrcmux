@@ -1,25 +1,18 @@
 <script lang="ts">
-  import { makeDebouncedSearch } from "$lib/deezer";
-  import type { DeezerTrack } from "$lib/types";
+  import { makeDebouncedSearch, deezerToAPITrack } from "$lib/deezer";
+  import type { Track } from "$lib/types";
   import Spinner from "$components/Spinner.svelte";
   import TrackItem from "./TrackItem.svelte";
 
   interface Props {
-    onselect: (track: DeezerTrack) => void;
     slim?: boolean;
   }
-  let { onselect, slim = false }: Props = $props();
+  let { slim = false }: Props = $props();
 
   let query = $state("");
-  let tracks = $state<DeezerTrack[]>([]);
+  let tracks = $state<Track[]>([]);
   let loading = $state(false);
   let error = $state<string | null>(null);
-
-  function handleSelect(track: DeezerTrack) {
-    query = "";
-    tracks = [];
-    onselect(track);
-  }
 
   const search = makeDebouncedSearch(300);
 
@@ -37,7 +30,7 @@
     search
       .run(q, { limit: 8 })
       .then((r) => {
-        tracks = r;
+        tracks = r.map(deezerToAPITrack);
         loading = false;
       })
       .catch((e: Error) => {
@@ -94,12 +87,15 @@
     <ul
       class="absolute top-full left-0 right-0 z-50 mt-1 border border-rule rounded-lg divide-y divide-rule overflow-hidden bg-paper shadow-lg"
     >
-      {#each tracks as track (track.id)}
+      {#each tracks as track (track.isrc)}
         <li>
           <TrackItem
             {track}
             variant="row"
-            onclick={() => handleSelect(track)}
+            onclick={() => {
+              query = "";
+              tracks = [];
+            }}
           />
         </li>
       {/each}

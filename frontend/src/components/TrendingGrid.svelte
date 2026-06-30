@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
-  import { getTrending } from "$lib/deezer";
+  import { getTrending, deezerToAPITrack } from "$lib/deezer";
   import Spinner from "$components/Spinner.svelte";
   import TrackItem from "./TrackItem.svelte";
-  import type { DeezerTrack } from "$lib/types";
+  import type { Track } from "$lib/types";
 
   const COUNT = 12;
-  let tracks = $state<DeezerTrack[]>([]);
+  let tracks = $state<Track[]>([]);
   let loading = $state(true);
 
   $effect(() => {
@@ -16,18 +15,16 @@
   async function load() {
     loading = true;
     try {
-      tracks = await getTrending(COUNT);
+      // Deezer chart endpoint doesn't return ISRC, so we have to use the ID as a stable unique key
+      tracks = (await getTrending(COUNT)).map((dt) => ({
+        ...deezerToAPITrack(dt),
+        isrc: String(dt.id),
+      }));
     } catch {
       tracks = [];
     } finally {
       loading = false;
     }
-  }
-
-  function pick(t: DeezerTrack) {
-    goto(
-      `/s/${encodeURIComponent(t.artist.name)}/${encodeURIComponent(t.title)}`,
-    );
   }
 
   const skeletons = Array.from({ length: COUNT });
@@ -65,9 +62,9 @@
       {/if}
     {:else}
       <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        {#each tracks as t (t.id)}
+        {#each tracks as t (t.isrc)}
           <li>
-            <TrackItem track={t} variant="tile" onclick={() => pick(t)} />
+            <TrackItem track={t} variant="tile" />
           </li>
         {/each}
       </ul>

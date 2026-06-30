@@ -49,7 +49,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 
 func (p *Provider) searchVideoID(ctx context.Context, q lyrics.Query) (string, error) {
 	body := map[string]any{
-		"query":   q.Title + " " + utils.PrimaryArtist(q.Artist),
+		"query":   q.Track.Title + " " + utils.PrimaryArtist(q.Track.Artist),
 		"params":  "EgWKAQIIAWoMEA4QChADEAQQCRAF",
 		"context": webContext(),
 	}
@@ -57,7 +57,7 @@ func (p *Provider) searchVideoID(ctx context.Context, q lyrics.Query) (string, e
 	if err := p.post(ctx, "search", body, &resp); err != nil {
 		return "", err
 	}
-	id := resp.videoID(q.Artist, utils.NormalizeTitle(q.Title), p.log)
+	id := resp.videoID(q.Track.Artist, utils.NormalizeTitle(q.Track.Title), p.log)
 	if id == "" {
 		return "", lyrics.ErrNotFound
 	}

@@ -4,13 +4,11 @@
   import Spinner from "$components/Spinner.svelte";
   import UseItInYourApp from "$components/UseItInYourApp.svelte";
   import { getLyricsJSON, LyricsError } from "$lib/api";
-  import { searchDeezer } from "$lib/deezer";
-  import type { DeezerTrack, LyricsResult } from "$lib/types";
+  import type { LyricsResult } from "$lib/types";
 
   let artist = $derived(decodeURIComponent(page.params.artist ?? ""));
   let title = $derived(decodeURIComponent(page.params.title ?? ""));
 
-  let track = $state<DeezerTrack | null>(null);
   let result = $state<LyricsResult | null>(null);
   let loading = $state(true);
   let error = $state<{
@@ -26,44 +24,17 @@
     });
   }
 
-  function syntheticTrack(): DeezerTrack {
-    return {
-      id: 0,
-      title,
-      title_short: title,
-      duration: 0,
-      artist: { id: 0, name: artist },
-      album: { id: 0, title: "" },
-    } as DeezerTrack;
-  }
-
   $effect(() => {
-    void load();
+    load();
   });
 
   async function load() {
     loading = true;
     error = null;
-    track = null;
     result = null;
-    try {
-      const tracks = await searchDeezer(`${artist} ${title}`, {
-        limit: 5,
-      });
-      track =
-        tracks.find(
-          (t) =>
-            t.artist.name.toLowerCase() === artist.toLowerCase() &&
-            t.title.toLowerCase() === title.toLowerCase(),
-        ) ??
-        tracks[0] ??
-        syntheticTrack();
-    } catch {
-      track = syntheticTrack();
-    }
 
     try {
-      result = await getLyricsJSON(track!);
+      result = await getLyricsJSON(artist, title);
     } catch (e) {
       if (e instanceof LyricsError) {
         error = {
@@ -116,10 +87,10 @@
     </div>
   {/if}
 
-  {#if track && result}
+  {#if result}
     <div class="flex flex-col gap-12">
       <div>
-        <LyricsPanel {track} {result} />
+        <LyricsPanel track={result.track} {result} />
 
         {#if result.meta.source}
           <p class="mt-3 text-xs text-muted text-center">

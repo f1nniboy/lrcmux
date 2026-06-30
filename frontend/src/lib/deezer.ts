@@ -1,4 +1,4 @@
-import type { DeezerSearchResponse, DeezerTrack } from "./types";
+import type { DeezerSearchResponse, DeezerTrack, Track } from "./types";
 
 const ENDPOINT = "https://api.deezer.com/search";
 
@@ -56,6 +56,21 @@ function jsonp<T>(url: string, signal?: AbortSignal): Promise<T> {
     script.src = `${url}${sep}output=jsonp&callback=${cb}`;
     document.head.appendChild(script);
   });
+}
+
+export function deezerToAPITrack(dt: DeezerTrack): Track {
+  return {
+    isrc: dt.isrc,
+    title: dt.title,
+    duration: dt.duration,
+    artist: dt.artist.name,
+    album: dt.album.title,
+    cover: {
+      small: dt.album.cover_small,
+      medium: dt.album.cover_medium,
+      big: dt.album.cover_big,
+    },
+  };
 }
 
 export async function searchDeezer(

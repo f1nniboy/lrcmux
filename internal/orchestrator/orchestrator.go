@@ -36,17 +36,20 @@ type Orchestrator struct {
 }
 
 type Request struct {
-	Query  lyrics.Query
-	Level  lyrics.SyncLevel
-	Strict bool
-	Force  bool
-	Charge func(ctx context.Context) error
+	Artist   string
+	Title    string
+	Album    string
+	Duration int64
+	ISRC     string
+	Level    lyrics.SyncLevel
+	Strict   bool
+	Force    bool
+	Charge   func(ctx context.Context) error
 }
 
 type Response struct {
 	Result *lyrics.Result
 	Cached bool
-	Track  lyrics.Track
 }
 
 type ProviderHealth struct {
@@ -109,25 +112,24 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		return nil, ErrNoProviders
 	}
 
-	if req.Query.ISRC == "" {
-		isrc, err := o.resolver.Resolve(ctx, req.Query)
-		if err != nil {
-			return nil, ErrNotFound
-		}
-		req.Query.ISRC = isrc
-	}
-	if meta, ok := o.resolver.LookupMeta(ctx, req.Query.ISRC); ok {
-		req.Query.Artist = meta.Artist
-		req.Query.Title = meta.Title
-		req.Query.Album = meta.Album
-		req.Query.Duration = meta.Duration
+	track, err := o.resolver.Resolve(ctx, isrc.ResolveInput{
+		Artist:   req.Artist,
+		Title:    req.Title,
+		Album:    req.Album,
+		Duration: req.Duration,
+		ISRC:     req.ISRC,
+	})
+	if err != nil {
+		return nil, ErrNotFound
 	}
 
-	best, unknowns := o.checkCache(ctx, req.Query, req.Force)
+	q := lyrics.Query{Track: track}
+
+	best, unknowns := o.checkCache(ctx, q, req.Force)
 
 	if best != nil && best.SyncLevel >= req.Level {
 		o.log.Debug("serving from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
-		return respond(best, true, req.Level, req.Query), nil
+		return respond(best, true, req.Level, q), nil
 	}
 
 	unknowns = o.breaker.Filter(ctx, unknowns)
@@ -135,21 +137,24 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	if len(unknowns) == 0 {
 		if !req.Strict && best != nil {
 			o.log.Debug("all providers explored, serving best available from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
-			return respond(best, true, req.Level, req.Query), nil
+			return respond(best, true, req.Level, q), nil
 		}
 		return nil, ErrNotFound
 	}
 
-	sfKey := queryKey(req.Query)
-	type fanResult struct{ resp *Response }
-	v, err, _ := o.sf.Do(sfKey, func() (any, error) {
+	groupKey := queryKey(q)
+	type fanResult struct {
+		res *Response
+	}
+
+	v, err, _ := o.sf.Do(groupKey, func() (any, error) {
 		if req.Charge != nil {
 			if err := req.Charge(ctx); err != nil {
 				return nil, err
 			}
 		}
 
-		results := o.fanOut(ctx, unknowns, req.Query, req.Level)
+		results := o.fanOut(ctx, unknowns, q, req.Level)
 
 		picked := o.pick(results, req.Level)
 		if picked == nil && !req.Strict {
@@ -166,12 +171,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 			return nil, ErrNotFound
 		}
 
-		return &fanResult{respond(picked, false, req.Level, req.Query)}, nil
+		return &fanResult{respond(picked, false, req.Level, q)}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return v.(*fanResult).resp, nil
+	return v.(*fanResult).res, nil
 }
 
 func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force bool) (best *lyrics.Result, unknowns []providers.Provider) {
@@ -181,7 +186,7 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force boo
 
 	keys := make([]string, len(o.providers))
 	for i, p := range o.providers {
-		keys[i] = cacheKey(q.ISRC, p.ID())
+		keys[i] = cacheKey(q.Track.ISRC, p.ID())
 	}
 	results, statuses, err := cache.GetMany[lyrics.Result](ctx, o.cache, keys)
 	if err != nil {
@@ -207,10 +212,11 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force boo
 }
 
 func respond(r *lyrics.Result, cached bool, level lyrics.SyncLevel, q lyrics.Query) *Response {
+	out := lyrics.Downgrade(r, level)
+	out.Track = q.Track
 	return &Response{
-		Result: lyrics.Downgrade(r, level),
+		Result: out,
 		Cached: cached,
-		Track:  lyrics.Track(q),
 	}
 }
 
@@ -272,12 +278,12 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 	go func() {
 		bg := context.Background()
 		for _, r := range results {
-			if err := cache.Set(bg, o.cache, cacheKey(q.ISRC, r.Source.ID), *r, o.opts.CacheTTL); err != nil {
+			if err := cache.Set(bg, o.cache, cacheKey(q.Track.ISRC, r.Source.ID), *r, o.opts.CacheTTL); err != nil {
 				o.log.Warn("cache set failed", "err", err, "provider", r.Source.ID)
 			}
 		}
 		for _, provider := range misses {
-			if err := cache.SetMiss(bg, o.cache, cacheKey(q.ISRC, provider), o.opts.CacheMissTTL); err != nil {
+			if err := cache.SetMiss(bg, o.cache, cacheKey(q.Track.ISRC, provider), o.opts.CacheMissTTL); err != nil {
 				o.log.Warn("miss cache set failed", "provider", provider, "err", err)
 			}
 		}
@@ -315,9 +321,9 @@ func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) {
 		sentry.WithScope(func(scope *sentry.Scope) {
 			scope.SetTag("provider", out.id)
 			scope.SetContext("query", sentry.Context{
-				"isrc":   q.ISRC,
-				"artist": q.Artist,
-				"title":  q.Title,
+				"isrc":   q.Track.ISRC,
+				"artist": q.Track.Artist,
+				"title":  q.Track.Title,
 			})
 			sentry.CaptureException(out.err)
 		})

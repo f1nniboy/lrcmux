@@ -1,18 +1,10 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import Link from "$lib/Link.svelte";
   import SearchBar from "$components/SearchBar.svelte";
   import TrendingGrid from "$components/TrendingGrid.svelte";
   import UseItInYourApp from "$components/UseItInYourApp.svelte";
   import Wordmark from "$components/Wordmark.svelte";
-  import type { DeezerTrack } from "$lib/types";
-
-  function pick(t: DeezerTrack) {
-    goto(
-      `/s/${encodeURIComponent(t.artist.name)}/${encodeURIComponent(t.title)}`,
-    );
-  }
 </script>
 
 <svelte:head>
@@ -40,7 +32,7 @@
     </p>
   </section>
 
-  <SearchBar onselect={pick} />
+  <SearchBar />
 
   <div>
     <TrendingGrid />
@@ -63,7 +55,8 @@
       <div>
         <h3 class="text-lg font-semibold text-ink mb-1.5">Free and public</h3>
         <p class="text-muted text-base sm:text-sm leading-relaxed">
-          Use this public instance or host it yourself.
+          Use this public instance or host it yourself, without the need for any
+          provider API keys.
         </p>
       </div>
       <div>

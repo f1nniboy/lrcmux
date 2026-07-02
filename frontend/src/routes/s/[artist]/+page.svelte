@@ -1,9 +1,38 @@
 <script lang="ts">
+  import { getArtistTopTracks, deezerToAPITrack } from "$lib/deezer";
+  import type { Track } from "$lib/types";
   import Meta from "$lib/Meta.svelte";
   import TrackItem from "$components/TrackItem.svelte";
+  import Spinner from "$components/Spinner.svelte";
+  import ErrorAlert from "$components/ErrorAlert.svelte";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
+
+  let tracks = $state<Track[]>([]);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+
+  $effect(() => {
+    const artistId = data.artist.id;
+    loading = true;
+    tracks = [];
+    error = null;
+
+    void getArtistTopTracks({}, artistId)
+      .then((deezerTracks) => {
+        tracks = deezerTracks.map((dt) => ({
+          ...deezerToAPITrack(dt),
+          isrc: dt.isrc || String(dt.id),
+        }));
+      })
+      .catch((e: Error) => {
+        error = e.message;
+      })
+      .finally(() => {
+        loading = false;
+      });
+  });
 </script>
 
 <Meta
@@ -30,10 +59,21 @@
         {data.artist.name}
       </h1>
     </header>
-    <div class="divide-y divide-rule -mx-3">
-      {#each data.tracks as track (track.isrc)}
-        <TrackItem {track} variant="row" />
-      {/each}
-    </div>
+
+    {#if loading}
+      <div class="flex justify-center py-12 text-muted">
+        <Spinner size={48} />
+      </div>
+    {:else if error}
+      <ErrorAlert message={error} />
+    {:else if tracks.length}
+      <div class="divide-y divide-rule -mx-3">
+        {#each tracks as track (track.isrc)}
+          <TrackItem {track} variant="row" />
+        {/each}
+      </div>
+    {:else}
+      <p class="text-muted text-sm">No top tracks available.</p>
+    {/if}
   </div>
 </div>

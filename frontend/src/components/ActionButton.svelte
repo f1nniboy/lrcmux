@@ -3,7 +3,7 @@
 
   interface Props {
     icon: Snippet;
-    label: string;
+    label?: string;
     onclick?: () => void | Promise<void>;
     href?: string;
     download?: boolean | string;
@@ -35,7 +35,7 @@
 {#snippet body()}
   <span class:invisible={done} class="flex items-center gap-1.5">
     {@render icon()}
-    {label}
+    {#if label}{label}{/if}
   </span>
   {#if done}
     <svg

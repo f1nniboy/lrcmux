@@ -4,13 +4,15 @@
   interface Props {
     title?: string;
     description?: string;
-    og?: { image?: string };
+    og?: { type?: "website" | "music.song"; image?: string };
   }
   let { title, description, og }: Props = $props();
 </script>
 
 <svelte:head>
   <title>{title ? `${title} - ${page.url.hostname}` : page.url.hostname}</title>
+  <meta property="og:type" content={og?.type ?? "website"} />
+  <meta property="og:url" content={page.url.href} />
   {#if title}
     <meta property="og:site_name" content={page.url.hostname} />
   {/if}

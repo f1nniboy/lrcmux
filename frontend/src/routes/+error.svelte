@@ -2,6 +2,10 @@
   import { page } from "$app/state";
 </script>
 
+<svelte:head>
+  <meta name="robots" content="noindex, nofollow" />
+</svelte:head>
+
 <div
   class="flex-1 flex flex-col items-center justify-center gap-6 px-5 min-w-0"
 >

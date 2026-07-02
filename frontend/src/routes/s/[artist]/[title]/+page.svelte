@@ -83,7 +83,7 @@
 <Meta
   title="{data.title} by {data.artist}"
   {description}
-  og={{ image: ogImage }}
+  og={{ type: "music.song", image: ogImage }}
 />
 
 <div class="w-full max-w-3xl min-w-0 px-5 sm:px-8 pt-12 pb-16">

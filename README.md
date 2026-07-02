@@ -1,7 +1,7 @@
 # lrcmux
 
 <div align="center">
-  <a href="https://lrcmux.dev">
+  <a href="https://lrcmux.dev/s/Rick-Astley/Never-Gonna-Give-You-Up">
     <img src="assets/screenshots/1.png" alt='Screenshot of lrcmux.dev showing lyrics for "Never Gonna Give You Up" by Rick Astley' width="680" />
   </a>
 </div>

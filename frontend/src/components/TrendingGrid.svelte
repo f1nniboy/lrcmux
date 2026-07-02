@@ -11,6 +11,7 @@
   const COUNT = 12;
   let tracks = $state<Track[]>(cache ?? []);
   let loading = $state(cache.length === 0);
+  let failed = $state(false);
 
   $effect(() => {
     if (cache.length > 0) return;
@@ -23,7 +24,7 @@
           isrc: String(dt.id),
         }));
       } catch {
-        tracks = [];
+        failed = true;
       } finally {
         loading = false;
       }
@@ -33,6 +34,7 @@
   const skeletons = Array.from({ length: COUNT });
 </script>
 
+{#if !failed}
 <section>
   <div class="flex items-baseline justify-between mb-5">
     <h2 class="text-lg font-semibold text-ink">Trending now</h2>
@@ -74,3 +76,4 @@
     {/if}
   </div>
 </section>
+{/if}

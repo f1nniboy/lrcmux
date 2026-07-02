@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Track } from "$lib/types";
+  import { toSlug } from "$lib/slug";
 
   interface Props {
     track: Track;
@@ -8,9 +9,7 @@
   }
   let { track, variant = "row", onclick }: Props = $props();
 
-  const href = $derived(
-    `/s/${encodeURIComponent(track.artist)}/${encodeURIComponent(track.title)}`,
-  );
+  const href = $derived(`/s/${toSlug(track.artist)}/${toSlug(track.title)}`);
 
   function fmtDuration(s: number): string {
     const m = Math.floor(s / 60);

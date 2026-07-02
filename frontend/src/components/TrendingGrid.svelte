@@ -1,31 +1,34 @@
+<script module lang="ts">
+  import type { Track } from "$lib/types";
+  let cache: Track[] = [];
+</script>
+
 <script lang="ts">
-  import { getTrending, deezerToAPITrack } from "$lib/deezer";
   import Spinner from "$components/Spinner.svelte";
   import TrackItem from "./TrackItem.svelte";
-  import type { Track } from "$lib/types";
+  import { getTrending, deezerToAPITrack } from "$lib/deezer";
 
   const COUNT = 12;
-  let tracks = $state<Track[]>([]);
-  let loading = $state(true);
+  let tracks = $state<Track[]>(cache ?? []);
+  let loading = $state(cache.length === 0);
 
   $effect(() => {
-    void load();
-  });
+    if (cache.length > 0) return;
 
-  async function load() {
-    loading = true;
-    try {
-      // Deezer chart endpoint doesn't return ISRC, so we have to use the ID as a stable unique key
-      tracks = (await getTrending(COUNT)).map((dt) => ({
-        ...deezerToAPITrack(dt),
-        isrc: String(dt.id),
-      }));
-    } catch {
-      tracks = [];
-    } finally {
-      loading = false;
-    }
-  }
+    void (async () => {
+      try {
+        // Deezer chart endpoint doesn't return ISRC, so we have to use the ID as a stable unique key
+        tracks = cache = (await getTrending(COUNT)).map((dt) => ({
+          ...deezerToAPITrack(dt),
+          isrc: String(dt.id),
+        }));
+      } catch {
+        tracks = [];
+      } finally {
+        loading = false;
+      }
+    })();
+  });
 
   const skeletons = Array.from({ length: COUNT });
 </script>

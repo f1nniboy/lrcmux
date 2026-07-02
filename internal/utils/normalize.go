@@ -73,12 +73,10 @@ func PrimaryArtist(s string) string {
 	return ""
 }
 
-// returns if ytArtist contains any of the individual artists from inputArtist
-// handles platforms listing collaborators in different orders
-func ArtistMatch(ytArtist, inputArtist string) bool {
-	yt := Normalize(ytArtist)
-	for _, a := range SplitArtists(inputArtist) {
-		if strings.Contains(yt, a) {
+func ArtistMatch(a, b string) bool {
+	na := Normalize(a)
+	for _, part := range SplitArtists(b) {
+		if strings.Contains(na, part) {
 			return true
 		}
 	}

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/f1nniboy/lrcmux/internal/utils"
 )
 
 const (
@@ -121,7 +123,12 @@ func requireCloudflare(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if !fromCloudflare(r.Header.Get("Fly-Client-IP")) {
+		ip := r.Header.Get("Fly-Client-IP")
+		if ip == "" || utils.IsPrivateIP(ip) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !fromCloudflare(ip) {
 			http.Error(w, "glory to cloudflare", http.StatusForbidden)
 			return
 		}

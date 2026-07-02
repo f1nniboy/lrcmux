@@ -16,9 +16,9 @@ type Server struct {
 }
 
 type Cache struct {
-	Redis   string   `toml:"redis" validate:"required"`
-	TTL     Duration `toml:"ttl"`
-	MissTTL Duration `toml:"miss_ttl"`
+	RedisURL string   `toml:"redis_url"`
+	TTL      Duration `toml:"ttl"`
+	MissTTL  Duration `toml:"miss_ttl"`
 }
 
 type Proxy struct {
@@ -31,13 +31,8 @@ type ProviderOptions struct {
 }
 
 type RateLimit struct {
-	Enabled bool     `toml:"enabled"`
-	Limit   int64    `toml:"limit"`
-	Window  Duration `toml:"window"`
-}
-
-type Analytics struct {
-	Key string `toml:"key"`
+	Limit  int64    `toml:"limit"`
+	Window Duration `toml:"window"`
 }
 
 type Root struct {
@@ -48,7 +43,6 @@ type Root struct {
 	RateLimit RateLimit                 `toml:"ratelimit"`
 	Proxies   map[string]Proxy          `toml:"proxies"`
 	Providers map[string]toml.Primitive `toml:"providers"`
-	Analytics Analytics                 `toml:"analytics"`
 
 	Meta toml.MetaData `toml:"-"`
 }
@@ -74,20 +68,16 @@ func Load(path string) (*Root, error) {
 	if r.Cache.MissTTL.Duration == 0 {
 		r.Cache.MissTTL.Duration = time.Hour
 	}
-	if r.RateLimit.Enabled {
-		if r.RateLimit.Limit <= 0 {
-			return nil, fmt.Errorf("ratelimit.limit must be positive when enabled")
-		}
+	if r.RateLimit.Limit > 0 {
 		if r.RateLimit.Window.Duration <= 0 {
 			return nil, fmt.Errorf("ratelimit.window must be set when enabled")
 		}
 	}
-
 	if v := os.Getenv("REDIS_URL"); v != "" {
-		r.Cache.Redis = v
+		r.Cache.RedisURL = v
 	}
-	if v := os.Getenv("PORT"); v != "" {
-		r.Server.Listen = ":" + v
+	if v := os.Getenv("LISTEN"); v != "" {
+		r.Server.Listen = v
 	}
 
 	if err := Validate(&r); err != nil {

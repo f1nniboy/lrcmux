@@ -1,15 +1,12 @@
-# fly.toml app configuration file generated for lrcmux on 2026-06-27T15:31:24+02:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
-app = 'lrcmux'
+app = 'lrcmux-api'
 primary_region = 'ams'
 
 [build]
+  dockerfile = 'Dockerfile'
+  build-target = 'api'
 
 [env]
-  PORT = '8080'
+  LISTEN = '0.0.0.0:8080'
 
 [http_service]
   internal_port = 8080
@@ -27,7 +24,7 @@ primary_region = 'ams'
     interval = '30s'
     timeout = '5s'
     method = 'GET'
-    path = '/api/health'
+    path = '/health'
 
 [[vm]]
   memory = '512mb'

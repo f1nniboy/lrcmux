@@ -73,11 +73,3 @@
     background-size: 256px 256px;
   }
 }
-
-@layer utilities {
-  .panel {
-    background: color-mix(in srgb, var(--paper-2) 92%, transparent);
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-  }
-}

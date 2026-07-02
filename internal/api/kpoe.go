@@ -64,7 +64,7 @@ func (s *Server) kpoeOp() huma.Operation {
 	return huma.Operation{
 		OperationID: "kpoe-get-lyrics",
 		Method:      http.MethodGet,
-		Path:        "/api/compat/kpoe/v2/lyrics/get",
+		Path:        "/compat/kpoe/v2/lyrics/get",
 		Summary:     "LyricsPlus/KPOE",
 		Description: "Drop-in replacement for apps that use the LyricsPlus/KPOE API.",
 		Tags:        []string{"Compatibility"},

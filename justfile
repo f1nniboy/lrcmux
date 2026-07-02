@@ -18,9 +18,19 @@ logo:
     mkdir -p frontend/static
     inkscape assets/logo.svg --export-text-to-path --export-type=svg --export-filename=frontend/static/logo.svg
     npx svgo frontend/static/logo.svg --precision 2
+    resvg frontend/static/logo.svg frontend/static/logo.png --width 512 --height 512
+    magick frontend/static/logo.png -define icon:auto-resize=256,128,64,48,32,16 frontend/static/favicon.ico
 
 test:
     go test ./internal/...
+
+deploy-api:
+    fly deploy --config fly/api.toml --local-only
+
+deploy-frontend:
+    fly deploy --config fly/frontend.toml --local-only
+
+deploy: deploy-api deploy-frontend
 
 clean:
     rm -rf frontend/build frontend/.svelte-kit lrcmux

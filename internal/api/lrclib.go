@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -11,7 +10,6 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/format"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
-	"github.com/f1nniboy/lrcmux/internal/ratelimit"
 )
 
 type LrclibInput struct {
@@ -40,7 +38,7 @@ func (s *Server) lrclibOp() huma.Operation {
 	return huma.Operation{
 		OperationID: "lrclib-get-lyrics",
 		Method:      http.MethodGet,
-		Path:        "/api/compat/lrclib/api/get",
+		Path:        "/compat/lrclib/api/get",
 		Summary:     "LRCLIB",
 		Description: "Drop-in replacement for apps that use the LRCLIB API.",
 		Tags:        []string{"Compatibility"},
@@ -57,10 +55,7 @@ func (s *Server) handleLrclib(ctx context.Context, input *LrclibInput) (*LrclibO
 		Level:    lyrics.SyncLine,
 	})
 	if err != nil {
-		if errors.Is(err, ratelimit.ErrRateLimited) {
-			return nil, huma.Error429TooManyRequests("rate limit exceeded")
-		}
-		return nil, huma.Error404NotFound("failed to find specified track")
+		return nil, s.mapError(err)
 	}
 
 	txtEnc, _ := format.Get("txt")

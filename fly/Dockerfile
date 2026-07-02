@@ -20,6 +20,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 FROM gcr.io/distroless/static-debian12 AS api
 COPY --from=api-build /app/lrcmux /lrcmux
+COPY config.prod.toml /etc/lrcmux/config.toml
 EXPOSE 8080
 ENTRYPOINT ["/lrcmux", "-config", "/etc/lrcmux/config.toml"]
 

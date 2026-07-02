@@ -36,15 +36,15 @@ type Orchestrator struct {
 }
 
 type Request struct {
-	Artist   string
-	Title    string
-	Album    string
-	Duration int64
-	ISRC     string
-	Level    lyrics.SyncLevel
-	Strict   bool
-	Force    bool
-	Charge   func(ctx context.Context) error
+	Artist    string
+	Title     string
+	Album     string
+	Duration  int64
+	ISRC      string
+	Level     lyrics.SyncLevel
+	Strict    bool
+	FetchMode string // "default", "cache", "force"
+	Charge    func(ctx context.Context) error
 }
 
 type Response struct {
@@ -53,9 +53,9 @@ type Response struct {
 }
 
 type ProviderHealth struct {
-	Available bool   `json:"available"`
-	TTL       int64  `json:"ttl,omitempty"`
-	Reason    string `json:"reason,omitempty"`
+	Ok     bool   `json:"ok"`
+	TTL    int64  `json:"ttl,omitempty"`
+	Reason string `json:"reason,omitempty"`
 }
 
 // ProviderInfo describes a provider and its current circuit breaker state.
@@ -88,9 +88,9 @@ func (o *Orchestrator) ProviderInfos(ctx context.Context) []ProviderInfo {
 	disabled := o.breaker.states(ctx, o.providers)
 	infos := make([]ProviderInfo, len(o.providers))
 	for i, p := range o.providers {
-		health := ProviderHealth{Available: true}
+		health := ProviderHealth{Ok: true}
 		if open, ok := disabled[p.ID()]; ok {
-			health.Available = false
+			health.Ok = false
 			health.TTL = int64(open.TTL.Seconds())
 			health.Reason = open.State.Reason
 		}
@@ -113,11 +113,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	}
 
 	track, err := o.resolver.Resolve(ctx, isrc.ResolveInput{
-		Artist:   req.Artist,
-		Title:    req.Title,
-		Album:    req.Album,
-		Duration: req.Duration,
-		ISRC:     req.ISRC,
+		Artist:    req.Artist,
+		Title:     req.Title,
+		Album:     req.Album,
+		Duration:  req.Duration,
+		ISRC:      req.ISRC,
+		CacheOnly: req.FetchMode == "cache",
 	})
 	if err != nil {
 		return nil, ErrNotFound
@@ -125,11 +126,19 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 
 	q := lyrics.Query{Track: track}
 
-	best, unknowns := o.checkCache(ctx, q, req.Force)
+	best, unknowns := o.checkCache(ctx, q, req.FetchMode == "force")
 
 	if best != nil && best.SyncLevel >= req.Level {
 		o.log.Debug("serving from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
 		return respond(best, true, req.Level, q), nil
+	}
+
+	// don't hit providers in cache-only mode
+	if req.FetchMode == "cache" {
+		if !req.Strict && best != nil {
+			return respond(best, true, req.Level, q), nil
+		}
+		return nil, ErrNotFound
 	}
 
 	unknowns = o.breaker.Filter(ctx, unknowns)

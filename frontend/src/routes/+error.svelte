@@ -16,7 +16,7 @@
       href="/"
       class="inline-flex items-center gap-1.5 text-sm font-medium text-paper bg-ink px-4 py-2 rounded-md hover:opacity-80 transition-all no-underline"
     >
-      go home
+      Go home
     </a>
   {/if}
 </div>

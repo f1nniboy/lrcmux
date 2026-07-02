@@ -21,7 +21,8 @@
     {/if}
 
     <nav class="flex items-center gap-6 text-sm shrink-0">
-      <a href="/docs" class="text-muted hover:text-ink transition-colors">API</a
+      <a href="/docs" class="text-muted hover:text-ink transition-colors"
+        >Documentation</a
       >
       <a
         href="https://github.com/f1nniboy/lrcmux"

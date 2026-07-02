@@ -1,6 +1,7 @@
-import type { LyricsFormat, LyricsResult, SyncLevel } from "./types";
+import type { LyricsFormat, SyncLevel } from "./types";
+import { API_URL } from "./env";
 
-export interface GetLyricsOptions {
+interface GetLyricsOptions {
   level?: SyncLevel;
   signal?: AbortSignal;
 }
@@ -14,24 +15,6 @@ export class LyricsError extends Error {
     super(message);
     this.name = "LyricsError";
   }
-}
-
-export async function getLyricsJSON(
-  artist: string,
-  title: string,
-  opts: Omit<GetLyricsOptions, "format"> = {},
-): Promise<LyricsResult> {
-  const res = await fetch(downloadURL(artist, title, "json", opts), {
-    signal: opts.signal,
-  });
-  if (!res.ok) {
-    throw new LyricsError(
-      res.status,
-      await failureMessage(res),
-      retryAfterSeconds(res),
-    );
-  }
-  return (await res.json()) as LyricsResult;
 }
 
 export async function getLyricsText(
@@ -64,12 +47,10 @@ export function downloadURL(
   params.set("title", title);
   params.set("format", format);
   if (opts.level) params.set("level", opts.level);
-  return `/api/get?${params.toString()}`;
+  return `${API_URL}/get?${params.toString()}`;
 }
 
 async function failureMessage(res: Response): Promise<string> {
-  if (res.status === 404)
-    return "No provider has this track, or it doesn't exist.";
   try {
     const text = await res.text();
     if (text) {
@@ -87,6 +68,6 @@ async function failureMessage(res: Response): Promise<string> {
   return `Request failed (${res.status})`;
 }
 
-function retryAfterSeconds(res: Response): number {
+export function retryAfterSeconds(res: Response): number {
   return parseInt(res.headers.get("Retry-After") ?? "0", 10) || 0;
 }

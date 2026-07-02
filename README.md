@@ -6,26 +6,42 @@ A public instance runs at **[lrcmux.dev](https://lrcmux.dev)**. The API docs are
 
 ## Self-hosting
 
-**Requirements:**
+### Docker Compose
 
-- Go
-- Redis
-
-### From source
+The easiest way to run the full stack (API + frontend + Redis):
 
 ```sh
 git clone https://github.com/f1nniboy/lrcmux
 cd lrcmux
-cp config.example.toml config.toml  # edit as needed
+cp config.example.toml config.toml
+docker compose up
+```
+
+The API will be available at `http://localhost:8080` and the frontend at `http://localhost:3000`.
+
+### Binary
+
+```sh
+git clone https://github.com/f1nniboy/lrcmux
+cd lrcmux
+cp config.example.toml config.toml
 go run ./cmd/lrcmux -config config.toml
 ```
 
 ### Fly.io
 
+The API and frontend are deployed as separate apps. Create both apps first:
+
 ```sh
-fly launch --no-deploy
-fly secrets set REDIS_URL=your-redis-url
-fly deploy
+fly launch --no-deploy --config fly/api.toml
+fly launch --no-deploy --config fly/frontend.toml
+fly secrets set REDIS_URL=redis://... --config fly/api.toml
+```
+
+Then deploy:
+
+```sh
+just deploy
 ```
 
 ## Configuration

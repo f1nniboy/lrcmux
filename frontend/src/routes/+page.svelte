@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from "$app/state";
+  import Meta from "$lib/Meta.svelte";
   import Link from "$lib/Link.svelte";
   import SearchBar from "$components/SearchBar.svelte";
   import TrendingGrid from "$components/TrendingGrid.svelte";
@@ -7,9 +7,10 @@
   import Wordmark from "$components/Wordmark.svelte";
 </script>
 
-<svelte:head>
-  <title>{page.url.hostname}</title>
-</svelte:head>
+<Meta
+  description="Free synchronized lyrics for any song. LRC, word-by-word, and plain text, powered by multiple providers. Free lyrics API, no key required."
+  og={{ image: "/logo.png" }}
+/>
 
 <div
   class="flex flex-col gap-12 sm:gap-16 w-full max-w-3xl min-w-0 px-5 sm:px-8 pt-20 sm:pt-28 pb-16"
@@ -21,22 +22,14 @@
       Synced lyrics for <span class="text-cue">any song</span>.
     </h1>
     <p class="text-ink/80 text-lg sm:text-xl leading-relaxed max-w-2xl">
-      <Wordmark /> searches
-      <span
-        class="group cursor-help underline decoration-dotted underline-offset-4 decoration-ink/30"
-        ><span class="group-hover:hidden">every</span><span
-          class="hidden group-hover:inline">almost every</span
-        ></span
-      > public lyrics provider in parallel and returns the best available match. No
-      API keys, no sign-up, no costs.
+      <Wordmark /> searches every public lyrics provider in parallel and returns the
+      best available match. No API keys, no sign-up, no costs.
     </p>
   </section>
 
   <SearchBar />
 
-  <div>
-    <TrendingGrid />
-  </div>
+  <TrendingGrid />
 
   <hr class="m-0 border-rule" />
 
@@ -77,7 +70,7 @@
   <section>
     <h2 class="text-2xl sm:text-3xl font-semibold text-ink mb-8">Use cases</h2>
     <div class="space-y-10">
-      <article>
+      <div>
         <h3 class="text-lg font-semibold text-ink mb-2">
           Drop-in upgrade for existing apps
         </h3>
@@ -85,17 +78,17 @@
           Apps with a configurable LRCLIB or KPOE base URL work with <Wordmark
           /> without code changes. Point any LRCLIB-compatible client at
           <code class="text-ink font-mono text-sm"
-            >https://lrcmux.dev/api/compat/lrclib</code
+            >https://api.lrcmux.dev/compat/lrclib</code
           >, or set
           <Link href="https://github.com/ibratabian17/YouLyPlus">YouLy+</Link>
           and other LyricsPlus clients to
           <code class="text-ink font-mono text-sm"
-            >https://lrcmux.dev/api/compat/kpoe</code
+            >https://api.lrcmux.dev/compat/kpoe</code
           >.
         </p>
-      </article>
+      </div>
 
-      <article>
+      <div>
         <h3 class="text-lg font-semibold text-ink mb-2">
           Music library tagging
         </h3>
@@ -107,9 +100,9 @@
           LRC sidecar files from <Wordmark />
           and place them next to your audio, which players pick up automatically.
         </p>
-      </article>
+      </div>
 
-      <article>
+      <div>
         <h3 class="text-lg font-semibold text-ink mb-2">
           Media center integration
         </h3>
@@ -118,9 +111,9 @@
           them at our compatibility endpoints for better coverage than any
           single provider.
         </p>
-      </article>
+      </div>
 
-      <article>
+      <div>
         <h3 class="text-lg font-semibold text-ink mb-2">
           Building your own app
         </h3>
@@ -129,13 +122,13 @@
           format returns structured line and word timestamps suitable for building
           karaoke-style displays, lyric overlays, or anything your heart desires.
         </p>
-      </article>
+      </div>
     </div>
   </section>
 
   <hr class="m-0 border-rule" />
 
-  <section class="border border-rule rounded-md p-5 sm:p-6 bg-paper-2/40">
+  <section class="border border-rule rounded-md p-5 sm:p-6 bg-paper-2">
     <h2 class="text-lg font-semibold text-ink mb-2">Wrong lyrics?</h2>
     <p class="text-muted leading-relaxed">
       <Wordmark /> is purely an aggregator with no lyric database of its own. If a

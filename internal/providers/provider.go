@@ -33,8 +33,8 @@ type Impl interface {
 var ErrRateLimited = errors.New("provider rate limited")
 
 type Common struct {
-	Enabled bool   `toml:"enabled"`
-	Proxy   string `toml:"proxy"`
+	Enable bool   `toml:"enable"`
+	Proxy  string `toml:"proxy"`
 }
 
 type DecodeFunc func(into any) error
@@ -63,5 +63,5 @@ func loadCommon(cfg *config.Root, name string) (Common, bool, error) {
 	if err := cfg.Meta.PrimitiveDecode(prim, &common); err != nil {
 		return common, false, fmt.Errorf("provider %q: %w", name, err)
 	}
-	return common, common.Enabled, nil
+	return common, common.Enable, nil
 }

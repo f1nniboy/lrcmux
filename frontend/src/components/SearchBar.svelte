@@ -44,14 +44,14 @@
   <label
     class="flex items-center {slim
       ? 'gap-2 px-4 py-2.5'
-      : 'gap-3 px-5 py-4'} border border-rule rounded-lg focus-within:border-cue transition-colors bg-paper-2/40"
+      : 'gap-3 px-5 py-4'} border border-rule rounded-lg focus-within:border-cue transition-colors bg-paper-2"
   >
     <svg
       class="{slim ? 'w-4 h-4' : 'w-5 h-5'} text-muted shrink-0"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="2"
+      stroke-width="2.5"
       aria-hidden="true"
     >
       <circle cx="11" cy="11" r="7" />
@@ -63,7 +63,7 @@
       type="search"
       autocomplete="off"
       spellcheck="false"
-      placeholder={slim ? "search..." : "search by artist, song, or ISRC"}
+      placeholder={slim ? "Search..." : "Search for a track..."}
       class="flex-1 bg-transparent outline-none text-ink {slim
         ? 'text-sm min-w-0'
         : 'text-base sm:text-lg'} placeholder:text-muted/70"

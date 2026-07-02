@@ -20,6 +20,9 @@ func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 		writeLRCHeader(bw, "ar", r.Track.Artist)
 		writeLRCHeader(bw, "ti", r.Track.Title)
 		writeLRCHeader(bw, "al", r.Track.Album)
+		if r.Source.Name != "" {
+			writeLRCHeader(bw, "re", r.Source.Name)
+		}
 		if r.Track.Duration > 0 {
 			mm := r.Track.Duration / 60
 			ss := r.Track.Duration % 60

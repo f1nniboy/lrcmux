@@ -50,23 +50,29 @@ func main() {
 	logging.Init(cfg.Log)
 	log := logging.New("main")
 
-	rdbOpts, err := redis.ParseURL(cfg.Cache.Redis)
-	if err != nil {
-		log.Error("invalid redis url", "err", err)
-		os.Exit(1)
-	}
-	rdb := redis.NewClient(rdbOpts)
-	defer rdb.Close()
+	var rdb *redis.Client
+	var cacheLayer cache.Cache
+	if cfg.Cache.RedisURL == "" {
+		log.Warn("no redis url set, using memory cache")
+		cacheLayer = cache.NewMemory()
+	} else {
+		rdbOpts, err := redis.ParseURL(cfg.Cache.RedisURL)
+		if err != nil {
+			log.Error("invalid redis url", "err", err)
+			os.Exit(1)
+		}
+		rdb = redis.NewClient(rdbOpts)
+		defer rdb.Close()
 
-	pingCtx, cancelPing := context.WithTimeout(context.Background(), 3*time.Second)
-	if err := rdb.Ping(pingCtx).Err(); err != nil {
+		pingCtx, cancelPing := context.WithTimeout(context.Background(), 3*time.Second)
+		if err := rdb.Ping(pingCtx).Err(); err != nil {
+			cancelPing()
+			log.Error("redis ping failed", "err", err, "url", cfg.Cache.RedisURL)
+			os.Exit(1)
+		}
 		cancelPing()
-		log.Error("redis ping failed", "err", err, "url", cfg.Cache.Redis)
-		os.Exit(1)
+		cacheLayer = cache.NewRedis(rdb)
 	}
-	cancelPing()
-
-	cacheLayer := cache.NewRedis(rdb)
 
 	pools, err := proxy.LoadAll(cfg.Proxies, logging.New("proxy"))
 	if err != nil {
@@ -108,13 +114,11 @@ func main() {
 	defer stop()
 
 	var rl *ratelimit.Limiter
-	if cfg.RateLimit.Enabled {
-		rl = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration,
-			ratelimit.WithLogger(logging.New("ratelimit")),
-		)
+	if cfg.RateLimit.Limit > 0 && rdb != nil {
+		rl = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration, logging.New("ratelimit"))
 	}
 
-	srv := api.NewServer(orch, rl, cfg.Provider.Hide, cfg.Analytics.Key, cfg.Server.RequireCloudflare, logging.New("api"))
+	srv := api.NewServer(orch, rl, cfg.Provider.Hide, cfg.Server.RequireCloudflare, logging.New("api"))
 	runErr := srv.Run(ctx, cfg.Server.Listen)
 	if runErr != nil {
 		log.Error("server error", "err", runErr)

@@ -33,12 +33,6 @@ if n == 1 then redis.call("PEXPIRE", KEYS[1], tonumber(ARGV[1])) end
 return 1
 `)
 
-type Option func(*Limiter)
-
-func WithLogger(log *slog.Logger) Option {
-	return func(l *Limiter) { l.log = log }
-}
-
 type Limiter struct {
 	rdb    *redis.Client
 	limit  int64
@@ -49,12 +43,8 @@ type Limiter struct {
 func (l *Limiter) Limit() int64          { return l.limit }
 func (l *Limiter) Window() time.Duration { return l.window }
 
-func New(rdb *redis.Client, limit int64, window time.Duration, opts ...Option) *Limiter {
-	l := &Limiter{rdb: rdb, limit: limit, window: window, log: slog.Default()}
-	for _, opt := range opts {
-		opt(l)
-	}
-	return l
+func New(rdb *redis.Client, limit int64, window time.Duration, log *slog.Logger) *Limiter {
+	return &Limiter{rdb: rdb, limit: limit, window: window, log: log}
 }
 
 func (l *Limiter) Allow(ctx context.Context, ip string) error {

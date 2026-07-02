@@ -27,7 +27,7 @@ type GetLyricsInput struct {
 	Level    string `query:"level" doc:"Highest sync level to accept, or exact level if strict is set" enum:"word,line,none" default:"word"`
 	Format   string `query:"format" doc:"Response format" enum:"lrc,txt,json,srt,vtt" default:"json"`
 	Strict   bool   `query:"strict" doc:"Fail instead of falling back to a lower sync level"`
-	Force    bool   `query:"force" doc:"Bypass cache and re-fetch from providers (private IP only)"`
+	Fetch    string `query:"fetch" doc:"Cache strategy" enum:"default,cache,force" default:"default"`
 }
 
 var responseHeaders = map[string]*huma.Param{
@@ -40,7 +40,7 @@ func (s *Server) getOp() huma.Operation {
 	return huma.Operation{
 		OperationID: "get-lyrics",
 		Method:      http.MethodGet,
-		Path:        "/api/get",
+		Path:        "/get",
 		Summary:     "Get lyrics for a song",
 		Description: "Searches various providers and returns the best available result.",
 		Tags:        []string{"Lyrics"},
@@ -64,8 +64,11 @@ func (s *Server) getOp() huma.Operation {
 }
 
 func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.StreamResponse, error) {
-	force := input.Force
-	if force && !utils.IsPrivateIP(clientIP(ctx)) {
+	fetchMode := input.Fetch
+	if fetchMode == "" {
+		fetchMode = "default"
+	}
+	if fetchMode == "force" && !utils.IsPrivateIP(clientIP(ctx)) {
 		return nil, huma.Error403Forbidden("you can't force-refresh, sorry")
 	}
 
@@ -83,14 +86,14 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.St
 	}
 
 	resp, err := s.fetch(ctx, orchestrator.Request{
-		Artist:   input.Artist,
-		Title:    input.Title,
-		Album:    input.Album,
-		Duration: input.Duration,
-		ISRC:     input.ISRC,
-		Level:    level,
-		Strict:   input.Strict,
-		Force:    force,
+		Artist:    input.Artist,
+		Title:     input.Title,
+		Album:     input.Album,
+		Duration:  input.Duration,
+		ISRC:      input.ISRC,
+		Level:     level,
+		Strict:    input.Strict,
+		FetchMode: fetchMode,
 	})
 	if err != nil {
 		if e, ok := errors.AsType[*ratelimit.LimitError](err); ok {

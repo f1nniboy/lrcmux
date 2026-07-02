@@ -75,7 +75,7 @@
   );
 </script>
 
-<section class="border border-rule rounded-md overflow-hidden bg-paper-2/40">
+<section class="border border-rule rounded-md overflow-hidden bg-paper-2">
   <FormatBar
     format={activeFormat}
     level={activeLevel}
@@ -105,13 +105,15 @@
           width="16"
           height="16"
           viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
           aria-hidden="true"
         >
-          <path
-            d="M2 4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-4H4a2 2 0 0 1-2-2zm8 12v4h10V10h-4v4a2 2 0 0 1-2 2zm4-2V4H4v10z"
-            fill="currentColor"
-          />
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
       {/snippet}
     </ActionButton>
@@ -121,15 +123,17 @@
         <svg
           width="16"
           height="16"
-          viewBox="0 0 16 16"
-          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
           aria-hidden="true"
         >
-          <path
-            fill-rule="evenodd"
-            d="M14 9a1 1 0 0 1 1 1v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-3a1 1 0 0 1 2 0v3h10v-3a1 1 0 0 1 1-1M8 1a1 1 0 0 1 1 1v4.586l1.293-1.293a1 1 0 1 1 1.414 1.414L8 10.414 4.293 6.707a1 1 0 0 1 1.414-1.414L7 6.586V2a1 1 0 0 1 1-1"
-            fill="currentColor"
-          />
+          <path d="M12 15V3" />
+          <path d="m8 11 4 4 4-4" />
+          <path d="M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2" />
         </svg>
       {/snippet}
     </ActionButton>

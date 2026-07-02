@@ -1,19 +1,17 @@
 # lrcmux configuration example
 
 [server]
-# also overridable via PORT env var
+# also overridable via LISTEN env var
 listen = ":8080"
-# reject any request whose Fly edge connection did not come from a Cloudflare IP.
-require_cloudflare = false
 
 [cache]
-# also overridable via the REDIS_URL env var
-redis = "redis://localhost:6379/0"
+# also overridable via the REDIS_URL env var, omit to use memory cache
+# redis_url = "redis://localhost:6379/0"
 ttl = "24h"
 miss_ttl = "1h"
 
 [log]
-level  = "info" # debug, info, warn, error
+level = "info" # debug, info, warn, error
 format = "text" # text or json
 
 [provider]
@@ -22,10 +20,8 @@ timeout = "3s"
 hide = false
 
 [ratelimit]
-enabled = true
-# requests per window, per client IP
-limit   = 120
-window  = "1h"
+limit = 45
+window = "1h"
 
 # each section under [proxies.<name>] defines a pool, and
 # providers reference it via `proxy = "<name>"`. each
@@ -39,20 +35,16 @@ window  = "1h"
 # ]
 
 [providers.lrclib]
-enabled = true
+enable = true
 
 [providers.kugou]
-enabled = true
+enable = true
 
 [providers.ytmusic]
-enabled = true
+enable = true
 
 [providers.genius]
-enabled = true
+enable = true
 
 [providers.musixmatch]
-enabled = true
-
-# [analytics]
-# Plausible Analytics site key
-# key = "pa-XXXXX"
+enable = true

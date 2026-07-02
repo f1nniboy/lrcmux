@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/http/httputil"
-	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -23,9 +21,6 @@ import (
 //go:embed docs.md
 var docsMD string
 
-//go:embed docs.html
-var docsHTML []byte
-
 type Server struct {
 	orch              *orchestrator.Orchestrator
 	rl                *ratelimit.Limiter
@@ -33,12 +28,17 @@ type Server struct {
 	srv               *http.Server
 	api               huma.API
 	hide              bool
-	analyticsKey      string
 	requireCloudflare bool
 }
 
-func NewServer(orch *orchestrator.Orchestrator, rl *ratelimit.Limiter, hide bool, analyticsKey string, requireCloudflare bool, log *slog.Logger) *Server {
-	return &Server{orch: orch, rl: rl, log: log, hide: hide, analyticsKey: analyticsKey, requireCloudflare: requireCloudflare}
+func NewServer(orch *orchestrator.Orchestrator, rl *ratelimit.Limiter, hide bool, requireCloudflare bool, log *slog.Logger) *Server {
+	return &Server{
+		orch:              orch,
+		rl:                rl,
+		log:               log,
+		hide:              hide,
+		requireCloudflare: requireCloudflare,
+	}
 }
 
 func (s *Server) Run(ctx context.Context, listen string) error {
@@ -64,7 +64,7 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 	cfg := huma.DefaultConfig(meta.AppName, meta.Version)
 	cfg.OpenAPI.Info.Description = docs
 	cfg.DocsPath = ""
-	cfg.OpenAPIPath = "/api/openapi"
+	cfg.OpenAPIPath = "/openapi"
 	cfg.CreateHooks = nil // disable $schema injection in response bodies
 	s.api = humachi.New(r, cfg)
 
@@ -73,45 +73,9 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 	huma.Register(s.api, s.kpoeOp(), s.handleKpoe)
 	huma.Register(s.api, s.lrclibOp(), s.handleLrclib)
 
-	r.Get("/api/health", func(w http.ResponseWriter, _ *http.Request) {
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-
-	r.Get("/docs", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(docsHTML)
-	})
-
-	if s.analyticsKey != "" {
-		proxy := &httputil.ReverseProxy{
-			Rewrite: func(pr *httputil.ProxyRequest) {
-				pr.Out.URL.Scheme = "https"
-				pr.Out.URL.Host = "plausible.io"
-				pr.Out.Host = "plausible.io"
-
-				switch pr.In.URL.Path {
-				case "/x/script.js":
-					pr.Out.URL.Path = "/js/" + s.analyticsKey + ".js"
-				case "/x/event":
-					pr.Out.URL.Path = "/api/event"
-				}
-			},
-		}
-		r.Get("/x/script.js", proxy.ServeHTTP)
-		r.Post("/x/event", proxy.ServeHTTP)
-	}
-
-	assets, err := loadFrontend()
-	if err != nil {
-		return err
-	}
-	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api") {
-			http.NotFound(w, r)
-			return
-		}
-		assets.serveSPA(w, r)
-	}))
 
 	s.srv = &http.Server{
 		Addr:              listen,

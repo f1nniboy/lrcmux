@@ -22,7 +22,7 @@ func (s *Server) statsOp() huma.Operation {
 	return huma.Operation{
 		OperationID: "get-stats",
 		Method:      http.MethodGet,
-		Path:        "/api/stats",
+		Path:        "/stats",
 		Summary:     "Server statistics",
 		Tags:        []string{"Meta"},
 	}

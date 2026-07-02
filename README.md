@@ -53,3 +53,7 @@ just deploy
 ## Configuration
 
 See `config.example.toml` for all available options.
+
+## I have a question!
+
+Join the Matrix room at **[#lrcmux:oss.zone](https://matrix.to/#/#lrcmux:oss.zone)**.

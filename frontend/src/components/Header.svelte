@@ -6,7 +6,7 @@
   const isHome = $derived(page.url.pathname === "/");
 </script>
 
-<header class="border-b border-rule">
+<header class="sticky top-0 z-40 border-b border-rule bg-paper">
   <div
     class="mx-auto w-full max-w-3xl flex items-center justify-between gap-4 px-5 sm:px-8 h-14"
   >
@@ -21,8 +21,7 @@
     {/if}
 
     <nav class="flex items-center gap-6 text-sm shrink-0">
-      <a href="/docs" class="text-muted hover:text-ink transition-colors"
-        >Documentation</a
+      <a href="/docs" class="text-muted hover:text-ink transition-colors">API</a
       >
       <a
         href="https://github.com/f1nniboy/lrcmux"

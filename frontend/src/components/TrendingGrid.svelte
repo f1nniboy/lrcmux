@@ -18,7 +18,7 @@
     void (async () => {
       try {
         // Deezer chart endpoint doesn't return ISRC, so we have to use the ID as a stable unique key
-        tracks = cache = (await getTrending(COUNT)).map((dt) => ({
+        tracks = cache = (await getTrending({}, COUNT)).map((dt) => ({
           ...deezerToAPITrack(dt),
           isrc: String(dt.id),
         }));

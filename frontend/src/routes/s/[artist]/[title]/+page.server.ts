@@ -1,24 +1,15 @@
 import { env } from "$env/dynamic/private";
 import type { LyricsResult } from "$lib/types";
 import { fromSlug } from "$lib/slug";
-
-export interface PageData {
-  artist: string;
-  title: string;
-  lyrics?: LyricsResult;
-}
+import type { PageServerLoad } from "./$types";
 
 const apiUrl = env.API_URL ?? "http://localhost:8080";
 
-export async function load({
-  params,
-  fetch,
-}: {
-  params: Record<string, string>;
-  fetch: typeof globalThis.fetch;
-}) {
-  const artist = fromSlug(params.artist ?? "");
-  const title = fromSlug(params.title ?? "");
+export type { PageData } from "./$types";
+
+export const load: PageServerLoad = async ({ params, fetch, setHeaders }) => {
+  const artist = fromSlug(params.artist);
+  const title = fromSlug(params.title);
 
   const p = new URLSearchParams({
     artist,
@@ -31,9 +22,10 @@ export async function load({
     const res = await fetch(`${apiUrl}/get?${p}`);
     if (res.ok) {
       const result: LyricsResult = await res.json();
+      setHeaders({ "cache-control": "public, max-age=86400" });
       return { artist, title, lyrics: result };
     }
   } catch {}
 
   return { artist, title };
-}
+};

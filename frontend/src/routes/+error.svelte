@@ -13,7 +13,10 @@
     {page.status}
   </h1>
   <p class="text-muted text-center max-w-sm">
-    {page.status === 404 ? "This page doesn't exist." : "Something went wrong."}
+    {page.error?.message ??
+      (page.status === 404
+        ? "This page doesn't exist."
+        : "Something went wrong.")}
   </p>
   {#if page.url.pathname !== "/"}
     <a

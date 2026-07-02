@@ -73,6 +73,7 @@ export interface DeezerArtist {
   name: string;
   picture_small?: string;
   picture_medium?: string;
+  picture_big?: string;
 }
 
 export interface DeezerAlbum {
@@ -91,6 +92,8 @@ export interface DeezerTrack {
   duration: number;
   preview?: string;
   explicit_lyrics?: boolean;
+  type?: string;
+  readable?: boolean;
   artist: DeezerArtist;
   album: DeezerAlbum;
 }

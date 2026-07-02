@@ -22,6 +22,9 @@
     <meta property="og:description" content={description} />
   {/if}
   {#if og?.image}
-    <meta property="og:image" content={og.image} />
+    <meta
+      property="og:image"
+      content={new URL(og.image, page.url.origin).href}
+    />
   {/if}
 </svelte:head>

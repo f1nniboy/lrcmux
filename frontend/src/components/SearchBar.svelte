@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { makeDebouncedSearch, deezerToAPITrack } from "$lib/deezer";
+  import {
+    searchDeezer,
+    deezerToAPITrack,
+    type SearchOptions,
+  } from "$lib/deezer";
+  import { debounce } from "$lib/utils";
   import type { Track } from "$lib/types";
   import Spinner from "$components/Spinner.svelte";
   import TrackItem from "./TrackItem.svelte";
@@ -14,7 +19,24 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
 
-  const search = makeDebouncedSearch(300);
+  const search = debounce(
+    (
+      signal: AbortSignal,
+      q: string,
+      opts: Omit<SearchOptions, "signal"> = {},
+    ) => searchDeezer({ ...opts, signal }, q),
+    300,
+  );
+
+  const showDropdown = $derived(
+    query.trim().length >= 2 && (!!error || tracks.length > 0 || !loading),
+  );
+
+  const dropdownClass = $derived(
+    slim
+      ? "fixed inset-x-0 top-14 border-y border-rule bg-paper shadow-lg z-50 overflow-hidden sm:absolute sm:inset-x-0 sm:top-full sm:mt-1 sm:border sm:rounded-lg"
+      : "absolute top-full left-0 right-0 z-50 mt-1 border border-rule rounded-lg bg-paper shadow-lg overflow-hidden",
+  );
 
   $effect(() => {
     const q = query.trim();
@@ -34,6 +56,7 @@
         loading = false;
       })
       .catch((e: Error) => {
+        if (e.name === "AbortError") return;
         loading = false;
         error = e.message ?? "Search failed";
       });
@@ -75,36 +98,28 @@
     {/if}
   </label>
 
-  {#if error}
-    <p
-      class="absolute top-full left-0 right-0 z-50 mt-1 text-sm text-peak bg-paper border border-rule rounded-lg px-4 py-3 shadow-lg"
-    >
-      {error}
-    </p>
-  {/if}
-
-  {#if tracks.length}
-    <ul
-      class="absolute top-full left-0 right-0 z-50 mt-1 border border-rule rounded-lg divide-y divide-rule overflow-hidden bg-paper shadow-lg"
-    >
-      {#each tracks as track (track.isrc)}
-        <li>
-          <TrackItem
-            {track}
-            variant="row"
-            onclick={() => {
-              query = "";
-              tracks = [];
-            }}
-          />
-        </li>
-      {/each}
-    </ul>
-  {:else if query.trim().length >= 2 && !loading && !error}
-    <p
-      class="absolute top-full left-0 right-0 z-50 mt-1 text-sm text-muted bg-paper border border-rule rounded-lg px-4 py-3 shadow-lg"
-    >
-      No matches.
-    </p>
+  {#if showDropdown}
+    <div class={dropdownClass}>
+      {#if error}
+        <p class="px-4 py-3 text-sm text-peak">{error}</p>
+      {:else if tracks.length}
+        <ul class="divide-y divide-rule">
+          {#each tracks as track (track.isrc)}
+            <li>
+              <TrackItem
+                {track}
+                variant="row"
+                onclick={() => {
+                  query = "";
+                  tracks = [];
+                }}
+              />
+            </li>
+          {/each}
+        </ul>
+      {:else if !loading}
+        <p class="px-4 py-3 text-sm text-muted">No matches.</p>
+      {/if}
+    </div>
   {/if}
 </div>

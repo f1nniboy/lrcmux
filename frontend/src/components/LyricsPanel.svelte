@@ -1,8 +1,17 @@
 <script lang="ts">
   import type { LyricsResult, Track } from "$lib/types";
+  import { toSlug } from "$lib/slug";
   import DownloadPanel from "./DownloadPanel.svelte";
 
-  let { track, result }: { track: Track; result: LyricsResult } = $props();
+  let {
+    track,
+    result,
+  }: {
+    track: Track;
+    result: LyricsResult;
+  } = $props();
+
+  let artistHref = $derived(`/s/${toSlug(track.artist)}`);
 </script>
 
 <section class="space-y-6">
@@ -22,7 +31,9 @@
       <h2 class="text-2xl sm:text-3xl font-semibold text-ink leading-tight">
         {track.title}
       </h2>
-      <p class="text-muted mt-1">{track.artist}</p>
+      <a href={artistHref} class="text-muted mt-1 hover:underline no-underline"
+        >{track.artist}</a
+      >
     </div>
   </header>
 

@@ -1,5 +1,11 @@
 # lrcmux
 
+<div align="center">
+  <a href="https://lrcmux.dev">
+    <img src="assets/screenshots/1.png" alt='Screenshot of lrcmux.dev showing lyrics for "Never Gonna Give You Up" by Rick Astley' width="680" />
+  </a>
+</div>
+
 A lyrics aggregator. Fans out requests across multiple providers in parallel, picks the best result, and caches everything.
 
 A public instance runs at **[lrcmux.dev](https://lrcmux.dev)**. The API docs are browsable at [lrcmux.dev/docs](https://lrcmux.dev/docs).

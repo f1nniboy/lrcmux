@@ -27,5 +27,5 @@ The same result can be returned in any of these formats via the `format` query p
 
 ## Rate limiting
 
-Up to **{{.RateLimit.Limit}}** requests per **{{.RateLimit.Window}}** window. Only live provider fetches count against the limit, cache hits are always free.
+Up to **{{.RateLimit.Limit}}** requests per **{{.RateLimit.Window}}** window (~{{.RateLimit.Rate}} sustained). Only live provider fetches count against the limit, cache hits are always free.
 {{end}}

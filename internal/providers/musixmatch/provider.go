@@ -42,16 +42,23 @@ func init() {
 }
 
 func factory(args providers.FactoryArgs) (providers.Impl, error) {
+	var c Config
+	if err := args.Decode(&c); err != nil {
+		return nil, err
+	}
+	if c.PoolSize <= 0 {
+		c.PoolSize = 1
+	}
 	return &Provider{
-		client: args.Client,
-		tokens: newTokenClient(args.Client, args.Cache, args.Log),
+		client: &http.Client{},
+		pool:   newTokenPool(c.PoolSize, args.Client, args.Cache, args.Log),
 		log:    args.Log,
 	}, nil
 }
 
 type Provider struct {
 	client *http.Client
-	tokens *tokenClient
+	pool   *tokenPool
 	log    *slog.Logger
 }
 
@@ -60,10 +67,6 @@ func (p *Provider) Desc() string               { return "Extensive library and g
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
-	if q.Track.ISRC == "" {
-		return nil, lyrics.ErrNotFound
-	}
-
 	meta, err := p.fetchTrackMeta(ctx, q.Track.ISRC)
 	if err != nil {
 		return nil, err
@@ -145,25 +148,28 @@ func (p *Provider) fetchTier(ctx context.Context, t tier, isrc string) ([]lyrics
 }
 
 func (p *Provider) getDesktop(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
-	for range 2 {
-		body, err := p.doDesktopRequest(ctx, endpoint, extra)
-		if !errors.Is(err, errRenew) {
-			return body, err
+	for range len(p.pool.slots) {
+		token, idx, err := p.pool.get(ctx)
+		if err != nil {
+			return nil, err
 		}
-		p.log.Debug("token expired, refreshing")
-		if rerr := p.tokens.Refresh(ctx); rerr != nil {
-			return nil, rerr
+		body, err := p.doDesktopRequest(ctx, endpoint, extra, token)
+		if err == nil {
+			return body, nil
 		}
+		if errors.Is(err, errRenew) {
+			p.log.Debug("token expired, rotating", "slot", idx)
+		} else if errors.Is(err, errCaptcha) {
+			p.log.Debug("token rate limited, rotating", "slot", idx)
+		} else {
+			return nil, err
+		}
+		p.pool.retire(idx)
 	}
-	return nil, errors.New("token renew retry exhausted")
+	return nil, providers.ErrRateLimited
 }
 
-func (p *Provider) doDesktopRequest(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
-	token, err := p.tokens.Get(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (p *Provider) doDesktopRequest(ctx context.Context, endpoint string, extra url.Values, token string) (json.RawMessage, error) {
 	params := url.Values{}
 	params.Set("app_id", desktopAppID)
 	params.Set("format", "json")
@@ -184,11 +190,7 @@ func (p *Provider) doDesktopRequest(ctx context.Context, endpoint string, extra 
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-	case http.StatusServiceUnavailable:
-		return nil, providers.ErrRateLimited
-	default:
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http %d", resp.StatusCode)
 	}
 
@@ -216,7 +218,7 @@ func (p *Provider) doDesktopRequest(ctx context.Context, endpoint string, extra 
 	case res.Message.Header.StatusCode == 401 && res.Message.Header.Hint == "renew":
 		return nil, errRenew
 	case res.Message.Header.StatusCode == 401 && res.Message.Header.Hint == "captcha":
-		return nil, providers.ErrRateLimited
+		return nil, errCaptcha
 	case res.Message.Header.StatusCode == 404:
 		return nil, lyrics.ErrNotFound
 	}

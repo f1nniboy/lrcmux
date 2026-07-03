@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"time"
 
 	"github.com/getsentry/sentry-go"
 )
@@ -32,44 +31,6 @@ func withIP(next http.Handler) http.Handler {
 func clientIP(ctx context.Context) string {
 	ip, _ := ctx.Value(ipKey{}).(string)
 	return ip
-}
-
-type statusRecorder struct {
-	http.ResponseWriter
-	status int
-	bytes  int
-}
-
-func (s *statusRecorder) WriteHeader(code int) {
-	s.status = code
-	s.ResponseWriter.WriteHeader(code)
-}
-
-func (s *statusRecorder) Write(b []byte) (int, error) {
-	if s.status == 0 {
-		s.status = http.StatusOK
-	}
-	n, err := s.ResponseWriter.Write(b)
-	s.bytes += n
-	return n, err
-}
-
-func accessLog(log *slog.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
-			sr := &statusRecorder{ResponseWriter: w}
-			next.ServeHTTP(sr, r)
-			log.Debug("request",
-				"method", r.Method,
-				"path", r.URL.Path,
-				"query", r.URL.RawQuery,
-				"status", sr.status,
-				"bytes", sr.bytes,
-				"duration", time.Since(start).Milliseconds(),
-			)
-		})
-	}
 }
 
 func recoverer(log *slog.Logger) func(http.Handler) http.Handler {

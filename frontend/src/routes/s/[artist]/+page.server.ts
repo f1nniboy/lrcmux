@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders }) => {
   const opts: DeezerRequestOptions = { type: "json", fetch };
 
   const artist = await getArtistByName(opts, name);
-  if (!artist) error(404, "The specified artist couldn't be found.");
+  if (!artist) error(404);
 
   setHeaders({ "cache-control": "public, max-age=3600" });
   return { artist };

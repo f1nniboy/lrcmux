@@ -35,12 +35,17 @@ type RateLimit struct {
 	Window Duration `toml:"window"`
 }
 
+type Metrics struct {
+	Listen string `toml:"listen"`
+}
+
 type Root struct {
 	Server    Server                    `toml:"server"`
 	Cache     Cache                     `toml:"cache"`
 	Log       logging.Config            `toml:"log"`
 	Provider  ProviderOptions           `toml:"provider"`
 	RateLimit RateLimit                 `toml:"ratelimit"`
+	Metrics   Metrics                   `toml:"metrics"`
 	Proxies   map[string]Proxy          `toml:"proxies"`
 	Providers map[string]toml.Primitive `toml:"providers"`
 

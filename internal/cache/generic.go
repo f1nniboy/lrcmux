@@ -16,6 +16,7 @@ const (
 	KnownMiss               // key present, but marked as miss
 )
 
+
 var missValue = []byte{0}
 
 func Get[T any](ctx context.Context, c Cache, key string) (T, Status, error) {
@@ -27,7 +28,7 @@ func Get[T any](ctx context.Context, c Cache, key string) (T, Status, error) {
 	if !ok {
 		return zero, NotFound, nil
 	}
-	if len(raw) == 1 && raw[0] == 0 {
+	if bytes.Equal(raw, missValue) {
 		return zero, KnownMiss, nil
 	}
 	var out T
@@ -53,7 +54,7 @@ func GetMany[T any](ctx context.Context, c Cache, keys []string) ([]T, []Status,
 			statuses[i] = NotFound
 			continue
 		}
-		if len(raw) == 1 && raw[0] == 0 {
+		if bytes.Equal(raw, missValue) {
 			statuses[i] = KnownMiss
 			continue
 		}

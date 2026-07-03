@@ -17,6 +17,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/isrc"
 	"github.com/f1nniboy/lrcmux/internal/logging"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
+	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
@@ -33,6 +34,7 @@ type Orchestrator struct {
 	opts      Options
 	log       *slog.Logger
 	sf        singleflight.Group
+	metrics   *metrics.Collector
 }
 
 type Request struct {
@@ -71,12 +73,13 @@ type Options struct {
 	CacheMissTTL time.Duration
 }
 
-func New(provs []providers.Provider, c cache.Cache, breaker *Breaker, resolver *isrc.Resolver, opts Options) *Orchestrator {
+func New(provs []providers.Provider, c cache.Cache, breaker *Breaker, resolver *isrc.Resolver, coll *metrics.Collector, opts Options) *Orchestrator {
 	return &Orchestrator{
 		providers: provs,
 		cache:     c,
 		breaker:   breaker,
 		resolver:  resolver,
+		metrics:   coll,
 		opts:      opts,
 		log:       logging.New("orchestrator"),
 	}
@@ -309,23 +312,31 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 }
 
 func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) {
-	log := o.log.With("provider", out.id, "latency_ms", out.latency.Milliseconds())
+	log := o.log.With("provider", out.id, "latency", out.latency.Milliseconds())
 
+	var outcome string
 	switch {
 	case out.err == nil && out.result != nil:
 		log.Debug("provider ok", "sync", out.result.SyncLevel.String())
+		outcome = "ok"
 	case errors.Is(out.err, lyrics.ErrNotFound):
 		log.Debug("provider not found")
+		outcome = "not_found"
 	case errors.Is(out.err, providers.ErrRateLimited):
 		log.Info("provider rate limited")
+		outcome = "rate_limited"
 	case errors.Is(out.err, context.DeadlineExceeded) || errors.Is(out.err, lyrics.ErrTimeout):
 		log.Info("provider timeout")
+		outcome = "timeout"
 	case errors.Is(out.err, context.Canceled):
 		log.Debug("provider cancelled")
+		outcome = "canceled"
 	case isNetworkNoise(out.err):
 		log.Info("provider network error", "err", out.err)
+		outcome = "network_error"
 	default:
 		log.Warn("provider error", "err", out.err)
+		outcome = "error"
 
 		sentry.WithScope(func(scope *sentry.Scope) {
 			scope.SetTag("provider", out.id)
@@ -336,6 +347,11 @@ func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) {
 			})
 			sentry.CaptureException(out.err)
 		})
+	}
+
+	if o.metrics != nil {
+		o.metrics.ProviderOps.WithLabelValues(out.id, outcome).Inc()
+		o.metrics.ProviderLatency.WithLabelValues(out.id).Observe(out.latency.Seconds())
 	}
 }
 
@@ -370,6 +386,9 @@ func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *l
 
 func isNetworkNoise(err error) bool {
 	if _, ok := errors.AsType[*net.OpError](err); ok {
+		return true
+	}
+	if ne, ok := errors.AsType[net.Error](err); ok && ne.Timeout() {
 		return true
 	}
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {

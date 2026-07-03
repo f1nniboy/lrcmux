@@ -26,6 +26,10 @@ primary_region = 'ams'
     method = 'GET'
     path = '/health'
 
+[metrics]
+  port = 9091
+  path = '/metrics'
+
 [[vm]]
   memory = '512mb'
   cpus = 1

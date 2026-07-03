@@ -12,9 +12,9 @@ import (
 
 type statsOutput struct {
 	Body struct {
-		Version   string                       `json:"version"`
-		Commit    string                       `json:"commit"`
-		Providers []orchestrator.ProviderInfo  `json:"providers,omitempty"`
+		Version   string                      `json:"version"`
+		Commit    string                      `json:"commit"`
+		Providers []orchestrator.ProviderInfo `json:"providers,omitempty"`
 	}
 }
 

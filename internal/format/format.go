@@ -11,13 +11,10 @@ import (
 type Encoder interface {
 	Encode(w io.Writer, r *lyrics.Result) error
 	ContentType() string
-	MinLevel() lyrics.SyncLevel
+	// specifies which range of sync levels this encoder can output
+	Levels() (min, max lyrics.SyncLevel)
 	Desc() string
 }
-
-type anyLevel struct{}
-
-func (anyLevel) MinLevel() lyrics.SyncLevel { return lyrics.SyncNone }
 
 var registry = map[string]Encoder{
 	"lrc":  lrcEncoder{},

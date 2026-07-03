@@ -8,10 +8,11 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 )
 
-type lrcEncoder struct{ anyLevel }
+type lrcEncoder struct{}
 
-func (lrcEncoder) ContentType() string { return "text/plain; charset=utf-8" }
-func (lrcEncoder) Desc() string        { return "Standard .lrc files for music players" }
+func (lrcEncoder) Levels() (min, max lyrics.SyncLevel) { return lyrics.SyncNone, lyrics.SyncWord }
+func (lrcEncoder) ContentType() string                 { return "text/plain; charset=utf-8" }
+func (lrcEncoder) Desc() string                        { return "Standard .lrc files for music players" }
 
 func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	bw := bufio.NewWriter(w)

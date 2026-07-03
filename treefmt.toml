@@ -1,5 +1,6 @@
 [formatter.go]
 command = "gofmt"
+options = ["-w"]
 includes = ["*.go"]
 
 [formatter.prettier]

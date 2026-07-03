@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/f1nniboy/lrcmux/internal/meta"
+	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
 )
@@ -29,21 +30,26 @@ type Server struct {
 	api               huma.API
 	hide              bool
 	requireCloudflare bool
+	metrics           *metrics.Collector
 }
 
-func NewServer(orch *orchestrator.Orchestrator, rl *ratelimit.Limiter, hide bool, requireCloudflare bool, log *slog.Logger) *Server {
+func NewServer(orch *orchestrator.Orchestrator, rl *ratelimit.Limiter, hide bool, requireCloudflare bool, coll *metrics.Collector, log *slog.Logger) *Server {
+	if coll != nil {
+		coll.Register(newBreakerCollector(orch))
+	}
 	return &Server{
 		orch:              orch,
 		rl:                rl,
 		log:               log,
 		hide:              hide,
 		requireCloudflare: requireCloudflare,
+		metrics:           coll,
 	}
 }
 
 func (s *Server) Run(ctx context.Context, listen string) error {
 	r := chi.NewRouter()
-	r.Use(cors, recoverer(s.log), accessLog(s.log), withIP)
+	r.Use(cors, recoverer(s.log), withIP)
 
 	// why is there no good way to get the requesting client's IP in CURRENT_YEAR
 	if s.requireCloudflare {
@@ -84,13 +90,29 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
+	if s.metrics != nil && s.metrics.Listen != "" {
+		metricsMux := http.NewServeMux()
+		metricsMux.Handle("/metrics", s.metrics.Handler())
+		metricsSrv := &http.Server{
+			Addr:    s.metrics.Listen,
+			Handler: metricsMux,
+		}
+		go func() {
+			s.log.Info("metrics listening", "addr", s.metrics.Listen)
+			if err := metricsSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				s.log.Warn("metrics server error", "err", err)
+			}
+		}()
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			metricsSrv.Shutdown(shutdownCtx)
+		}()
+	}
+
 	s.srv = &http.Server{
-		Addr:              listen,
-		Handler:           r,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		Addr:    listen,
+		Handler: r,
 	}
 
 	errCh := make(chan error, 1)

@@ -63,7 +63,21 @@ func (s *Server) getOp() huma.Operation {
 	}
 }
 
-func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.StreamResponse, error) {
+func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *huma.StreamResponse, herr error) {
+	if s.metrics != nil {
+		defer func() {
+			status := 200
+			if herr != nil {
+				if he, ok := errors.AsType[*huma.ErrorModel](herr); ok {
+					status = he.Status
+				} else {
+					status = 500
+				}
+			}
+			s.metrics.HTTPRequests.WithLabelValues(input.Format, input.Level, strconv.Itoa(status)).Inc()
+		}()
+	}
+
 	fetchMode := input.Fetch
 	if fetchMode == "" {
 		fetchMode = "default"
@@ -81,11 +95,16 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.St
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
-	if min := encoder.MinLevel(); min > level {
-		level = min
+
+	minLevel, maxLevel := encoder.Levels()
+	if minLevel > level {
+		level = minLevel
+	}
+	if maxLevel < level {
+		level = maxLevel
 	}
 
-	resp, err := s.fetch(ctx, orchestrator.Request{
+	lyricsResp, err := s.fetch(ctx, orchestrator.Request{
 		Artist:    input.Artist,
 		Title:     input.Title,
 		Album:     input.Album,
@@ -105,30 +124,38 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (*huma.St
 		return nil, s.mapError(err)
 	}
 
-	if min := encoder.MinLevel(); resp.Result.SyncLevel < min {
-		return nil, huma.Error400BadRequest(fmt.Sprintf("format %q requires %s-synced lyrics", input.Format, min.String()))
+	if lyricsResp.Result.SyncLevel < minLevel {
+		return nil, huma.Error400BadRequest(fmt.Sprintf("format %q requires %s-synced lyrics", input.Format, minLevel.String()))
+	}
+
+	if s.metrics != nil {
+		cacheResult := "miss"
+		if lyricsResp.Cached {
+			cacheResult = "hit"
+		}
+		s.metrics.CacheOps.WithLabelValues(cacheResult).Inc()
 	}
 
 	if s.hide {
-		resp.Result.Source = lyrics.Source{}
+		lyricsResp.Result.Source = lyrics.Source{}
 	}
 
 	var buf bytes.Buffer
-	if err := encoder.Encode(&buf, resp.Result); err != nil {
+	if err := encoder.Encode(&buf, lyricsResp.Result); err != nil {
 		return nil, huma.Error500InternalServerError(err.Error())
 	}
 
-	filename := fmt.Sprintf("%s - %s.%s", utils.SanitizeFilename(resp.Result.Track.Artist), utils.SanitizeFilename(resp.Result.Track.Title), input.Format)
+	filename := fmt.Sprintf("%s - %s.%s", utils.SanitizeFilename(lyricsResp.Result.Track.Artist), utils.SanitizeFilename(lyricsResp.Result.Track.Title), input.Format)
 
 	return &huma.StreamResponse{
 		Body: func(ctx huma.Context) {
 			ctx.SetHeader("Content-Type", encoder.ContentType())
 			ctx.SetHeader("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
 			if !s.hide {
-				ctx.SetHeader("X-Source", resp.Result.Source.ID)
+				ctx.SetHeader("X-Source", lyricsResp.Result.Source.ID)
 			}
-			ctx.SetHeader("X-Sync-Level", resp.Result.SyncLevel.String())
-			if resp.Cached {
+			ctx.SetHeader("X-Sync-Level", lyricsResp.Result.SyncLevel.String())
+			if lyricsResp.Cached {
 				ctx.SetHeader("X-Cache", "HIT")
 			} else {
 				ctx.SetHeader("X-Cache", "MISS")

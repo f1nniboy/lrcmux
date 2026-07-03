@@ -1,4 +1,4 @@
-<footer class="border-t border-rule mt-auto">
+<footer class="border-t border-rule bg-paper mt-auto">
   <div
     class="mx-auto w-full max-w-3xl flex items-center justify-between gap-4 px-5 sm:px-8 h-14"
   >

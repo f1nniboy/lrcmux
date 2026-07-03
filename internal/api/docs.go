@@ -66,10 +66,11 @@ func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rl *ratelimit.Limi
 
 	for _, name := range format.All() {
 		enc, _ := format.Get(name)
+		min, _ := enc.Levels()
 		d.Formats = append(d.Formats, formatDoc{
 			Name:        name,
 			ContentType: enc.ContentType(),
-			MinLevel:    enc.MinLevel().String(),
+			MinLevel:    min.String(),
 			UseCase:     enc.Desc(),
 		})
 	}

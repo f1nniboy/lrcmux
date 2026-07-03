@@ -8,10 +8,11 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 )
 
-type txtEncoder struct{ anyLevel }
+type txtEncoder struct{}
 
-func (txtEncoder) ContentType() string { return "text/plain; charset=utf-8" }
-func (txtEncoder) Desc() string        { return "Plain unsynced text" }
+func (txtEncoder) Levels() (min, max lyrics.SyncLevel) { return lyrics.SyncNone, lyrics.SyncNone }
+func (txtEncoder) ContentType() string                 { return "text/plain; charset=utf-8" }
+func (txtEncoder) Desc() string                        { return "Plain unsynced text" }
 
 func (txtEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	bw := bufio.NewWriter(w)

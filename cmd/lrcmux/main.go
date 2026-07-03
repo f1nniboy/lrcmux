@@ -19,6 +19,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/isrc"
 	"github.com/f1nniboy/lrcmux/internal/logging"
 	"github.com/f1nniboy/lrcmux/internal/meta"
+	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 	"github.com/f1nniboy/lrcmux/internal/proxy"
@@ -103,8 +104,14 @@ func main() {
 	isrcClient := &http.Client{Timeout: 3 * time.Second}
 	isrcResolver := isrc.New(isrcClient, cacheLayer, cfg.Cache.MissTTL.Duration, logging.New("isrc"))
 
+	var coll *metrics.Collector
+	if cfg.Metrics.Listen != "" {
+		coll = metrics.New(cfg.Metrics.Listen)
+		log.Info("metrics enabled", "addr", cfg.Metrics.Listen)
+	}
+
 	breaker := orchestrator.NewBreaker(cacheLayer, logging.New("breaker"))
-	orch := orchestrator.New(provs, cacheLayer, breaker, isrcResolver, orchestrator.Options{
+	orch := orchestrator.New(provs, cacheLayer, breaker, isrcResolver, coll, orchestrator.Options{
 		Timeout:      cfg.Provider.Timeout.Duration,
 		CacheTTL:     cfg.Cache.TTL.Duration,
 		CacheMissTTL: cfg.Cache.MissTTL.Duration,
@@ -118,7 +125,7 @@ func main() {
 		rl = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration, logging.New("ratelimit"))
 	}
 
-	srv := api.NewServer(orch, rl, cfg.Provider.Hide, cfg.Server.RequireCloudflare, logging.New("api"))
+	srv := api.NewServer(orch, rl, cfg.Provider.Hide, cfg.Server.RequireCloudflare, coll, logging.New("api"))
 	runErr := srv.Run(ctx, cfg.Server.Listen)
 	if runErr != nil {
 		log.Error("server error", "err", runErr)

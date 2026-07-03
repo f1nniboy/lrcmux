@@ -5,9 +5,7 @@ services:
       - redis_data:/data
 
   api:
-    build:
-      context: .
-      target: api
+    image: ghcr.io/f1nniboy/lrcmux-api:latest
     ports:
       - "8080:8080"
     volumes:
@@ -18,9 +16,7 @@ services:
       - redis
 
   frontend:
-    build:
-      context: .
-      target: frontend
+    image: ghcr.io/f1nniboy/lrcmux-frontend:latest
     ports:
       - "3000:3000"
     environment:

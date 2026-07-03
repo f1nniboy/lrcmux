@@ -2,8 +2,12 @@ app = 'lrcmux-api'
 primary_region = 'ams'
 
 [build]
-  dockerfile = 'Dockerfile'
+  dockerfile = '../Dockerfile'
   build-target = 'api'
+
+[[files]]
+  guest_path = '/etc/lrcmux/config.toml'
+  secret_name = 'APP_CONFIG'
 
 [env]
   LISTEN = '0.0.0.0:8080'

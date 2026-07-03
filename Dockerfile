@@ -21,11 +21,17 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -o lrcmux ./cmd/lrcmux
 
 FROM gcr.io/distroless/static-debian12 AS api
+LABEL org.opencontainers.image.source="https://github.com/f1nniboy/lrcmux"
+LABEL org.opencontainers.image.description="A lyrics aggregator API"
+LABEL org.opencontainers.image.licenses="MIT"
 COPY --from=api-build /app/lrcmux /lrcmux
 EXPOSE 8080
 ENTRYPOINT ["/lrcmux", "-config", "/etc/lrcmux/config.toml"]
 
 FROM node:22-alpine AS frontend
+LABEL org.opencontainers.image.source="https://github.com/f1nniboy/lrcmux"
+LABEL org.opencontainers.image.description="Frontend for a lyrics aggregator API"
+LABEL org.opencontainers.image.licenses="MIT"
 COPY --from=frontend-build /app/build /app
 EXPOSE 3000
 CMD ["node", "/app"]

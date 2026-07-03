@@ -92,17 +92,17 @@
   og={{ type: "music.song", image: ogImage }}
 />
 
-<div class="w-full max-w-3xl min-w-0 px-5 sm:px-8 pt-12 pb-16">
+<div
+  class="w-full max-w-3xl min-w-0 px-5 sm:px-8 pt-12 pb-8 flex-1 flex flex-col"
+>
   {#if result}
-    <div class="flex flex-col gap-12">
-      <div>
-        <LyricsPanel track={result.track} {result} />
-        {#if result.meta.source}
-          <p class="mt-3 text-xs text-muted text-center">
-            &copy; {result.meta.source.name}
-          </p>
-        {/if}
-      </div>
+    <div class="flex-1 flex flex-col">
+      <LyricsPanel track={result.track} {result} />
+      {#if result.meta.source}
+        <p class="mt-3 text-xs text-muted text-center">
+          &copy; {result.meta.source.name}
+        </p>
+      {/if}
     </div>
   {:else if fetchState.status === "loading"}
     <div class="flex flex-col items-center justify-center py-32 gap-5">

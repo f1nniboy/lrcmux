@@ -75,7 +75,9 @@
   );
 </script>
 
-<section class="border border-rule rounded-md overflow-hidden bg-paper-2">
+<section
+  class="flex-1 flex flex-col border border-rule rounded-md overflow-hidden bg-paper-2"
+>
   <FormatBar
     format={activeFormat}
     level={activeLevel}
@@ -139,18 +141,11 @@
     </ActionButton>
   </FormatBar>
 
-  <div class="relative">
+  <div class="relative flex-1 flex flex-col">
     <pre
-      class="p-5 h-112 overflow-auto text-ink"
-      class:font-mono={!isRich}
-      class:font-sans={isRich}
-      class:text-xs={!isRich}
-      class:text-base={isRich}
-      class:leading-relaxed={!isRich}
-      class:leading-9={isRich}
-      class:whitespace-pre={!isRich}
-      class:whitespace-pre-wrap={isRich}>{text ||
-        (loading ? "" : err ? "" : "empty...")}</pre>
+      class="p-5 flex-1 min-h-0 overflow-auto text-ink {isRich
+        ? 'font-sans text-base leading-9 whitespace-pre-wrap'
+        : 'font-mono text-xs leading-relaxed whitespace-pre'}">{text}</pre>
 
     {#if loading}
       <div

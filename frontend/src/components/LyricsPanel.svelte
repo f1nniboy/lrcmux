@@ -14,7 +14,7 @@
   let artistHref = $derived(`/s/${toSlug(track.artist)}`);
 </script>
 
-<section class="space-y-6">
+<section class="flex-1 flex flex-col space-y-6">
   <header class="flex items-start gap-4">
     {#if track.cover.medium}
       <img

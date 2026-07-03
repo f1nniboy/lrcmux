@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -355,13 +356,6 @@ func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) {
 	}
 }
 
-func rankResult(a, b *lyrics.Result) bool {
-	if a.SyncLevel != b.SyncLevel {
-		return a.SyncLevel > b.SyncLevel
-	}
-	return len(a.Lines) > len(b.Lines)
-}
-
 func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *lyrics.Result {
 	if len(results) == 0 {
 		return nil
@@ -382,6 +376,27 @@ func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *l
 	}
 	o.log.Debug("pick: no result meets target level")
 	return nil
+}
+
+func censorCount(r *lyrics.Result) int {
+	n := 0
+	for _, l := range r.Lines {
+		if strings.Contains(l.Text, "**") {
+			n++
+		}
+	}
+	return n
+}
+
+func rankResult(a, b *lyrics.Result) bool {
+	if a.SyncLevel != b.SyncLevel {
+		return a.SyncLevel > b.SyncLevel
+	}
+	ca, cb := censorCount(a), censorCount(b)
+	if ca != cb {
+		return ca < cb
+	}
+	return len(a.Lines) > len(b.Lines)
 }
 
 func isNetworkNoise(err error) bool {

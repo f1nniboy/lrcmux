@@ -1,7 +1,7 @@
 {
   "name": "lrcmux-frontend",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -24,6 +24,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "@scalar/sveltekit": "^0.3.7"
+    "@scalar/sveltekit": "^0.3.7",
+    "marked": "^18.0.5"
   }
 }

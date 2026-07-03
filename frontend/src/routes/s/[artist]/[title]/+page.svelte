@@ -29,6 +29,12 @@
 
   let fetchState: FetchState = $state({ status: "loading" });
 
+  const result = $derived.by(() => {
+    if (data.lyrics) return data.lyrics;
+    if (fetchState.status === "ok") return fetchState.result;
+    return null;
+  });
+
   $effect(() => {
     const artist = data.artist;
     const title = data.title;
@@ -87,18 +93,16 @@
 />
 
 <div class="w-full max-w-3xl min-w-0 px-5 sm:px-8 pt-12 pb-16">
-  {#if data.lyrics}
+  {#if result}
     <div class="flex flex-col gap-12">
       <div>
-        <LyricsPanel track={data.lyrics.track} result={data.lyrics} />
-        {#if data.lyrics.meta.source}
+        <LyricsPanel track={result.track} {result} />
+        {#if result.meta.source}
           <p class="mt-3 text-xs text-muted text-center">
-            &copy; {data.lyrics.meta.source.name}
+            &copy; {result.meta.source.name}
           </p>
         {/if}
       </div>
-      <hr class="m-0 border-rule" />
-      <UseItInYourApp />
     </div>
   {:else if fetchState.status === "loading"}
     <div class="flex flex-col items-center justify-center py-32 gap-5">
@@ -121,21 +125,5 @@
     {:else}
       <ErrorAlert message={fetchState.message} />
     {/if}
-  {:else}
-    <div class="flex flex-col gap-12">
-      <div>
-        <LyricsPanel
-          track={fetchState.result.track}
-          result={fetchState.result}
-        />
-        {#if fetchState.result.meta.source}
-          <p class="mt-3 text-xs text-muted text-center">
-            &copy; {fetchState.result.meta.source.name}
-          </p>
-        {/if}
-      </div>
-      <hr class="m-0 border-rule" />
-      <UseItInYourApp />
-    </div>
   {/if}
 </div>

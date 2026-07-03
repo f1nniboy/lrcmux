@@ -4,6 +4,7 @@
   import SearchBar from "$components/SearchBar.svelte";
   import TrendingGrid from "$components/TrendingGrid.svelte";
   import UseItInYourApp from "$components/UseItInYourApp.svelte";
+  import CompatGuides from "$components/CompatGuides.svelte";
   import Wordmark from "$components/Wordmark.svelte";
 </script>
 
@@ -34,101 +35,20 @@
   <hr class="m-0 border-rule" />
 
   <section>
-    <h2 class="text-2xl sm:text-3xl font-semibold text-ink mb-8">
-      Why <Wordmark />?
+    <h2 class="text-2xl sm:text-3xl font-semibold text-ink mb-3">
+      Drop-in usage
     </h2>
-    <div class="grid sm:grid-cols-3 gap-8 sm:gap-10">
-      <div>
-        <h3 class="text-lg font-semibold text-ink mb-1.5">Better coverage</h3>
-        <p class="text-muted text-base sm:text-sm leading-relaxed">
-          No single provider has everything. By querying them all in parallel,
-          we catch what others miss.
-        </p>
-      </div>
-      <div>
-        <h3 class="text-lg font-semibold text-ink mb-1.5">Free and public</h3>
-        <p class="text-muted text-base sm:text-sm leading-relaxed">
-          Use this public instance or host it yourself, without the need for any
-          provider API keys.
-        </p>
-      </div>
-      <div>
-        <h3 class="text-lg font-semibold text-ink mb-1.5">
-          Drop-in compatible
-        </h3>
-        <p class="text-muted text-base sm:text-sm leading-relaxed">
-          Existing LRCLIB and LyricsPlus clients work by pointing them at the
-          matching compatibility endpoint, so you won't miss out on improved
-          lyrics.
-        </p>
-      </div>
-    </div>
+    <p class="text-muted leading-relaxed mb-6">
+      Various apps allow you to set custom endpoints for fetching lyrics. Point
+      them at <Wordmark />
+      and get better coverage easily, no code required.
+    </p>
+    <CompatGuides />
   </section>
 
   <hr class="m-0 border-rule" />
 
   <section>
-    <h2 class="text-2xl sm:text-3xl font-semibold text-ink mb-8">Use cases</h2>
-    <div class="space-y-10">
-      <div>
-        <h3 class="text-lg font-semibold text-ink mb-2">
-          Drop-in upgrade for existing apps
-        </h3>
-        <p class="text-muted leading-relaxed">
-          Apps with a configurable LRCLIB or KPOE base URL work with <Wordmark
-          /> without code changes. Point any LRCLIB-compatible client at
-          <code class="text-ink font-mono text-sm"
-            >https://api.lrcmux.dev/compat/lrclib</code
-          >, or set
-          <Link href="https://github.com/ibratabian17/YouLyPlus">YouLy+</Link>
-          and other LyricsPlus clients to
-          <code class="text-ink font-mono text-sm"
-            >https://api.lrcmux.dev/compat/kpoe</code
-          >.
-        </p>
-      </div>
-
-      <div>
-        <h3 class="text-lg font-semibold text-ink mb-2">
-          Music library tagging
-        </h3>
-        <p class="text-muted leading-relaxed">
-          Tools like <Link href="https://beets.io">beets</Link>
-          and
-          <Link href="https://picard.musicbrainz.org">MusicBrainz Picard</Link>
-          tag your audio files with ISRCs. You can use those ISRCs to fetch synced
-          LRC sidecar files from <Wordmark />
-          and place them next to your audio, which players pick up automatically.
-        </p>
-      </div>
-
-      <div>
-        <h3 class="text-lg font-semibold text-ink mb-2">
-          Media center integration
-        </h3>
-        <p class="text-muted leading-relaxed">
-          Kodi, Plex, and Jellyfin can fetch synced lyrics via plugins. Point
-          them at our compatibility endpoints for better coverage than any
-          single provider.
-        </p>
-      </div>
-
-      <div>
-        <h3 class="text-lg font-semibold text-ink mb-2">
-          Building your own app
-        </h3>
-        <p class="text-muted leading-relaxed">
-          The <code class="text-ink font-mono text-sm">json</code>
-          format returns structured line and word timestamps suitable for building
-          karaoke-style displays, lyric overlays, or anything your heart desires.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <hr class="m-0 border-rule" />
-
-  <section class="border border-rule rounded-md p-5 sm:p-6 bg-paper-2">
     <h2 class="text-lg font-semibold text-ink mb-2">Wrong lyrics?</h2>
     <p class="text-muted leading-relaxed">
       <Wordmark /> is purely an aggregator with no lyric database of its own. If a

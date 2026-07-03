@@ -16,7 +16,6 @@ const (
 	KnownMiss               // key present, but marked as miss
 )
 
-
 var missValue = []byte{0}
 
 func Get[T any](ctx context.Context, c Cache, key string) (T, Status, error) {

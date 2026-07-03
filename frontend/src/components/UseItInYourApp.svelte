@@ -3,15 +3,17 @@
 >
   <div>
     <h2 class="text-2xl sm:text-3xl font-semibold text-ink mb-2">
-      What are you waiting for?
+      Ready to integrate?
     </h2>
-    <p class="text-muted">One endpoint. Every provider. No keys.</p>
+    <p class="text-muted">
+      Easy-to-use API, with sane rate limits and no auth required.
+    </p>
   </div>
   <a
     href="/docs"
     class="self-start sm:self-end inline-flex items-center gap-2 bg-ink text-paper px-5 py-3 rounded-md font-medium hover:bg-cue transition-colors"
   >
-    Read the API docs
+    Read the docs
     <svg
       width="16"
       height="16"

@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
   import type { LyricsFormat, SyncLevel } from "$lib/types";
   import { FORMATS, LEVELS, LEVEL_RANK } from "$lib/types";
+  import TabBar from "$components/TabBar.svelte";
 
   interface Props {
     format: LyricsFormat;
@@ -31,26 +32,15 @@
   });
 </script>
 
-<header
-  class="flex items-center gap-1 border-b border-rule px-2 py-1.5 overflow-x-auto"
->
-  {#each FORMATS as f (f.id)}
-    {@const disabled = disabledFormat(f.id)}
-    <button
-      type="button"
-      onclick={() => onformat(f.id)}
-      {disabled}
-      class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                {disabled
-        ? 'text-muted opacity-35 cursor-not-allowed'
-        : format === f.id
-          ? 'bg-ink text-paper cursor-pointer'
-          : 'text-muted hover:text-ink hover:bg-paper cursor-pointer'}"
-    >
-      {f.id.toUpperCase()}
-    </button>
-  {/each}
-</header>
+<TabBar
+  tabs={FORMATS.map((f) => ({
+    id: f.id,
+    label: f.id.toUpperCase(),
+    disabled: disabledFormat(f.id),
+  }))}
+  active={format}
+  onchange={(id) => onformat(id as LyricsFormat)}
+/>
 
 <div
   class="flex items-center gap-2 px-3 py-2 border-b border-rule overflow-x-auto"
@@ -61,7 +51,7 @@
       {@const disabled = disabledLevel(l)}
       <button
         type="button"
-        onclick={() => onlevel(l)}
+        onclick={() => l !== level && onlevel(l)}
         {disabled}
         class="px-2 py-1 text-xs font-medium rounded transition-colors
                     {disabled

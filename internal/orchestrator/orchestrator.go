@@ -240,7 +240,7 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 	for i, p := range active {
 		ids[i] = p.ID()
 	}
-	o.log.Debug("fanning out", "providers", ids, "target_level", level.String(), "timeout_ms", o.opts.Timeout.Milliseconds())
+	o.log.Debug("fanning out", "providers", ids, "target_level", level.String(), "timeout", o.opts.Timeout.Milliseconds())
 
 	ch := make(chan providerOutcome, len(active))
 	var wg sync.WaitGroup

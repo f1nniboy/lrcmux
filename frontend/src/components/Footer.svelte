@@ -1,9 +1,13 @@
+<script lang="ts">
+  import Wordmark from "$components/Wordmark.svelte";
+</script>
+
 <footer class="border-t border-rule bg-paper mt-auto">
   <div
     class="mx-auto w-full max-w-3xl flex items-center justify-between gap-4 px-5 sm:px-8 h-14"
   >
-    <span class="text-sm font-semibold text-ink"
-      >Synced lyrics, <span class="text-cue">for free</span>.</span
+    <span class="text-sm text-muted"
+      >&copy; {new Date().getFullYear()} <Wordmark /></span
     >
 
     <nav class="flex items-center gap-6 text-sm shrink-0">

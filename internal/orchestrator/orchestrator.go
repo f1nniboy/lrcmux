@@ -154,7 +154,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		return nil, ErrNotFound
 	}
 
-	groupKey := queryKey(q)
+	groupKey := queryKey(q, req.Level)
 	type fanResult struct {
 		res *Response
 	}

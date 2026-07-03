@@ -12,6 +12,6 @@ func cacheKey(isrc, source string) string {
 	return "lyrics:" + hex.EncodeToString(sum[:16])
 }
 
-func queryKey(q lyrics.Query) string {
-	return q.Track.ISRC
+func queryKey(q lyrics.Query, level lyrics.SyncLevel) string {
+	return q.Track.ISRC + ":" + level.String()
 }

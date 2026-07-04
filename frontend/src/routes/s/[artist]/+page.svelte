@@ -1,3 +1,8 @@
+<script module lang="ts">
+  import type { Track } from "$lib/types";
+  const cache = new Map<number, Track[]>();
+</script>
+
 <script lang="ts">
   import { getArtistTopTracks, deezerToAPITrack } from "$lib/deezer";
   import type { Track } from "$lib/types";
@@ -9,22 +14,30 @@
 
   let { data }: { data: PageData } = $props();
 
-  let tracks = $state<Track[]>([]);
-  let loading = $state(true);
+  let tracks = $state<Track[]>(cache.get(data.artist.id) ?? []);
+  let loading = $state(!cache.has(data.artist.id));
   let error = $state<string | null>(null);
 
   $effect(() => {
     const artistId = data.artist.id;
+    if (cache.has(artistId)) {
+      tracks = cache.get(artistId)!;
+      loading = false;
+      return;
+    }
+
     loading = true;
     tracks = [];
     error = null;
 
     void getArtistTopTracks({}, artistId)
       .then((deezerTracks) => {
-        tracks = deezerTracks.map((dt) => ({
+        const mapped = deezerTracks.map((dt) => ({
           ...deezerToAPITrack(dt),
           isrc: dt.isrc || String(dt.id),
         }));
+        cache.set(artistId, mapped);
+        tracks = mapped;
       })
       .catch((e: Error) => {
         error = e.message;

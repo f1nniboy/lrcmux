@@ -57,7 +57,7 @@
       <p class="text-sm font-medium truncate text-ink">{track.title}</p>
       <p class="text-xs text-muted truncate">{track.artist}</p>
     </div>
-    <span class="font-mono text-xs text-muted tabular-nums"
+    <span class="text-xs text-muted tabular-nums"
       >{fmtDuration(track.duration)}</span
     >
   </a>

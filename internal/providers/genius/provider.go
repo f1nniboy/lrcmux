@@ -175,7 +175,14 @@ func (p *Provider) scrape(ctx context.Context, pageURL string) ([]lyrics.Line, e
 
 	var lines []lyrics.Line
 	for l := range strings.SplitSeq(text, "\n") {
-		lines = append(lines, lyrics.Line{Text: strings.TrimSpace(l)})
+		t := strings.TrimSpace(l)
+
+		// strip lines like "(Intro: ...)", "(Chorus: ...)"
+		if strings.HasPrefix(t, "(") && strings.HasSuffix(t, ")") && strings.Contains(t, ":") {
+			continue
+		}
+
+		lines = append(lines, lyrics.Line{Text: t})
 	}
 	for len(lines) > 0 && lines[0].Text == "" {
 		lines = lines[1:]

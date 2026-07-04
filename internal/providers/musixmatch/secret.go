@@ -38,9 +38,9 @@ type signer struct {
 	group  singleflight.Group
 }
 
-func newSigner(c cache.Cache, log *slog.Logger) *signer {
+func newSigner(client *http.Client, c cache.Cache, log *slog.Logger) *signer {
 	return &signer{
-		client: &http.Client{Timeout: 10 * time.Second},
+		client: client,
 		cache:  c,
 		log:    log,
 	}

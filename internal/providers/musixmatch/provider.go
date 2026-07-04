@@ -44,7 +44,7 @@ func init() {
 func factory(args providers.FactoryArgs) (providers.Impl, error) {
 	return &Provider{
 		client: args.Client,
-		signer: newSigner(args.Cache, args.Log),
+		signer: newSigner(args.Client, args.Cache, args.Log),
 		log:    args.Log,
 	}, nil
 }
@@ -169,11 +169,7 @@ func (p *Provider) sendSigned(ctx context.Context, endpoint string, extra url.Va
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-	case http.StatusServiceUnavailable: // could be actual server errors?
-		return nil, providers.ErrRateLimited
-	default:
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http %d", resp.StatusCode)
 	}
 

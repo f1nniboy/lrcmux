@@ -20,6 +20,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
+	"github.com/f1nniboy/lrcmux/internal/proxy"
 )
 
 var (
@@ -251,7 +252,7 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 			defer wg.Done()
 			o.log.Debug("querying provider", "provider", p.ID())
 			start := time.Now()
-			r, err := p.Search(fanCtx, q)
+			r, err := p.Search(proxy.Sticky(fanCtx), q)
 			ch <- providerOutcome{id: p.ID(), name: p.Name(), result: r, err: err, latency: time.Since(start)}
 		}(p)
 	}

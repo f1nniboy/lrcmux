@@ -59,8 +59,8 @@ func (r *Registry) ClientFor(name string, timeout time.Duration) *http.Client {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxIdleConnsPerHost = 10
 	if ok {
-		t.Proxy = func(*http.Request) (*url.URL, error) {
-			return pool.next(), nil
+		t.Proxy = func(req *http.Request) (*url.URL, error) {
+			return pool.pick(req.Context()), nil
 		}
 	}
 	return &http.Client{Timeout: timeout, Transport: t}

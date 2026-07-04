@@ -1,54 +1,56 @@
-# lrcmux configuration example
-
 [server]
-# also overridable via LISTEN env var
-listen = ":8080"
+# address to listen on, overridable via LISTEN env var
+listen = ':8080'
+# reject requests not arriving via Cloudflare
+# require_cloudflare = false
 
 [cache]
-# also overridable via the REDIS_URL env var, omit to use memory cache
-# redis_url = "redis://localhost:6379/0"
-ttl = "24h"
-miss_ttl = "1h"
+# Redis URL, overridable via REDIS_URL env var, omit to use in-memory cache
+# redis_url = 'redis://localhost:6379'
+# how long to cache successful lyrics results
+ttl = '24h0m0s'
+# how long to cache provider not-found results
+miss_ttl = '1h0m0s'
 
 [log]
-level = "info" # debug, info, warn, error
-format = "text" # text or json
+# debug, info, warn, error
+level = 'info'
+# text or json
+format = 'text'
 
 [provider]
-timeout = "3s"
-# if true, hide provider source from responses and /stats endpoint
+# timeout for provider requests
+timeout = '5s'
+# hide source from responses and /stats endpoint
 hide = false
 
 [ratelimit]
+# max requests per window per IP
 limit = 45
-window = "1h"
+# rate limit time window
+window = '1h0m0s'
 
 # [metrics]
-# listen = ":9091"
+# address to expose Prometheus metrics on
+# listen = ':9091'
 
-# each section under [proxies.<name>] defines a pool, and
-# providers reference it via `proxy = "<name>"`. each
-# outgoing request is routed through a randomly picked proxy
-# from the pool.
-#
-# [proxies.myname]
-# urls = [
-#   "http://user:pass@proxy1.example.com:8080",
-#   "http://user:pass@proxy2.example.com:8080",
-# ]
+# named proxy pools, providers reference a pool via proxy = "<name>"
+# [proxies]
+# [proxies.mypool]
+# urls = ['socks5://user:pass@proxy1.example.com:1080']
 
-[providers.lrclib]
+[providers]
+[providers.genius]
 enable = true
 
 [providers.kugou]
 enable = true
 
-[providers.ytmusic]
-enable = true
-
-[providers.genius]
+[providers.lrclib]
 enable = true
 
 [providers.musixmatch]
 enable = true
-# pool_size = 3
+
+[providers.ytmusic]
+enable = true

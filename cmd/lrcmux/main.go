@@ -25,12 +25,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/proxy"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
 
-	// don't forget to add new providers here
-	_ "github.com/f1nniboy/lrcmux/internal/providers/genius"
-	_ "github.com/f1nniboy/lrcmux/internal/providers/kugou"
-	_ "github.com/f1nniboy/lrcmux/internal/providers/lrclib"
-	_ "github.com/f1nniboy/lrcmux/internal/providers/musixmatch"
-	_ "github.com/f1nniboy/lrcmux/internal/providers/ytmusic"
+	_ "github.com/f1nniboy/lrcmux/internal/providers/all"
 )
 
 func main() {

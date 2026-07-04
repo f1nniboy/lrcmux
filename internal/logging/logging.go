@@ -7,8 +7,8 @@ import (
 )
 
 type Config struct {
-	Level  string `toml:"level"`
-	Format string `toml:"format"`
+	Level  string `toml:"level" comment:"debug, info, warn, error"`
+	Format string `toml:"format" comment:"text or json"`
 }
 
 func Init(cfg Config) {

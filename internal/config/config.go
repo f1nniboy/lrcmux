@@ -5,20 +5,20 @@ import (
 	"os"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml/v2"
 
 	"github.com/f1nniboy/lrcmux/internal/logging"
 )
 
 type Server struct {
-	Listen            string `toml:"listen" validate:"required"`
-	RequireCloudflare bool   `toml:"require_cloudflare"`
+	Listen            string `toml:"listen" validate:"required" comment:"address to listen on, overridable via LISTEN env var"`
+	RequireCloudflare bool   `toml:"require_cloudflare,commented" comment:"reject requests not arriving via Cloudflare"`
 }
 
 type Cache struct {
-	RedisURL string   `toml:"redis_url"`
-	TTL      Duration `toml:"ttl"`
-	MissTTL  Duration `toml:"miss_ttl"`
+	RedisURL string   `toml:"redis_url,commented" comment:"Redis URL, overridable via REDIS_URL env var, omit to use in-memory cache"`
+	TTL      Duration `toml:"ttl" comment:"how long to cache successful lyrics results"`
+	MissTTL  Duration `toml:"miss_ttl" comment:"how long to cache provider not-found results"`
 }
 
 type Proxy struct {
@@ -26,30 +26,28 @@ type Proxy struct {
 }
 
 type ProviderOptions struct {
-	Timeout Duration `toml:"timeout"`
-	Hide    bool     `toml:"hide"`
+	Timeout Duration `toml:"timeout" comment:"timeout for provider requests"`
+	Hide    bool     `toml:"hide" comment:"hide source from responses and /stats endpoint"`
 }
 
 type RateLimit struct {
-	Limit  int64    `toml:"limit"`
-	Window Duration `toml:"window"`
+	Limit  int64    `toml:"limit" comment:"max requests per window per IP"`
+	Window Duration `toml:"window" comment:"rate limit time window"`
 }
 
 type Metrics struct {
-	Listen string `toml:"listen"`
+	Listen string `toml:"listen" comment:"address to expose Prometheus metrics on"`
 }
 
 type Root struct {
-	Server    Server                    `toml:"server"`
-	Cache     Cache                     `toml:"cache"`
-	Log       logging.Config            `toml:"log"`
-	Provider  ProviderOptions           `toml:"provider"`
-	RateLimit RateLimit                 `toml:"ratelimit"`
-	Metrics   Metrics                   `toml:"metrics"`
-	Proxies   map[string]Proxy          `toml:"proxies"`
-	Providers map[string]toml.Primitive `toml:"providers"`
-
-	Meta toml.MetaData `toml:"-"`
+	Server    Server           `toml:"server"`
+	Cache     Cache            `toml:"cache"`
+	Log       logging.Config   `toml:"log"`
+	Provider  ProviderOptions  `toml:"provider"`
+	RateLimit RateLimit        `toml:"ratelimit"`
+	Metrics   Metrics          `toml:"metrics,commented"`
+	Proxies   map[string]Proxy `toml:"proxies,commented" comment:"named proxy pools, providers reference a pool via proxy = \"<name>\""`
+	Providers map[string]any   `toml:"providers"`
 }
 
 func Load(path string) (*Root, error) {
@@ -58,11 +56,9 @@ func Load(path string) (*Root, error) {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 	var r Root
-	md, err := toml.Decode(string(data), &r)
-	if err != nil {
+	if err := toml.Unmarshal(data, &r); err != nil {
 		return nil, fmt.Errorf("decode config: %w", err)
 	}
-	r.Meta = md
 
 	if r.Server.Listen == "" {
 		r.Server.Listen = ":8080"

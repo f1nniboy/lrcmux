@@ -3,12 +3,11 @@ package providers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 
 	"github.com/f1nniboy/lrcmux/internal/cache"
-	"github.com/f1nniboy/lrcmux/internal/config"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 )
 
@@ -34,7 +33,16 @@ var ErrRateLimited = errors.New("provider rate limited")
 
 type Common struct {
 	Enable bool   `toml:"enable"`
-	Proxy  string `toml:"proxy"`
+	Proxy  string `toml:"proxy,omitempty"`
+}
+
+func Names() []string {
+	names := make([]string, 0, len(registry))
+	for name := range registry {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 type DecodeFunc func(into any) error
@@ -52,16 +60,4 @@ var registry = map[string]Factory{}
 
 func Register(name string, f Factory) {
 	registry[name] = f
-}
-
-func loadCommon(cfg *config.Root, name string) (Common, bool, error) {
-	var common Common
-	prim, ok := cfg.Providers[name]
-	if !ok {
-		return common, false, nil
-	}
-	if err := cfg.Meta.PrimitiveDecode(prim, &common); err != nil {
-		return common, false, fmt.Errorf("provider %q: %w", name, err)
-	}
-	return common, common.Enable, nil
 }

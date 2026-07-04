@@ -126,9 +126,8 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		s.log.Info("shutting down")
 		return s.srv.Shutdown(shutdownCtx)
 	case err := <-errCh:
 		return err

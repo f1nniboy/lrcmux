@@ -10,17 +10,17 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
-// mostly borrowed from https://github.com/OrfiDev/orpheusdl-musixmatch
-
 const (
-	desktopBaseURL   = "https://apic-desktop.musixmatch.com/ws/1.1/"
-	desktopAppID     = "web-desktop-app-v1.0"
-	desktopUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Musixmatch/0.19.4 Chrome/58.0.3029.110 Electron/1.7.6 Safari/537.36"
+	baseURL       = "https://www.musixmatch.com/ws/1.1/"
+	appID         = "web-desktop-app-v1.0"
+	userAgent     = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+	sessionCookie = "mxm_bab=AB"
 )
 
 type tier struct {
@@ -42,23 +42,16 @@ func init() {
 }
 
 func factory(args providers.FactoryArgs) (providers.Impl, error) {
-	var c Config
-	if err := args.Decode(&c); err != nil {
-		return nil, err
-	}
-	if c.PoolSize <= 0 {
-		c.PoolSize = 1
-	}
 	return &Provider{
-		client: &http.Client{},
-		pool:   newTokenPool(c.PoolSize, args.Client, args.Cache, args.Log),
+		client: args.Client,
+		signer: newSigner(args.Cache, args.Log),
 		log:    args.Log,
 	}, nil
 }
 
 type Provider struct {
 	client *http.Client
-	pool   *tokenPool
+	signer *signer
 	log    *slog.Logger
 }
 
@@ -67,36 +60,25 @@ func (p *Provider) Desc() string               { return "Extensive library and g
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
-	meta, err := p.fetchTrackMeta(ctx, q.Track.ISRC)
+	level, err := p.fetchTrackLevel(ctx, q.Track.ISRC)
 	if err != nil {
 		return nil, err
 	}
-	if meta == nil {
+
+	lines, err := p.fetchTier(ctx, tierByLevel[level], q.Track.ISRC)
+	if err != nil {
+		return nil, err
+	}
+	if len(lines) == 0 {
 		return nil, lyrics.ErrNotFound
 	}
-
-	t := tierByLevel[meta.syncLevel]
-	lines, err := p.fetchTier(ctx, t, q.Track.ISRC)
-	if err != nil {
-		return nil, err
-	}
-	if len(lines) > 0 {
-		return &lyrics.Result{Lines: lines, SyncLevel: meta.syncLevel}, nil
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	return nil, lyrics.ErrNotFound
+	return &lyrics.Result{Lines: lines, SyncLevel: level}, nil
 }
 
-type trackMeta struct {
-	syncLevel lyrics.SyncLevel
-}
-
-func (p *Provider) fetchTrackMeta(ctx context.Context, isrc string) (*trackMeta, error) {
-	body, err := p.getDesktop(ctx, "track.get", url.Values{"track_isrc": {isrc}})
+func (p *Provider) fetchTrackLevel(ctx context.Context, isrc string) (lyrics.SyncLevel, error) {
+	body, err := p.get(ctx, "track.get", url.Values{"track_isrc": {isrc}})
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	var resp struct {
 		Track struct {
@@ -106,34 +88,32 @@ func (p *Provider) fetchTrackMeta(ctx context.Context, isrc string) (*trackMeta,
 		} `json:"track"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, nil
+		return 0, lyrics.ErrNotFound
 	}
-	track := resp.Track
 	switch {
-	case track.HasRichsync == 1:
-		return &trackMeta{syncLevel: lyrics.SyncWord}, nil
-	case track.HasSubtitles == 1:
-		return &trackMeta{syncLevel: lyrics.SyncLine}, nil
-	case track.HasLyrics == 1:
-		return &trackMeta{syncLevel: lyrics.SyncNone}, nil
+	case resp.Track.HasRichsync == 1:
+		return lyrics.SyncWord, nil
+	case resp.Track.HasSubtitles == 1:
+		return lyrics.SyncLine, nil
+	case resp.Track.HasLyrics == 1:
+		return lyrics.SyncNone, nil
 	}
-	return nil, nil
+	return 0, lyrics.ErrNotFound
 }
 
 func (p *Provider) fetchTier(ctx context.Context, t tier, isrc string) ([]lyrics.Line, error) {
 	params := url.Values{"track_isrc": {isrc}}
 	maps.Copy(params, t.extra)
 
-	body, err := p.getDesktop(ctx, t.endpoint, params)
+	body, err := p.get(ctx, t.endpoint, params)
 	if err != nil {
-		if errors.Is(err, providers.ErrRateLimited) {
-			return nil, err
+		if errors.Is(err, lyrics.ErrNotFound) {
+			return nil, nil
 		}
-		if ctx.Err() == nil && !errors.Is(err, lyrics.ErrNotFound) {
+		if ctx.Err() == nil && !errors.Is(err, providers.ErrRateLimited) {
 			p.log.Debug("fetch failed", "tier", t.bodyKey, "isrc", isrc, "err", err)
-			return nil, err
 		}
-		return nil, nil
+		return nil, err
 	}
 
 	var outer map[string]map[string]json.RawMessage
@@ -147,42 +127,41 @@ func (p *Provider) fetchTier(ctx context.Context, t tier, isrc string) ([]lyrics
 	return t.parse(content), nil
 }
 
-func (p *Provider) getDesktop(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
-	for range len(p.pool.slots) {
-		token, idx, err := p.pool.get(ctx)
-		if err != nil {
-			return nil, err
-		}
-		body, err := p.doDesktopRequest(ctx, endpoint, extra, token)
-		if err == nil {
-			return body, nil
-		}
-		if errors.Is(err, errRenew) {
-			p.log.Debug("token expired, rotating", "slot", idx)
-		} else if errors.Is(err, errCaptcha) {
-			p.log.Debug("token rate limited, rotating", "slot", idx)
-		} else {
-			return nil, err
-		}
-		p.pool.retire(idx)
-	}
-	return nil, providers.ErrRateLimited
+func buildURL(endpoint string, extra url.Values) string {
+	q := url.Values{}
+	q.Set("app_id", appID)
+	q.Set("format", "json")
+	maps.Copy(q, extra)
+	return baseURL + endpoint + "?" + q.Encode()
 }
 
-func (p *Provider) doDesktopRequest(ctx context.Context, endpoint string, extra url.Values, token string) (json.RawMessage, error) {
-	params := url.Values{}
-	params.Set("app_id", desktopAppID)
-	params.Set("format", "json")
-	params.Set("usertoken", token)
-	maps.Copy(params, extra)
-
-	u := desktopBaseURL + endpoint + "?" + params.Encode()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+func (p *Provider) get(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
+	secret, err := p.signer.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", desktopUserAgent)
+	body, err := p.sendSigned(ctx, endpoint, extra, secret)
+	if errors.Is(err, errInvalidSignature) {
+		secret, err = p.signer.Refresh()
+		if err != nil {
+			return nil, fmt.Errorf("refresh secret: %w", err)
+		}
+		body, err = p.sendSigned(ctx, endpoint, extra, secret)
+	}
+	return body, err
+}
+
+func (p *Provider) sendSigned(ctx context.Context, endpoint string, extra url.Values, secret []byte) (json.RawMessage, error) {
+	signed := signWith(buildURL(endpoint, extra), secret, time.Now())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signed, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Referer", "https://www.musixmatch.com/")
+	req.Header.Set("Cookie", sessionCookie)
 
 	resp, err := p.client.Do(req)
 	if err != nil {
@@ -190,7 +169,11 @@ func (p *Provider) doDesktopRequest(ctx context.Context, endpoint string, extra 
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusServiceUnavailable: // could be actual server errors?
+		return nil, providers.ErrRateLimited
+	default:
 		return nil, fmt.Errorf("http %d", resp.StatusCode)
 	}
 
@@ -215,13 +198,12 @@ func (p *Provider) doDesktopRequest(ctx context.Context, endpoint string, extra 
 	switch {
 	case res.Message.Header.StatusCode == 200:
 		return res.Message.Body, nil
-	case res.Message.Header.StatusCode == 401 && res.Message.Header.Hint == "renew":
-		return nil, errRenew
+	case res.Message.Header.StatusCode == 401 && res.Message.Header.Hint == "invalid_signature":
+		return nil, errInvalidSignature
 	case res.Message.Header.StatusCode == 401 && res.Message.Header.Hint == "captcha":
-		return nil, errCaptcha
+		return nil, providers.ErrRateLimited
 	case res.Message.Header.StatusCode == 404:
 		return nil, lyrics.ErrNotFound
 	}
-	p.log.Debug("api error", "status", res.Message.Header.StatusCode, "hint", res.Message.Header.Hint)
 	return nil, fmt.Errorf("api %d (%s)", res.Message.Header.StatusCode, res.Message.Header.Hint)
 }

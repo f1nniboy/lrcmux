@@ -17,8 +17,6 @@ type Pool struct {
 	log  *slog.Logger
 }
 
-func (p *Pool) Name() string { return p.name }
-
 func (p *Pool) next() *url.URL {
 	u := p.urls[rand.IntN(len(p.urls))]
 	p.log.Debug("proxy chosen", "pool", p.name, "url", u.Redacted())

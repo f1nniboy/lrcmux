@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -65,6 +66,7 @@ func (s *Server) getOp() huma.Operation {
 
 func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *huma.StreamResponse, herr error) {
 	if s.metrics != nil {
+		start := time.Now()
 		defer func() {
 			status := 200
 			if herr != nil {
@@ -74,7 +76,9 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 					status = 500
 				}
 			}
-			s.metrics.HTTPRequests.WithLabelValues(input.Format, input.Level, strconv.Itoa(status)).Inc()
+			labels := []string{input.Format, input.Level, strconv.Itoa(status)}
+			s.metrics.HTTPRequests.WithLabelValues(labels...).Inc()
+			s.metrics.HTTPLatency.WithLabelValues(labels...).Observe(time.Since(start).Seconds())
 		}()
 	}
 

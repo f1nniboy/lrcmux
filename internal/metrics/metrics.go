@@ -10,6 +10,7 @@ import (
 type Collector struct {
 	Listen          string
 	HTTPRequests    *prometheus.CounterVec
+	HTTPLatency     *prometheus.HistogramVec
 	CacheOps        *prometheus.CounterVec
 	ProviderOps     *prometheus.CounterVec
 	ProviderLatency *prometheus.HistogramVec
@@ -23,6 +24,12 @@ func New(listen string) *Collector {
 	c.HTTPRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "lrcmux_http_requests_total",
 		Help: "Total /get requests by format, level, and status",
+	}, []string{"format", "level", "status"})
+
+	c.HTTPLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "lrcmux_http_request_duration_seconds",
+		Help:    "/get request latency by format, level, and status",
+		Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
 	}, []string{"format", "level", "status"})
 
 	c.CacheOps = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -43,6 +50,7 @@ func New(listen string) *Collector {
 
 	reg.MustRegister(
 		c.HTTPRequests,
+		c.HTTPLatency,
 		c.CacheOps,
 		c.ProviderOps,
 		c.ProviderLatency,

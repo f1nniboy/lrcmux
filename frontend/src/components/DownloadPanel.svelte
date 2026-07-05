@@ -142,10 +142,13 @@
   </FormatBar>
 
   <div class="relative flex-1 flex flex-col">
-    <pre
-      class="p-5 flex-1 min-h-0 overflow-auto text-ink {isRich
+    <textarea
+      readonly
+      spellcheck="false"
+      class="p-5 flex-1 min-h-0 overflow-auto text-ink bg-transparent resize-none outline-none w-full {isRich
         ? 'font-sans text-base leading-9 whitespace-pre-wrap'
-        : 'font-mono text-xs leading-relaxed whitespace-pre'}">{text}</pre>
+        : 'font-mono text-xs leading-relaxed whitespace-pre'}">{text}</textarea
+    >
 
     {#if loading}
       <div

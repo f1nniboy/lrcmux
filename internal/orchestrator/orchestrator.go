@@ -54,6 +54,7 @@ type Request struct {
 type Response struct {
 	Result *lyrics.Result
 	Cached bool
+	TTL    time.Duration
 }
 
 type ProviderHealth struct {
@@ -135,13 +136,13 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 
 	if best != nil && best.SyncLevel >= req.Level {
 		o.log.Debug("serving from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
-		return respond(best, true, req.Level, q), nil
+		return o.respond(ctx, best, true, req.Level, q), nil
 	}
 
 	// don't hit providers in cache-only mode
 	if req.FetchMode == "cache" {
 		if !req.Strict && best != nil {
-			return respond(best, true, req.Level, q), nil
+			return o.respond(ctx, best, true, req.Level, q), nil
 		}
 		return nil, ErrNotFound
 	}
@@ -151,17 +152,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	if len(unknowns) == 0 {
 		if !req.Strict && best != nil {
 			o.log.Debug("all providers explored, serving best available from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
-			return respond(best, true, req.Level, q), nil
+			return o.respond(ctx, best, true, req.Level, q), nil
 		}
 		return nil, ErrNotFound
 	}
 
-	groupKey := queryKey(q, req.Level)
-	type fanResult struct {
-		res *Response
-	}
-
-	v, err, _ := o.sf.Do(groupKey, func() (any, error) {
+	v, err, _ := o.sf.Do(queryKey(q, req.Level), func() (any, error) {
 		if req.Charge != nil {
 			if err := req.Charge(ctx); err != nil {
 				return nil, err
@@ -185,12 +181,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 			return nil, ErrNotFound
 		}
 
-		return &fanResult{respond(picked, false, req.Level, q)}, nil
+		return o.respond(ctx, picked, false, req.Level, q), nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return v.(*fanResult).res, nil
+	return v.(*Response), nil
 }
 
 func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force bool) (best *lyrics.Result, unknowns []providers.Provider) {
@@ -225,13 +221,24 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force boo
 	return
 }
 
-func respond(r *lyrics.Result, cached bool, level lyrics.SyncLevel, q lyrics.Query) *Response {
+func (o *Orchestrator) remainingTTL(ctx context.Context, q lyrics.Query, r *lyrics.Result) time.Duration {
+	ttl, err := o.cache.TTL(ctx, cacheKey(q.Track.ISRC, r.Source.ID))
+	if err == nil && ttl > 0 {
+		return ttl
+	}
+	return o.opts.CacheTTL
+}
+
+func (o *Orchestrator) respond(ctx context.Context, r *lyrics.Result, cached bool, level lyrics.SyncLevel, q lyrics.Query) *Response {
 	out := lyrics.Downgrade(r, level)
 	out.Track = q.Track
-	return &Response{
-		Result: out,
-		Cached: cached,
+
+	ttl := o.opts.CacheTTL
+	if cached {
+		ttl = o.remainingTTL(ctx, q, r)
 	}
+
+	return &Response{Result: out, Cached: cached, TTL: ttl}
 }
 
 func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, q lyrics.Query, level lyrics.SyncLevel) []*lyrics.Result {

@@ -34,9 +34,6 @@ func All() []string {
 }
 
 func Get(name string) (Encoder, error) {
-	if name == "" {
-		name = "lrc"
-	}
 	e, ok := registry[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown format %q", name)

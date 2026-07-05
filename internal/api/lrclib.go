@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -21,7 +22,8 @@ type LrclibInput struct {
 }
 
 type LrclibOutput struct {
-	Body LrclibResponse
+	CacheControl string `header:"Cache-Control"`
+	Body         LrclibResponse
 }
 
 type LrclibResponse struct {
@@ -69,7 +71,7 @@ func (s *Server) handleLrclib(ctx context.Context, input *LrclibInput) (*LrclibO
 		lrcEnc.Encode(&synced, resp.Result)
 	}
 
-	return &LrclibOutput{Body: LrclibResponse{
+	out := &LrclibOutput{Body: LrclibResponse{
 		TrackName:    input.TrackName,
 		ArtistName:   input.ArtistName,
 		AlbumName:    input.AlbumName,
@@ -77,5 +79,9 @@ func (s *Server) handleLrclib(ctx context.Context, input *LrclibInput) (*LrclibO
 		Instrumental: false,
 		PlainLyrics:  plain.String(),
 		SyncedLyrics: synced.String(),
-	}}, nil
+	}}
+	if resp.TTL > 0 {
+		out.CacheControl = fmt.Sprintf("public, max-age=%d", int(resp.TTL.Seconds()))
+	}
+	return out, nil
 }

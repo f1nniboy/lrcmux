@@ -16,7 +16,7 @@ type LimitError struct {
 }
 
 func (e *LimitError) Error() string {
-	return fmt.Sprintf("rate limit exceeded, retry after %s", e.RetryAfter)
+	return fmt.Sprintf("rate limit exceeded, retry after %ds", int(e.RetryAfter.Seconds()))
 }
 
 func (e *LimitError) Unwrap() error { return ErrRateLimited }

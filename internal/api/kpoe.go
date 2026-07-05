@@ -22,7 +22,8 @@ type KpoeInput struct {
 }
 
 type KpoeOutput struct {
-	Body KpoeResponse
+	CacheControl string `header:"Cache-Control"`
+	Body         KpoeResponse
 }
 
 type KpoeResponse struct {
@@ -122,18 +123,22 @@ func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput,
 	}
 
 	src := meta.AppDomain
-	if !s.hide && resp.Result.Source.ID != "" {
+	if !s.cfg.Provider.Hide && resp.Result.Source.ID != "" {
 		src = fmt.Sprintf("%s at %s", resp.Result.Source.Name, meta.AppDomain)
 	}
 
-	return &KpoeOutput{Body: KpoeResponse{
+	out := &KpoeOutput{Body: KpoeResponse{
 		KpoeTools:      meta.AppName,
 		Type:           kpoeType(resp.Result.SyncLevel),
 		Metadata:       KpoeMetadata{Source: src},
 		Lyrics:         klines,
 		Cached:         cached,
 		ProcessingTime: KpoeTime{TimeElapsed: elapsed},
-	}}, nil
+	}}
+	if resp.TTL > 0 {
+		out.CacheControl = fmt.Sprintf("public, max-age=%d", int(resp.TTL.Seconds()))
+	}
+	return out, nil
 }
 
 func kpoeType(level lyrics.SyncLevel) string {

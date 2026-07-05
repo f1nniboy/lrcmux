@@ -65,7 +65,8 @@ func (s *Server) getOp() huma.Operation {
 }
 
 func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *huma.StreamResponse, herr error) {
-	if s.metrics != nil {
+	internal := utils.IsPrivateIP(clientIP(ctx))
+	if s.metrics != nil && !internal {
 		start := time.Now()
 		defer func() {
 			status := 200
@@ -86,7 +87,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 	if fetchMode == "" {
 		fetchMode = "default"
 	}
-	if fetchMode == "force" && !utils.IsPrivateIP(clientIP(ctx)) {
+	if fetchMode == "force" && !internal {
 		return nil, huma.Error403Forbidden("you can't force-refresh, sorry")
 	}
 
@@ -119,12 +120,6 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		FetchMode: fetchMode,
 	})
 	if err != nil {
-		if e, ok := errors.AsType[*ratelimit.LimitError](err); ok {
-			return nil, huma.ErrorWithHeaders(
-				huma.Error429TooManyRequests("rate limit exceeded"),
-				http.Header{"Retry-After": {strconv.Itoa(int(e.RetryAfter.Seconds()))}},
-			)
-		}
 		return nil, s.mapError(err)
 	}
 
@@ -132,7 +127,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		return nil, huma.Error400BadRequest(fmt.Sprintf("format %q requires %s-synced lyrics", input.Format, minLevel.String()))
 	}
 
-	if s.metrics != nil {
+	if s.metrics != nil && !internal {
 		cacheResult := "miss"
 		if lyricsResp.Cached {
 			cacheResult = "hit"
@@ -140,7 +135,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		s.metrics.CacheOps.WithLabelValues(cacheResult).Inc()
 	}
 
-	if s.hide {
+	if s.cfg.Provider.Hide {
 		lyricsResp.Result.Source = lyrics.Source{}
 	}
 
@@ -155,7 +150,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		Body: func(ctx huma.Context) {
 			ctx.SetHeader("Content-Type", encoder.ContentType())
 			ctx.SetHeader("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
-			if !s.hide {
+			if !s.cfg.Provider.Hide {
 				ctx.SetHeader("X-Source", lyricsResp.Result.Source.ID)
 			}
 			ctx.SetHeader("X-Sync-Level", lyricsResp.Result.SyncLevel.String())
@@ -163,6 +158,9 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 				ctx.SetHeader("X-Cache", "HIT")
 			} else {
 				ctx.SetHeader("X-Cache", "MISS")
+			}
+			if lyricsResp.TTL > 0 && fetchMode != "force" {
+				ctx.SetHeader("Cache-Control", fmt.Sprintf("public, max-age=%d", int(lyricsResp.TTL.Seconds())))
 			}
 			ctx.SetStatus(http.StatusOK)
 			ctx.BodyWriter().Write(buf.Bytes())
@@ -193,11 +191,19 @@ func (s *Server) mapError(err error) error {
 
 	switch {
 	case errors.Is(err, ratelimit.ErrRateLimited):
-		return huma.Error429TooManyRequests("rate limit exceeded")
+		e, _ := errors.AsType[*ratelimit.LimitError](err)
+		return huma.ErrorWithHeaders(
+			huma.Error429TooManyRequests(e.Error()),
+			http.Header{"Retry-After": {strconv.Itoa(int(e.RetryAfter.Seconds()))}},
+		)
 	case errors.Is(err, orchestrator.ErrNoProviders):
 		return huma.Error503ServiceUnavailable("no providers available")
 	case errors.Is(err, orchestrator.ErrNotFound):
-		return huma.Error404NotFound("no lyrics found for the given query")
+		e := huma.Error404NotFound("no lyrics found for the given query")
+		if s.cfg.Cache.MissTTL.Duration > 0 {
+			return huma.ErrorWithHeaders(e, http.Header{"Cache-Control": {fmt.Sprintf("public, max-age=%d", int(s.cfg.Cache.MissTTL.Duration.Seconds()))}})
+		}
+		return e
 	default:
 		s.log.Error("provider error", "err", err)
 		return huma.Error500InternalServerError("internal error")

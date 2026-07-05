@@ -13,6 +13,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/f1nniboy/lrcmux/internal/config"
 	"github.com/f1nniboy/lrcmux/internal/meta"
 	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
@@ -23,27 +24,25 @@ import (
 var docsMD string
 
 type Server struct {
-	orch              *orchestrator.Orchestrator
-	rl                *ratelimit.Limiter
-	log               *slog.Logger
-	srv               *http.Server
-	api               huma.API
-	hide              bool
-	requireCloudflare bool
-	metrics           *metrics.Collector
+	orch    *orchestrator.Orchestrator
+	rl      *ratelimit.Limiter
+	log     *slog.Logger
+	srv     *http.Server
+	api     huma.API
+	cfg     *config.Root
+	metrics *metrics.Collector
 }
 
-func NewServer(orch *orchestrator.Orchestrator, rl *ratelimit.Limiter, hide bool, requireCloudflare bool, coll *metrics.Collector, log *slog.Logger) *Server {
+func NewServer(orch *orchestrator.Orchestrator, rl *ratelimit.Limiter, cfg *config.Root, coll *metrics.Collector, log *slog.Logger) *Server {
 	if coll != nil {
 		coll.Register(newBreakerCollector(orch))
 	}
 	return &Server{
-		orch:              orch,
-		rl:                rl,
-		log:               log,
-		hide:              hide,
-		requireCloudflare: requireCloudflare,
-		metrics:           coll,
+		orch:    orch,
+		rl:      rl,
+		log:     log,
+		cfg:     cfg,
+		metrics: coll,
 	}
 }
 
@@ -52,7 +51,7 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 	r.Use(cors, recoverer(s.log), withIP)
 
 	// why is there no good way to get the requesting client's IP in CURRENT_YEAR
-	if s.requireCloudflare {
+	if s.cfg.Server.RequireCloudflare {
 		if err := refreshCloudflareIPs(ctx); err != nil {
 			return fmt.Errorf("initial cloudflare ip fetch: %w", err)
 		}
@@ -61,18 +60,18 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 		r.Use(requireCloudflare)
 	}
 
-	docs, err := renderDocs(docsMD, s.orch, s.rl, s.hide)
+	docs, err := renderDocs(docsMD, s.orch, s.rl, s.cfg.Provider.Hide)
 	if err != nil {
 		s.log.Warn("docs render failed", "err", err)
 		docs = docsMD
 	}
 
-	cfg := huma.DefaultConfig(meta.AppName, meta.Version)
-	cfg.OpenAPI.Info.Description = docs
-	cfg.DocsPath = ""
-	cfg.OpenAPIPath = "/openapi"
-	cfg.CreateHooks = nil // disable $schema injection in response bodies
-	s.api = humachi.New(r, cfg)
+	humaCfg := huma.DefaultConfig(meta.AppName, meta.Version)
+	humaCfg.OpenAPI.Info.Description = docs
+	humaCfg.DocsPath = ""
+	humaCfg.OpenAPIPath = "/openapi"
+	humaCfg.CreateHooks = nil // disable $schema injection in response bodies
+	s.api = humachi.New(r, humaCfg)
 
 	huma.Register(s.api, s.getOp(), s.handleGet)
 	huma.Register(s.api, s.statsOp(), s.handleStats)

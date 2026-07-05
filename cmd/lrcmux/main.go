@@ -120,7 +120,7 @@ func main() {
 		rl = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration, logging.New("ratelimit"))
 	}
 
-	srv := api.NewServer(orch, rl, cfg.Provider.Hide, cfg.Server.RequireCloudflare, coll, logging.New("api"))
+	srv := api.NewServer(orch, rl, cfg, coll, logging.New("api"))
 	runErr := srv.Run(ctx, cfg.Server.Listen)
 	if runErr != nil {
 		log.Error("server error", "err", runErr)

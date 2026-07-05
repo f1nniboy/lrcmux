@@ -36,7 +36,7 @@ func (s *Server) handleStats(ctx context.Context, _ *struct{}) (*statsOutput, er
 	} else {
 		out.Body.Commit = "unknown"
 	}
-	if !s.hide {
+	if !s.cfg.Provider.Hide {
 		out.Body.Providers = s.orch.ProviderInfos(ctx)
 	}
 	return out, nil

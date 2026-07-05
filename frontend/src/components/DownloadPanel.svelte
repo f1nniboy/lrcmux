@@ -65,13 +65,20 @@
     }
     return raw;
   });
+
   const dlURL = $derived(
     downloadURL(track.artist, track.title, activeFormat, {
       level: activeLevel,
     }),
   );
+
   const isRich = $derived(
     FORMATS.find((f) => f.id === activeFormat)?.rich ?? false,
+  );
+  const textClass = $derived(
+    isRich
+      ? "font-sans text-base leading-9 whitespace-pre-wrap"
+      : "font-mono text-xs leading-relaxed whitespace-pre",
   );
 </script>
 
@@ -141,13 +148,15 @@
     </ActionButton>
   </FormatBar>
 
-  <div class="relative flex-1 flex flex-col">
+  <div class="relative">
+    <pre
+      aria-hidden="true"
+      class="invisible p-5 w-full text-ink {textClass}">{text}</pre>
     <textarea
       readonly
       spellcheck="false"
-      class="p-5 flex-1 min-h-0 overflow-auto text-ink bg-transparent resize-none outline-none w-full {isRich
-        ? 'font-sans text-base leading-9 whitespace-pre-wrap'
-        : 'font-mono text-xs leading-relaxed whitespace-pre'}">{text}</textarea
+      class="absolute inset-0 p-5 w-full h-full overflow-hidden text-ink bg-transparent resize-none outline-none {textClass}"
+      >{text}</textarea
     >
 
     {#if loading}

@@ -41,7 +41,7 @@ func (c *breakerCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *breakerCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	for _, info := range c.orch.ProviderInfos(ctx) {
+	for _, info := range c.orch.Health(ctx) {
 		var v float64
 		if !info.Health.Ok {
 			v = 1

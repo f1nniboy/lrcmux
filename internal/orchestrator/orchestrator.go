@@ -90,7 +90,7 @@ func New(provs []providers.Provider, c cache.Cache, breaker *Breaker, resolver *
 
 func (o *Orchestrator) Providers() []providers.Provider { return o.providers }
 
-func (o *Orchestrator) ProviderInfos(ctx context.Context) []ProviderInfo {
+func (o *Orchestrator) Health(ctx context.Context) []ProviderInfo {
 	disabled := o.breaker.states(ctx, o.providers)
 	infos := make([]ProviderInfo, len(o.providers))
 	for i, p := range o.providers {
@@ -98,7 +98,7 @@ func (o *Orchestrator) ProviderInfos(ctx context.Context) []ProviderInfo {
 		if open, ok := disabled[p.ID()]; ok {
 			health.Ok = false
 			health.TTL = int64(open.TTL.Seconds())
-			health.Reason = open.State.Reason
+			health.Reason = open.Reason
 		}
 		infos[i] = ProviderInfo{ID: p.ID(), Name: p.Name(), Health: health}
 	}
@@ -278,8 +278,8 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 		if errors.Is(out.err, lyrics.ErrNotFound) {
 			misses = append(misses, out.id)
 		}
-		o.logOutcome(out, q)
-		o.breaker.Record(out.id, out.err)
+		outcome := o.logOutcome(out, q)
+		o.breaker.Record(out.id, outcome)
 	}
 
 	for out := range ch {
@@ -320,32 +320,31 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 	return results
 }
 
-func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) {
-	log := o.log.With("provider", out.id, "latency", out.latency.Milliseconds())
+func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) string {
+	var (
+		lvl     slog.Level = slog.LevelDebug
+		outcome string
+		extra   []any
+	)
 
-	var outcome string
 	switch {
 	case out.err == nil && out.result != nil:
-		log.Debug("provider ok", "sync", out.result.SyncLevel.String())
 		outcome = "ok"
+		extra = []any{"level", out.result.SyncLevel.String()}
 	case errors.Is(out.err, lyrics.ErrNotFound):
-		log.Debug("provider not found")
 		outcome = "not_found"
 	case errors.Is(out.err, providers.ErrRateLimited):
-		log.Info("provider rate limited")
-		outcome = "rate_limited"
-	case errors.Is(out.err, context.DeadlineExceeded) || errors.Is(out.err, lyrics.ErrTimeout):
-		log.Info("provider timeout")
-		outcome = "timeout"
+		lvl, outcome = slog.LevelInfo, "rate_limited"
+	case errors.Is(out.err, context.DeadlineExceeded):
+		lvl, outcome = slog.LevelInfo, "timeout"
 	case errors.Is(out.err, context.Canceled):
-		log.Debug("provider cancelled")
 		outcome = "canceled"
 	case isNetworkNoise(out.err):
-		log.Info("provider network error", "err", out.err)
-		outcome = "network_error"
+		lvl, outcome = slog.LevelInfo, "network_error"
+		extra = []any{"err", out.err}
 	default:
-		log.Warn("provider error", "err", out.err)
-		outcome = "error"
+		lvl, outcome = slog.LevelWarn, "error"
+		extra = []any{"err", out.err}
 
 		sentry.WithScope(func(scope *sentry.Scope) {
 			scope.SetTag("provider", out.id)
@@ -358,10 +357,15 @@ func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) {
 		})
 	}
 
+	args := append([]any{"provider", out.id, "outcome", outcome, "latency", out.latency.Milliseconds()}, extra...)
+	o.log.Log(context.Background(), lvl, "provider result", args...)
+
 	if o.metrics != nil {
 		o.metrics.ProviderOps.WithLabelValues(out.id, outcome).Inc()
 		o.metrics.ProviderLatency.WithLabelValues(out.id).Observe(out.latency.Seconds())
 	}
+
+	return outcome
 }
 
 func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *lyrics.Result {

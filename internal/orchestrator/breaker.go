@@ -2,29 +2,21 @@ package orchestrator
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"time"
 
 	"github.com/f1nniboy/lrcmux/internal/cache"
-	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
 const (
-	breakerStreakThreshold int64         = 3
-	breakerStreakTTL       time.Duration = 3 * time.Minute
-	breakerRateLimitTTL    time.Duration = 3 * time.Minute
-	breakerErrorTTL        time.Duration = 3 * time.Minute
+	breakerThreshold int64         = 5
+	breakerTTL       time.Duration = 3 * time.Minute
 )
 
 type breakerState struct {
+	TTL    time.Duration
 	Reason string
-}
-
-type breakerOpen struct {
-	TTL   time.Duration
-	State breakerState
 }
 
 type Breaker struct {
@@ -36,9 +28,7 @@ func NewBreaker(c cache.Cache, log *slog.Logger) *Breaker {
 	return &Breaker{cache: c, log: log}
 }
 
-// returns a map of provider ID to open circuit info for providers whose
-// circuit is currently open
-func (b *Breaker) states(ctx context.Context, provs []providers.Provider) map[string]breakerOpen {
+func (b *Breaker) states(ctx context.Context, provs []providers.Provider) map[string]breakerState {
 	keys := make([]string, len(provs))
 	for i, p := range provs {
 		keys[i] = "cb:" + p.ID()
@@ -47,22 +37,20 @@ func (b *Breaker) states(ctx context.Context, provs []providers.Provider) map[st
 	if err != nil {
 		return nil
 	}
-	out := make(map[string]breakerOpen, len(provs))
+	out := make(map[string]breakerState, len(provs))
 	for i, p := range provs {
 		if ttls[i] <= 0 {
 			continue
 		}
-		open := breakerOpen{TTL: ttls[i]}
+		open := breakerState{TTL: ttls[i]}
 		if st, status, _ := cache.Get[breakerState](ctx, b.cache, keys[i]); status == cache.Found {
-			open.State = st
+			open.Reason = st.Reason
 		}
 		out[p.ID()] = open
 	}
 	return out
 }
 
-// returns the subset of providers whose circuit is closed, skipping any
-// provider whose circuit is currently open
 func (b *Breaker) Filter(ctx context.Context, provs []providers.Provider) []providers.Provider {
 	if len(provs) == 0 {
 		return provs
@@ -86,27 +74,19 @@ func (b *Breaker) Filter(ctx context.Context, provs []providers.Provider) []prov
 	return out
 }
 
-func (b *Breaker) Record(provider string, err error) {
-	ctx := context.Background()
-	c := b.cache
-	switch {
-	case err == nil:
+func (b *Breaker) Record(provider, outcome string) {
+	switch outcome {
+	case "ok", "not_found", "canceled":
 		// streak reset is done by the caller
 
-	case errors.Is(err, providers.ErrRateLimited):
-		cache.Set(ctx, c, "cb:"+provider, breakerState{Reason: "rate_limited"}, breakerRateLimitTTL)
-		b.log.Debug("circuit opened (rate limited)", "provider", provider, "ttl", breakerRateLimitTTL)
-
-	case errors.Is(err, lyrics.ErrNotFound), errors.Is(err, context.Canceled):
-		// not a provider health issue
-
 	default:
+		ctx := context.Background()
 		streakKey := "cb:" + provider + ":streak"
-		n, _ := c.Incr(ctx, streakKey, breakerStreakTTL)
-		if n >= breakerStreakThreshold {
-			cache.Set(ctx, c, "cb:"+provider, breakerState{Reason: "error_streak"}, breakerErrorTTL)
-			c.Delete(ctx, streakKey)
-			b.log.Debug("circuit opened (error streak)", "provider", provider, "streak", n, "ttl", breakerErrorTTL)
+		n, _ := b.cache.Incr(ctx, streakKey, breakerTTL)
+		if n >= breakerThreshold {
+			cache.Set(ctx, b.cache, "cb:"+provider, breakerState{Reason: outcome}, breakerTTL)
+			b.cache.Delete(ctx, streakKey)
+			b.log.Debug("circuit opened", "provider", provider, "streak", n, "reason", outcome)
 		}
 	}
 }

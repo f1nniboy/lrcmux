@@ -6,10 +6,7 @@ import (
 	"strings"
 )
 
-var (
-	ErrNotFound = errors.New("lyrics not found")
-	ErrTimeout  = errors.New("upstream timeout")
-)
+var ErrNotFound = errors.New("lyrics not found")
 
 type SyncLevel int
 

@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -45,7 +44,7 @@ func recoverer(log *slog.Logger) func(http.Handler) http.Handler {
 							"path":   r.URL.Path,
 							"query":  r.URL.RawQuery,
 						})
-						sentry.CaptureException(fmt.Errorf("panic: %v", rec))
+						sentry.CurrentHub().Recover(rec)
 					})
 					w.WriteHeader(http.StatusInternalServerError)
 				}

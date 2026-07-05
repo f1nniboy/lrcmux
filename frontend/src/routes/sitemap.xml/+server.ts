@@ -15,7 +15,7 @@ ${pages.map((p) => `  <url><loc>${url.origin}${p}</loc></url>`).join("\n")}
   return new Response(body, {
     headers: {
       "Content-Type": "application/xml",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "public, max-age=86400",
     },
   });
 };

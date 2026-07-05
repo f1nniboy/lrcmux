@@ -10,6 +10,6 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders }) => {
   const artist = await getArtistByName(opts, name);
   if (!artist) error(404);
 
-  setHeaders({ "cache-control": "public, max-age=3600" });
+  setHeaders({ "cache-control": "public, max-age=86400" });
   return { artist };
 };

@@ -8,13 +8,16 @@ import (
 )
 
 type Collector struct {
-	Listen          string
-	HTTPRequests    *prometheus.CounterVec
-	HTTPLatency     *prometheus.HistogramVec
-	CacheOps        *prometheus.CounterVec
-	ProviderOps     *prometheus.CounterVec
-	ProviderLatency *prometheus.HistogramVec
-	registry        *prometheus.Registry
+	Listen             string
+	HTTPRequests       *prometheus.CounterVec
+	HTTPLatency        *prometheus.HistogramVec
+	CacheOps           *prometheus.CounterVec
+	ProviderOps        *prometheus.CounterVec
+	ProviderLatency    *prometheus.HistogramVec
+	RequestOutcomes    *prometheus.CounterVec
+	RateLimitDenied    *prometheus.CounterVec
+	RateLimitPenalized prometheus.Counter
+	registry           *prometheus.Registry
 }
 
 func New(listen string) *Collector {
@@ -48,12 +51,30 @@ func New(listen string) *Collector {
 		Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
 	}, []string{"prov"})
 
+	c.RequestOutcomes = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "lrcmux_request_outcomes_total",
+		Help: "Request funnel stages: isrc_not_found, cache_hit, fanout, breakers_open",
+	}, []string{"stage"})
+
+	c.RateLimitDenied = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "lrcmux_ratelimit_denied_total",
+		Help: "Rate limited requests by reason (window, penalty)",
+	}, []string{"reason"})
+
+	c.RateLimitPenalized = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "lrcmux_ratelimit_penalized_total",
+		Help: "Number of new penalty blocks applied",
+	})
+
 	reg.MustRegister(
 		c.HTTPRequests,
 		c.HTTPLatency,
 		c.CacheOps,
 		c.ProviderOps,
 		c.ProviderLatency,
+		c.RequestOutcomes,
+		c.RateLimitDenied,
+		c.RateLimitPenalized,
 	)
 	return c
 }

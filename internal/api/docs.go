@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"math"
 	"text/template"
 	"time"
 
@@ -25,9 +24,8 @@ type docsData struct {
 }
 
 type providerDoc struct {
-	Name     string
-	MaxLevel string
-	Desc     string
+	Name string
+	Desc string
 }
 
 type levelDoc struct {
@@ -45,7 +43,6 @@ type formatDoc struct {
 type rateLimitDoc struct {
 	Limit  int64
 	Window string
-	Rate   string
 }
 
 func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rl *ratelimit.Limiter, hide bool) (string, error) {
@@ -78,25 +75,16 @@ func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rl *ratelimit.Limi
 	if !hide {
 		for _, p := range orch.Providers() {
 			d.Providers = append(d.Providers, providerDoc{
-				Name:     p.Name(),
-				MaxLevel: p.MaxLevel().String(),
-				Desc:     p.Desc(),
+				Name: p.Name(),
+				Desc: p.Desc(),
 			})
 		}
 	}
 
 	if rl != nil {
-		rate := float64(rl.Limit()) / rl.Window().Seconds()
-		var rateStr string
-		if rate >= 1 {
-			rateStr = fmt.Sprintf("%.4g/s", rate)
-		} else {
-			rateStr = fmt.Sprintf("1/%gs", math.Round(1/rate))
-		}
 		d.RateLimit = &rateLimitDoc{
 			Limit:  rl.Limit(),
 			Window: fmtDuration(rl.Window()),
-			Rate:   rateStr,
 		}
 	}
 

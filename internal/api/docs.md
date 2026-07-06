@@ -3,9 +3,9 @@
 
 ## Providers
 
-| Provider | Max level | Notes |
-| -------- | --------- | ----- |
-{{range .Providers}}| **{{.Name}}** | {{.MaxLevel}} | {{.Desc}} |
+| Provider | Notes |
+| -------- | ----- |
+{{range .Providers}}| **{{.Name}}** | {{.Desc}} |
 {{end}}{{end}}
 
 ## Sync levels
@@ -34,5 +34,7 @@ User-Agent: MyApp v1.0.0 (https://github.com/example/myapp)
 
 ## Rate limiting
 
-Up to **{{.RateLimit.Limit}}** requests per **{{.RateLimit.Window}}** window (~{{.RateLimit.Rate}} sustained). Only live provider fetches count against the limit, cache hits are always free.
+Up to **{{.RateLimit.Limit}}** requests per **{{.RateLimit.Window}}** rolling window.
+
+Repeated violations result in exponentially increasing block durations. Respect the `Retry-After` header on 429 to avoid being penalized.
 {{end}}

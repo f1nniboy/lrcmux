@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/f1nniboy/lrcmux/internal/meta"
 	"github.com/f1nniboy/lrcmux/internal/utils"
 )
 
@@ -119,7 +120,7 @@ func runCloudflareRefresh(ctx context.Context, log *slog.Logger) {
 // Cloudflare IP (only for /api paths)
 func requireCloudflare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api") || r.URL.Path == "/api/health" {
+		if r.URL.Path == "/health" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -129,7 +130,7 @@ func requireCloudflare(next http.Handler) http.Handler {
 			return
 		}
 		if !fromCloudflare(ip) {
-			http.Error(w, "glory to cloudflare", http.StatusForbidden)
+			http.Redirect(w, r, "https://api."+meta.AppDomain+r.RequestURI, http.StatusMovedPermanently)
 			return
 		}
 		next.ServeHTTP(w, r)

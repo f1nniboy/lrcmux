@@ -34,17 +34,16 @@ cp config.example.toml config.toml
 go run ./cmd/lrcmux -config config.toml
 ```
 
-### Fly.io
+### Fly.io + Cloudflare Workers
 
-The API and frontend are deployed as separate apps. Create both apps first:
+The API runs on Fly.io and the frontend on Cloudflare Workers. Set up the API first:
 
 ```sh
-fly launch --no-deploy --config fly/api.toml
-fly launch --no-deploy --config fly/frontend.toml
-fly secrets set REDIS_URL=redis://... --config fly/api.toml
+fly launch --no-deploy
+fly secrets set REDIS_URL=redis://...
 ```
 
-Then deploy:
+Then deploy both:
 
 ```sh
 just deploy

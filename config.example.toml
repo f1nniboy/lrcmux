@@ -48,9 +48,13 @@ enable = true
 
 [providers.lrclib]
 enable = true
+# which LRCLIB instance to use
+# base_url = 'https://lrclib.net'
 
 [providers.musixmatch]
 enable = true
+# how many tokens to use in rotation
+# pool_size = 5
 
 [providers.ytmusic]
 enable = true

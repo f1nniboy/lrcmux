@@ -6,6 +6,7 @@ bin/
 # frontend
 frontend/node_modules
 frontend/.svelte-kit
+frontend/.wrangler
 frontend/build
 
 # secrets

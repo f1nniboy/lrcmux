@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { LyricsResult } from "$lib/types";
-  import { retryAfterSeconds } from "$lib/api";
   import { API_URL } from "$lib/env";
   import Meta from "$lib/Meta.svelte";
   import ErrorAlert from "$components/ErrorAlert.svelte";
@@ -63,7 +62,8 @@
           status: "error",
           code: res.status,
           message: message || `Request failed (${res.status})`,
-          retryAfter: retryAfterSeconds(res),
+          retryAfter:
+            parseInt(res.headers.get("Retry-After") ?? "0", 10) || undefined,
         };
       })
       .catch((e) => {
@@ -77,13 +77,6 @@
 
     return () => controller.abort();
   });
-
-  function formatRetryTime(seconds: number): string {
-    return new Date(Date.now() + seconds * 1000).toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }
 </script>
 
 <Meta
@@ -116,12 +109,10 @@
     {#if fetchState.code === 404}
       <ErrorAlert heading="No lyrics found." message={fetchState.message} />
     {:else if fetchState.code === 429}
-      <ErrorAlert
-        heading="Slow down a bit."
-        message={fetchState.retryAfter
-          ? `Try again at ${formatRetryTime(fetchState.retryAfter)}.`
-          : fetchState.message}
-      />
+      <ErrorAlert heading="Slow down a bit.">
+        Try again in <strong>{fetchState.retryAfter ?? "a few"}</strong>
+        {fetchState.retryAfter === 1 ? "second" : "seconds"}.
+      </ErrorAlert>
     {:else}
       <ErrorAlert message={fetchState.message} />
     {/if}

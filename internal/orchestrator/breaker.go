@@ -74,10 +74,21 @@ func (b *Breaker) Filter(ctx context.Context, provs []providers.Provider) []prov
 	return out
 }
 
+func (b *Breaker) ResetStreak(ctx context.Context, providers []string) {
+	if len(providers) == 0 {
+		return
+	}
+	keys := make([]string, len(providers))
+	for i, id := range providers {
+		keys[i] = "cb:" + id + ":streak"
+	}
+	b.cache.Delete(ctx, keys...)
+}
+
 func (b *Breaker) Record(provider, outcome string) {
 	switch outcome {
 	case "ok", "not_found", "canceled":
-		// streak reset is done by the caller
+		// caller handles streak reset via ResetStreak
 
 	default:
 		ctx := context.Background()

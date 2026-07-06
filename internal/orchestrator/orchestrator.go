@@ -48,6 +48,7 @@ type Request struct {
 	Level     lyrics.SyncLevel
 	Strict    bool
 	FetchMode string // "default", "cache", "force"
+	Charge    func(ctx context.Context) error
 }
 
 type Response struct {
@@ -62,7 +63,6 @@ type ProviderHealth struct {
 	Reason string `json:"reason,omitempty"`
 }
 
-// ProviderInfo describes a provider and its current circuit breaker state.
 type ProviderInfo struct {
 	ID     string         `json:"id"`
 	Name   string         `json:"name"`
@@ -133,6 +133,11 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	})
 	if err != nil {
 		o.recordOutcome("isrc_not_found")
+		if req.Charge != nil {
+			if err := req.Charge(ctx); err != nil {
+				return nil, err
+			}
+		}
 		return nil, ErrNotFound
 	}
 
@@ -173,6 +178,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 			return o.respond(ctx, best, true, req.Level, q), nil
 		}
 		return nil, ErrNotFound
+	}
+
+	if req.Charge != nil {
+		if err := req.Charge(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	o.recordOutcome("fanout")
@@ -322,13 +333,7 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 				o.log.Warn("miss cache set failed", "provider", provider, "err", err)
 			}
 		}
-		if len(successes) > 0 {
-			streakKeys := make([]string, len(successes))
-			for i, id := range successes {
-				streakKeys[i] = "cb:" + id + ":streak"
-			}
-			o.cache.Delete(bg, streakKeys...)
-		}
+		o.breaker.ResetStreak(bg, successes)
 	}()
 
 	return results

@@ -10,7 +10,6 @@ export class LyricsError extends Error {
   constructor(
     public status: number,
     message: string,
-    public retryAfter = 0,
   ) {
     super(message);
     this.name = "LyricsError";
@@ -27,11 +26,7 @@ export async function getLyricsText(
     signal: opts.signal,
   });
   if (!res.ok) {
-    throw new LyricsError(
-      res.status,
-      await failureMessage(res),
-      retryAfterSeconds(res),
-    );
+    throw new LyricsError(res.status, await failureMessage(res));
   }
   return res.text();
 }
@@ -68,6 +63,3 @@ async function failureMessage(res: Response): Promise<string> {
   return `Request failed (${res.status})`;
 }
 
-export function retryAfterSeconds(res: Response): number {
-  return parseInt(res.headers.get("Retry-After") ?? "0", 10) || 0;
-}

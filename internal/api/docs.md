@@ -34,7 +34,7 @@ User-Agent: MyApp v1.0.0 (https://github.com/example/myapp)
 
 ## Rate limiting
 
-Up to **{{.RateLimit.Limit}}** requests per **{{.RateLimit.Window}}** rolling window.
+Up to **{{.RateLimit.Limit}}** requests per **{{.RateLimit.Window}}** window. Cache hits are free and do not count against the limit.
 
-Repeated violations result in exponentially increasing block durations. Respect the `Retry-After` header on 429 to avoid being penalized.
+You should respect the `Retry-After` header on 429 responses.
 {{end}}

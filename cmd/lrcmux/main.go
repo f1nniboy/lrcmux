@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/f1nniboy/lrcmux/internal/api"
@@ -86,14 +85,13 @@ func main() {
 		log.Info("provider enabled", "id", p.ID(), "name", p.Name())
 	}
 
-	isrcClient := &http.Client{Timeout: 3 * time.Second}
-	isrcResolver := isrc.New(isrcClient, cacheLayer, cfg.Cache.MissTTL.Duration, logging.New("isrc"))
-
 	var coll *metrics.Collector
 	if cfg.Metrics.Listen != "" {
 		coll = metrics.New(cfg.Metrics.Listen)
 		log.Info("metrics enabled", "addr", cfg.Metrics.Listen)
 	}
+
+	isrcResolver := isrc.New(&http.Client{Timeout: 3 * time.Second}, cacheLayer, cfg.Cache.MissTTL.Duration, logging.New("isrc"))
 
 	breaker := orchestrator.NewBreaker(cacheLayer, logging.New("breaker"))
 	orch := orchestrator.New(provs, cacheLayer, breaker, isrcResolver, coll, orchestrator.Options{
@@ -105,18 +103,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	var rl *ratelimit.Limiter
+	var rate *ratelimit.Limiter
 	if cfg.RateLimit.Limit > 0 && rdb != nil {
-		var denied *prometheus.CounterVec
-		var penalized prometheus.Counter
-		if coll != nil {
-			denied = coll.RateLimitDenied
-			penalized = coll.RateLimitPenalized
-		}
-		rl = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration, logging.New("ratelimit"), denied, penalized)
+		rate = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration, logging.New("ratelimit"))
 	}
 
-	srv := api.NewServer(orch, rl, cfg, coll, logging.New("api"))
+	srv := api.NewServer(orch, rate, cfg, coll, logging.New("api"))
 	runErr := srv.Run(ctx, cfg.Server.Listen)
 	if runErr != nil {
 		log.Error("server error", "err", runErr)

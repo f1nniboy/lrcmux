@@ -25,7 +25,7 @@ var docsMD string
 
 type Server struct {
 	orch    *orchestrator.Orchestrator
-	rl      *ratelimit.Limiter
+	rate    *ratelimit.Limiter
 	log     *slog.Logger
 	srv     *http.Server
 	api     huma.API
@@ -33,13 +33,13 @@ type Server struct {
 	metrics *metrics.Collector
 }
 
-func NewServer(orch *orchestrator.Orchestrator, rl *ratelimit.Limiter, cfg *config.Root, coll *metrics.Collector, log *slog.Logger) *Server {
+func NewServer(orch *orchestrator.Orchestrator, rate *ratelimit.Limiter, cfg *config.Root, coll *metrics.Collector, log *slog.Logger) *Server {
 	if coll != nil {
 		coll.Register(newBreakerCollector(orch))
 	}
 	return &Server{
 		orch:    orch,
-		rl:      rl,
+		rate:    rate,
 		log:     log,
 		cfg:     cfg,
 		metrics: coll,
@@ -60,7 +60,7 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 		r.Use(requireCloudflare)
 	}
 
-	docs, err := renderDocs(docsMD, s.orch, s.rl, s.cfg.Provider.Hide)
+	docs, err := renderDocs(docsMD, s.orch, s.rate, s.cfg.Provider.Hide)
 	if err != nil {
 		s.log.Warn("docs render failed", "err", err)
 		docs = docsMD

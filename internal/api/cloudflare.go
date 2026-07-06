@@ -19,8 +19,7 @@ import (
 const (
 	cfIPv4URL         = "https://www.cloudflare.com/ips-v4"
 	cfIPv6URL         = "https://www.cloudflare.com/ips-v6"
-	cfRefreshInterval = 24 * time.Hour
-	cfFetchTimeout    = 10 * time.Second
+	cfRefreshInterval = 7 * 24 * time.Hour
 )
 
 var cfPrefixes atomic.Pointer[[]netip.Prefix]
@@ -82,7 +81,7 @@ func fetchCFList(ctx context.Context, url string) ([]netip.Prefix, error) {
 }
 
 func refreshCloudflareIPs(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, cfFetchTimeout)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	v4, err := fetchCFList(ctx, cfIPv4URL)
@@ -117,7 +116,7 @@ func runCloudflareRefresh(ctx context.Context, log *slog.Logger) {
 }
 
 // rejects any request whose Fly edge connection did not originate from a
-// Cloudflare IP (only for /api paths)
+// Cloudflare IP
 func requireCloudflare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {

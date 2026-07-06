@@ -45,7 +45,7 @@ type rateLimitDoc struct {
 	Window string
 }
 
-func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rl *ratelimit.Limiter, hide bool) (string, error) {
+func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Limiter, hide bool) (string, error) {
 	t, err := template.New("docs").Parse(tmpl)
 	if err != nil {
 		return "", err
@@ -81,10 +81,10 @@ func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rl *ratelimit.Limi
 		}
 	}
 
-	if rl != nil {
+	if rate != nil {
 		d.RateLimit = &rateLimitDoc{
-			Limit:  rl.Limit(),
-			Window: fmtDuration(rl.Window()),
+			Limit:  rate.Limit(),
+			Window: fmtDuration(rate.Window()),
 		}
 	}
 

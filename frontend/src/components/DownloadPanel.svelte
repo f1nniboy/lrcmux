@@ -148,16 +148,8 @@
     </ActionButton>
   </FormatBar>
 
-  <div class="relative">
-    <pre
-      aria-hidden="true"
-      class="invisible p-5 w-full text-ink {textClass}">{text}</pre>
-    <textarea
-      readonly
-      spellcheck="false"
-      class="absolute inset-0 p-5 w-full h-full overflow-hidden text-ink bg-transparent resize-none outline-none {textClass}"
-      >{text}</textarea
-    >
+  <div class="relative overflow-x-auto flex-1">
+    <div class="p-5 text-ink {textClass} min-h-full">{text}</div>
 
     {#if loading}
       <div

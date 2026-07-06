@@ -1,0 +1,13 @@
+name = "lrcmux"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-06-16"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+[vars]
+PUBLIC_API_URL = "https://api.lrcmux.dev"
+API_URL = "https://api.lrcmux.dev"
+PLAUSIBLE_KEY = "pa-clOrwruh22gIhXW1ATZzv"

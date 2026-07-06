@@ -25,10 +25,10 @@ test:
     go test ./internal/...
 
 deploy-api:
-    fly deploy --config fly/api.toml --local-only
+    fly deploy --local-only
 
 deploy-frontend:
-    fly deploy --config fly/frontend.toml --local-only
+    cd frontend && pnpm deploy
 
 deploy: deploy-api deploy-frontend
 

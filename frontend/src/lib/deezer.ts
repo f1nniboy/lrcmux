@@ -24,10 +24,12 @@ function jsonp<T>(url: string, signal?: AbortSignal): Promise<T> {
     const cb = `lrcmuxJsonp_${++jsonpSeq}`;
     const script = document.createElement("script");
     let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     const cleanup = () => {
       if (settled) return;
       settled = true;
+      if (timer !== null) clearTimeout(timer);
       try {
         delete (window as unknown as Record<string, unknown>)[cb];
       } catch {
@@ -36,6 +38,11 @@ function jsonp<T>(url: string, signal?: AbortSignal): Promise<T> {
       script.remove();
     };
 
+    timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("Request timed out"));
+    }, 3000);
+
     (window as unknown as Record<string, (d: T) => void>)[cb] = (data: T) => {
       cleanup();
       resolve(data);
@@ -43,7 +50,7 @@ function jsonp<T>(url: string, signal?: AbortSignal): Promise<T> {
 
     script.onerror = () => {
       cleanup();
-      reject(new Error("Deezer request failed"));
+      reject(new Error("Request failed"));
     };
 
     if (signal) {

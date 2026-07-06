@@ -14,8 +14,8 @@
 
   let { data }: { data: PageData } = $props();
 
-  let tracks = $state<Track[]>(cache.get(data.artist.id) ?? []);
-  let loading = $state(!cache.has(data.artist.id));
+  let tracks = $state<Track[]>([]);
+  let loading = $state(true);
   let error = $state<string | null>(null);
 
   $effect(() => {

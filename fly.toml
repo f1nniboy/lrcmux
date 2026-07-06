@@ -2,7 +2,7 @@ app = 'lrcmux-api'
 primary_region = 'ams'
 
 [build]
-  dockerfile = '../Dockerfile'
+  dockerfile = 'Dockerfile'
   build-target = 'api'
 
 [[files]]
@@ -17,7 +17,7 @@ primary_region = 'ams'
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
   [http_service.concurrency]
     type = 'requests'
@@ -27,6 +27,7 @@ primary_region = 'ams'
   [[http_service.checks]]
     interval = '30s'
     timeout = '5s'
+    grace_period = '5s'
     method = 'GET'
     path = '/health'
 
@@ -35,5 +36,5 @@ primary_region = 'ams'
   path = '/metrics'
 
 [[vm]]
-  memory = '512mb'
+  memory = '256mb'
   cpus = 1

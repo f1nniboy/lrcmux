@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -27,12 +26,11 @@ type KpoeOutput struct {
 }
 
 type KpoeResponse struct {
-	KpoeTools      string       `json:"KpoeTools"`
-	Type           string       `json:"type"`
-	Metadata       KpoeMetadata `json:"metadata"`
-	Lyrics         []KpoeLine   `json:"lyrics"`
-	Cached         string       `json:"cached"`
-	ProcessingTime KpoeTime     `json:"processingTime"`
+	KpoeTools string       `json:"KpoeTools"`
+	Type      string       `json:"type"`
+	Metadata  KpoeMetadata `json:"metadata"`
+	Lyrics    []KpoeLine   `json:"lyrics"`
+	Cached    string       `json:"cached"`
 }
 
 type KpoeMetadata struct {
@@ -57,24 +55,17 @@ type KpoeElement struct {
 	Key string `json:"key"`
 }
 
-type KpoeTime struct {
-	TimeElapsed int64 `json:"timeElapsed"`
-}
-
 func (s *Server) kpoeOp() huma.Operation {
 	return huma.Operation{
 		OperationID: "kpoe-get-lyrics",
 		Method:      http.MethodGet,
 		Path:        "/compat/kpoe/v2/lyrics/get",
 		Summary:     "LyricsPlus/KPOE",
-		Description: "Drop-in replacement for apps that use the LyricsPlus/KPOE API.",
 		Tags:        []string{"Compatibility"},
 	}
 }
 
 func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput, error) {
-	start := time.Now()
-
 	result, err := s.fetch(ctx, orchestrator.Request{
 		Artist:   input.Artist,
 		Title:    input.Title,
@@ -87,7 +78,6 @@ func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput,
 		return nil, s.mapError(err)
 	}
 
-	elapsed := time.Since(start).Milliseconds()
 	synced := result.Result.SyncLevel >= lyrics.SyncLine
 
 	klines := make([]KpoeLine, 0, len(result.Result.Lines))
@@ -117,23 +107,17 @@ func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput,
 		klines = append(klines, kl)
 	}
 
-	cached := "None"
-	if result.Cached {
-		cached = "Database"
-	}
-
 	src := meta.AppDomain
 	if !s.cfg.Provider.Hide && result.Result.Source.ID != "" {
 		src = fmt.Sprintf("%s at %s", result.Result.Source.Name, meta.AppDomain)
 	}
 
 	out := &KpoeOutput{Body: KpoeResponse{
-		KpoeTools:      meta.AppName,
-		Type:           kpoeType(result.Result.SyncLevel),
-		Metadata:       KpoeMetadata{Source: src},
-		Lyrics:         klines,
-		Cached:         cached,
-		ProcessingTime: KpoeTime{TimeElapsed: elapsed},
+		KpoeTools: meta.AppName,
+		Type:      kpoeType(result.Result.SyncLevel),
+		Metadata:  KpoeMetadata{Source: src},
+		Lyrics:    klines,
+		Cached:    "None",
 	}}
 	if result.TTL > 0 {
 		out.CacheControl = fmt.Sprintf("public, max-age=%d", int(result.TTL.Seconds()))

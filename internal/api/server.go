@@ -77,6 +77,7 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 	huma.Register(s.api, s.statsOp(), s.handleStats)
 	huma.Register(s.api, s.kpoeOp(), s.handleKpoe)
 	huma.Register(s.api, s.lrclibOp(), s.handleLrclib)
+	huma.Register(s.api, s.lrclibSearchOp(), s.handleLrclibSearch)
 
 	root := func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")

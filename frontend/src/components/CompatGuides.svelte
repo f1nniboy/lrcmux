@@ -26,6 +26,16 @@
         "Set **Custom KPoe Server URL** to the endpoint URL above.",
       ],
     },
+    {
+      id: "lrcget",
+      name: "LRCGET",
+      url: "/compat/lrclib",
+      steps: [
+        "Open LRCGET and click the **three dots** menu, then open **Settings**.",
+        "Under **LRCLIB instance**, replace the default URL with the endpoint URL above.",
+        "Click **Save**.",
+      ],
+    },
   ];
 
   let activeId = $state(guides[0].id);

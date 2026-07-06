@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -27,6 +28,7 @@ type LrclibOutput struct {
 }
 
 type LrclibResponse struct {
+	ID           int     `json:"id"`
 	TrackName    string  `json:"trackName"`
 	ArtistName   string  `json:"artistName"`
 	AlbumName    string  `json:"albumName"`
@@ -42,9 +44,67 @@ func (s *Server) lrclibOp() huma.Operation {
 		Method:      http.MethodGet,
 		Path:        "/compat/lrclib/api/get",
 		Summary:     "LRCLIB",
-		Description: "Drop-in replacement for apps that use the LRCLIB API.",
 		Tags:        []string{"Compatibility"},
 	}
+}
+
+type LrclibSearchInput struct {
+	TrackName  string `query:"track_name"  doc:"Track name"`
+	ArtistName string `query:"artist_name" doc:"Artist name"`
+	AlbumName  string `query:"album_name"  doc:"Album name"`
+}
+
+type LrclibSearchOutput struct {
+	Body []LrclibResponse
+}
+
+func (s *Server) lrclibSearchOp() huma.Operation {
+	return huma.Operation{
+		OperationID: "lrclib-search-lyrics",
+		Method:      http.MethodGet,
+		Path:        "/compat/lrclib/api/search",
+		Summary:     "LRCLIB",
+		Tags:        []string{"Compatibility"},
+	}
+}
+
+func lrclibResponse(result *orchestrator.Response) LrclibResponse {
+	txtEnc, _ := format.Get("txt")
+	lrcEnc, _ := format.Get("lrc")
+
+	var plain bytes.Buffer
+	txtEnc.Encode(&plain, result.Result)
+
+	var synced bytes.Buffer
+	if result.Result.SyncLevel >= lyrics.SyncLine {
+		lrcEnc.Encode(&synced, result.Result)
+	}
+
+	track := result.Result.Track
+	return LrclibResponse{
+		TrackName:    track.Title,
+		ArtistName:   track.Artist,
+		AlbumName:    track.Album,
+		Duration:     float64(track.Duration),
+		PlainLyrics:  plain.String(),
+		SyncedLyrics: synced.String(),
+	}
+}
+
+func (s *Server) handleLrclibSearch(ctx context.Context, input *LrclibSearchInput) (*LrclibSearchOutput, error) {
+	result, err := s.fetch(ctx, orchestrator.Request{
+		Artist: input.ArtistName,
+		Title:  input.TrackName,
+		Album:  input.AlbumName,
+		Level:  lyrics.SyncLine,
+	})
+	if err != nil {
+		if errors.Is(err, orchestrator.ErrNotFound) {
+			return &LrclibSearchOutput{Body: []LrclibResponse{}}, nil
+		}
+		return nil, s.mapError(err)
+	}
+	return &LrclibSearchOutput{Body: []LrclibResponse{lrclibResponse(result)}}, nil
 }
 
 func (s *Server) handleLrclib(ctx context.Context, input *LrclibInput) (*LrclibOutput, error) {
@@ -59,27 +119,7 @@ func (s *Server) handleLrclib(ctx context.Context, input *LrclibInput) (*LrclibO
 	if err != nil {
 		return nil, s.mapError(err)
 	}
-
-	txtEnc, _ := format.Get("txt")
-	lrcEnc, _ := format.Get("lrc")
-
-	var plain bytes.Buffer
-	txtEnc.Encode(&plain, result.Result)
-
-	var synced bytes.Buffer
-	if result.Result.SyncLevel >= lyrics.SyncLine {
-		lrcEnc.Encode(&synced, result.Result)
-	}
-
-	out := &LrclibOutput{Body: LrclibResponse{
-		TrackName:    input.TrackName,
-		ArtistName:   input.ArtistName,
-		AlbumName:    input.AlbumName,
-		Duration:     input.Duration,
-		Instrumental: false,
-		PlainLyrics:  plain.String(),
-		SyncedLyrics: synced.String(),
-	}}
+	out := &LrclibOutput{Body: lrclibResponse(result)}
 	if result.TTL > 0 {
 		out.CacheControl = fmt.Sprintf("public, max-age=%d", int(result.TTL.Seconds()))
 	}

@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.4.0](https://github.com/f1nniboy/lrcmux/compare/v1.3.0...v1.4.0) (2026-07-06)
+
+
+### Features
+
+* **api/compat:** add LRCLIB search endpoint, clean up KPOE response ([5ddf0ff](https://github.com/f1nniboy/lrcmux/commit/5ddf0ffcef1e4ad8566a114e76b4c761e8d93e34))
+* **api:** set Cache-Control header, exclude internal IPs from metrics ([5e7b1a6](https://github.com/f1nniboy/lrcmux/commit/5e7b1a6b3eab24ed3721f6fd0403b75198b6f327))
+* **frontend:** add setup guide for LRCGET ([5ddf0ff](https://github.com/f1nniboy/lrcmux/commit/5ddf0ffcef1e4ad8566a114e76b4c761e8d93e34))
+* **frontend:** migrate from Fly.io to Cloudflare Workers ([4436752](https://github.com/f1nniboy/lrcmux/commit/4436752f1ddbf04eb74d77a5b8cdf75ab4cebbdc))
+* **ratelimit:** replace sliding window with token bucket ([1f9731f](https://github.com/f1nniboy/lrcmux/commit/1f9731f38f8875c5d3ed66f1e4add22935d2349f))
+* **ratelimit:** sliding window, and penalty box with exponential ([468fe14](https://github.com/f1nniboy/lrcmux/commit/468fe1400dad4f1e955cb555ae59ac2dec062a2c))
+
+
+### Bug fixes
+
+* **api:** redirect non-CF traffic ([ee589cc](https://github.com/f1nniboy/lrcmux/commit/ee589cc936896d4a9248b0db5021ef45342a7f39))
+* **api:** set exposed CORS headers ([1f9731f](https://github.com/f1nniboy/lrcmux/commit/1f9731f38f8875c5d3ed66f1e4add22935d2349f))
+* **api:** use sentry's own panic recover func to preserve stack ([2fd23ea](https://github.com/f1nniboy/lrcmux/commit/2fd23eaeaf4f8f8ec288e5a8e7fb50515b2c692c))
+* **frontend:** add invisible pre element to determine height for ([f83ab68](https://github.com/f1nniboy/lrcmux/commit/f83ab68aec2bca599472d8a0c9d4f62802d79a30))
+* **frontend:** show Retry-After seconds on 429 ([1f9731f](https://github.com/f1nniboy/lrcmux/commit/1f9731f38f8875c5d3ed66f1e4add22935d2349f))
+
+
+### Documentation
+
+* update deploy guide ([ee589cc](https://github.com/f1nniboy/lrcmux/commit/ee589cc936896d4a9248b0db5021ef45342a7f39))
+
+
+### Refactors
+
+* **api:** pass config to Server instead of individual fields ([177b722](https://github.com/f1nniboy/lrcmux/commit/177b722018de2ce7d9691327bd222247711b40aa))
+* **orchestrator:** simplify breaker and outcome classification ([42e9e6a](https://github.com/f1nniboy/lrcmux/commit/42e9e6a8681e84b2fc1f1b4efcbd91acb71a3601))
+* **providers:** replace registry/factory with struct embedding ([6484adc](https://github.com/f1nniboy/lrcmux/commit/6484adcd4f0e49ba7870ee6dd39a3e0ea1b73cb5))
+
 ## [1.3.0](https://github.com/f1nniboy/lrcmux/compare/v1.2.0...v1.3.0) (2026-07-05)
 
 

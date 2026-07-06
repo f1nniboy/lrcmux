@@ -75,7 +75,7 @@ func (s *Server) kpoeOp() huma.Operation {
 func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput, error) {
 	start := time.Now()
 
-	resp, err := s.fetch(ctx, orchestrator.Request{
+	result, err := s.fetch(ctx, orchestrator.Request{
 		Artist:   input.Artist,
 		Title:    input.Title,
 		Album:    input.Album,
@@ -88,10 +88,10 @@ func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput,
 	}
 
 	elapsed := time.Since(start).Milliseconds()
-	synced := resp.Result.SyncLevel >= lyrics.SyncLine
+	synced := result.Result.SyncLevel >= lyrics.SyncLine
 
-	klines := make([]KpoeLine, 0, len(resp.Result.Lines))
-	for i, l := range resp.Result.Lines {
+	klines := make([]KpoeLine, 0, len(result.Result.Lines))
+	for i, l := range result.Result.Lines {
 		kl := KpoeLine{
 			Text:     l.Text,
 			Syllabus: []KpoeSyllabus{},
@@ -118,25 +118,25 @@ func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput,
 	}
 
 	cached := "None"
-	if resp.Cached {
+	if result.Cached {
 		cached = "Database"
 	}
 
 	src := meta.AppDomain
-	if !s.cfg.Provider.Hide && resp.Result.Source.ID != "" {
-		src = fmt.Sprintf("%s at %s", resp.Result.Source.Name, meta.AppDomain)
+	if !s.cfg.Provider.Hide && result.Result.Source.ID != "" {
+		src = fmt.Sprintf("%s at %s", result.Result.Source.Name, meta.AppDomain)
 	}
 
 	out := &KpoeOutput{Body: KpoeResponse{
 		KpoeTools:      meta.AppName,
-		Type:           kpoeType(resp.Result.SyncLevel),
+		Type:           kpoeType(result.Result.SyncLevel),
 		Metadata:       KpoeMetadata{Source: src},
 		Lyrics:         klines,
 		Cached:         cached,
 		ProcessingTime: KpoeTime{TimeElapsed: elapsed},
 	}}
-	if resp.TTL > 0 {
-		out.CacheControl = fmt.Sprintf("public, max-age=%d", int(resp.TTL.Seconds()))
+	if result.TTL > 0 {
+		out.CacheControl = fmt.Sprintf("public, max-age=%d", int(result.TTL.Seconds()))
 	}
 	return out, nil
 }

@@ -109,7 +109,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		level = maxLevel
 	}
 
-	lyricsResp, err := s.fetch(ctx, orchestrator.Request{
+	result, err := s.fetch(ctx, orchestrator.Request{
 		Artist:    input.Artist,
 		Title:     input.Title,
 		Album:     input.Album,
@@ -122,6 +122,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 	if err != nil {
 		return nil, s.mapError(err)
 	}
+	lyricsResp := result.Response
 
 	if lyricsResp.Result.SyncLevel < minLevel {
 		return nil, huma.Error400BadRequest(fmt.Sprintf("format %q requires %s-synced lyrics", input.Format, minLevel.String()))
@@ -148,6 +149,10 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 
 	return &huma.StreamResponse{
 		Body: func(ctx huma.Context) {
+			if s.rl != nil && result.remaining >= 0 {
+				ctx.SetHeader("X-RateLimit-Limit", strconv.FormatInt(s.rl.Limit(), 10))
+				ctx.SetHeader("X-RateLimit-Remaining", strconv.FormatInt(result.remaining, 10))
+			}
 			ctx.SetHeader("Content-Type", encoder.ContentType())
 			ctx.SetHeader("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
 			if !s.cfg.Provider.Hide {
@@ -168,20 +173,33 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 	}, nil
 }
 
-func (s *Server) fetch(ctx context.Context, req orchestrator.Request) (*orchestrator.Response, error) {
+type fetchResult struct {
+	*orchestrator.Response
+	remaining int64
+}
+
+func (s *Server) fetch(ctx context.Context, req orchestrator.Request) (fetchResult, error) {
 	if req.ISRC == "" && (req.Artist == "" || req.Title == "") {
-		return nil, huma.Error400BadRequest("provide either ISRC or both artist and title")
+		return fetchResult{}, huma.Error400BadRequest("provide either ISRC or both artist and title")
 	}
 
+	var result fetchResult
+	result.remaining = -1
 	if s.rl != nil {
-		ip := clientIP(ctx)
-		req.Charge = func(ctx context.Context) error {
-			return s.rl.Allow(ctx, ip)
+		r, err := s.rl.Allow(ctx, clientIP(ctx))
+		if err != nil {
+			return result, err
 		}
+		result.remaining = r
 	}
 
 	req.Artist, req.Title = utils.CleanQuery(req.Artist, req.Title)
-	return s.orch.Get(ctx, req)
+	resp, err := s.orch.Get(ctx, req)
+	if err != nil {
+		return result, err
+	}
+	result.Response = resp
+	return result, nil
 }
 
 func (s *Server) mapError(err error) error {
@@ -192,10 +210,11 @@ func (s *Server) mapError(err error) error {
 	switch {
 	case errors.Is(err, ratelimit.ErrRateLimited):
 		e, _ := errors.AsType[*ratelimit.LimitError](err)
-		return huma.ErrorWithHeaders(
-			huma.Error429TooManyRequests(e.Error()),
-			http.Header{"Retry-After": {strconv.Itoa(int(e.RetryAfter.Seconds()))}},
-		)
+		return huma.ErrorWithHeaders(huma.Error429TooManyRequests(e.Error()), http.Header{
+			"Retry-After":           {strconv.Itoa(int(e.RetryAfter.Seconds()))},
+			"X-RateLimit-Limit":     {strconv.FormatInt(s.rl.Limit(), 10)},
+			"X-RateLimit-Remaining": {"0"},
+		})
 	case errors.Is(err, orchestrator.ErrNoProviders):
 		return huma.Error503ServiceUnavailable("no providers available")
 	case errors.Is(err, orchestrator.ErrNotFound):

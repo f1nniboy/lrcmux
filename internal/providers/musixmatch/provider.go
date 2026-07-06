@@ -6,21 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"maps"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
+// mostly borrowed from https://github.com/OrfiDev/orpheusdl-musixmatch
+
 const (
-	baseURL       = "https://www.musixmatch.com/ws/1.1/"
-	appID         = "web-desktop-app-v1.0"
-	userAgent     = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-	sessionCookie = "mxm_bab=AB"
+	baseURL   = "https://apic-desktop.musixmatch.com/ws/1.1/"
+	appID     = "web-desktop-app-v1.0"
+	userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Musixmatch/0.19.4 Chrome/58.0.3029.110 Electron/1.7.6 Safari/537.36"
 )
 
 type tier struct {
@@ -37,22 +36,19 @@ var tierByLevel = map[lyrics.SyncLevel]tier{
 	lyrics.SyncNone: {endpoint: "track.lyrics.get", bodyKey: "lyrics", contentField: "lyrics_body", parse: parseLyrics},
 }
 
-func init() {
-	providers.Register("musixmatch", factory)
-}
-
-func factory(args providers.FactoryArgs) (providers.Impl, error) {
-	return &Provider{
-		client: args.Client,
-		signer: newSigner(args.Client, args.Cache, args.Log),
-		log:    args.Log,
-	}, nil
-}
-
 type Provider struct {
-	client *http.Client
-	signer *signer
-	log    *slog.Logger
+	providers.Common
+	PoolSize int `toml:"pool_size,commented,omitempty" comment:"how many tokens to use in rotation"`
+
+	pool *tokenPool
+}
+
+func (p *Provider) ID() string { return "musixmatch" }
+func (p *Provider) Init() {
+	if p.PoolSize <= 0 {
+		p.PoolSize = 1
+	}
+	p.pool = newTokenPool(p.PoolSize, p.HTTP, p.Cache, p.Log)
 }
 
 func (p *Provider) Name() string               { return "Musixmatch" }
@@ -60,25 +56,49 @@ func (p *Provider) Desc() string               { return "Extensive library and g
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
-	level, err := p.fetchTrackLevel(ctx, q.Track.ISRC)
-	if err != nil {
-		return nil, err
-	}
+	for {
+		token, idx, err := p.pool.get(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	lines, err := p.fetchTier(ctx, tierByLevel[level], q.Track.ISRC)
-	if err != nil {
-		return nil, err
-	}
-	if len(lines) == 0 {
+		meta, err := p.fetchTrackMeta(ctx, q.Track.ISRC, token, idx)
+		if errors.Is(err, providers.ErrRateLimited) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if meta == nil {
+			return nil, lyrics.ErrNotFound
+		}
+
+		t := tierByLevel[meta.syncLevel]
+		lines, err := p.fetchTier(ctx, t, q.Track.ISRC, token, idx)
+		if errors.Is(err, providers.ErrRateLimited) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(lines) > 0 {
+			return &lyrics.Result{Lines: lines, SyncLevel: meta.syncLevel}, nil
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, lyrics.ErrNotFound
 	}
-	return &lyrics.Result{Lines: lines, SyncLevel: level}, nil
 }
 
-func (p *Provider) fetchTrackLevel(ctx context.Context, isrc string) (lyrics.SyncLevel, error) {
-	body, err := p.get(ctx, "track.get", url.Values{"track_isrc": {isrc}})
+type trackMeta struct {
+	syncLevel lyrics.SyncLevel
+}
+
+func (p *Provider) fetchTrackMeta(ctx context.Context, isrc, token string, idx int) (*trackMeta, error) {
+	body, err := p.get(ctx, "track.get", url.Values{"track_isrc": {isrc}}, token, idx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	var resp struct {
 		Track struct {
@@ -88,32 +108,34 @@ func (p *Provider) fetchTrackLevel(ctx context.Context, isrc string) (lyrics.Syn
 		} `json:"track"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return 0, lyrics.ErrNotFound
+		return nil, nil
 	}
+	track := resp.Track
 	switch {
-	case resp.Track.HasRichsync == 1:
-		return lyrics.SyncWord, nil
-	case resp.Track.HasSubtitles == 1:
-		return lyrics.SyncLine, nil
-	case resp.Track.HasLyrics == 1:
-		return lyrics.SyncNone, nil
+	case track.HasRichsync == 1:
+		return &trackMeta{syncLevel: lyrics.SyncWord}, nil
+	case track.HasSubtitles == 1:
+		return &trackMeta{syncLevel: lyrics.SyncLine}, nil
+	case track.HasLyrics == 1:
+		return &trackMeta{syncLevel: lyrics.SyncNone}, nil
 	}
-	return 0, lyrics.ErrNotFound
+	return nil, nil
 }
 
-func (p *Provider) fetchTier(ctx context.Context, t tier, isrc string) ([]lyrics.Line, error) {
+func (p *Provider) fetchTier(ctx context.Context, t tier, isrc, token string, idx int) ([]lyrics.Line, error) {
 	params := url.Values{"track_isrc": {isrc}}
 	maps.Copy(params, t.extra)
 
-	body, err := p.get(ctx, t.endpoint, params)
+	body, err := p.get(ctx, t.endpoint, params, token, idx)
 	if err != nil {
-		if errors.Is(err, lyrics.ErrNotFound) {
-			return nil, nil
+		if errors.Is(err, providers.ErrRateLimited) {
+			return nil, err
 		}
-		if ctx.Err() == nil && !errors.Is(err, providers.ErrRateLimited) {
-			p.log.Debug("fetch failed", "tier", t.bodyKey, "isrc", isrc, "err", err)
+		if ctx.Err() == nil && !errors.Is(err, lyrics.ErrNotFound) {
+			p.Log.Debug("fetch failed", "tier", t.bodyKey, "isrc", isrc, "err", err)
+			return nil, err
 		}
-		return nil, err
+		return nil, nil
 	}
 
 	var outer map[string]map[string]json.RawMessage
@@ -127,43 +149,34 @@ func (p *Provider) fetchTier(ctx context.Context, t tier, isrc string) ([]lyrics
 	return t.parse(content), nil
 }
 
-func buildURL(endpoint string, extra url.Values) string {
-	q := url.Values{}
-	q.Set("app_id", appID)
-	q.Set("format", "json")
-	maps.Copy(q, extra)
-	return baseURL + endpoint + "?" + q.Encode()
+func (p *Provider) get(ctx context.Context, endpoint string, extra url.Values, token string, idx int) (json.RawMessage, error) {
+	p.Log.Debug("using token", "slot", idx, "token", token[:8])
+	body, err := p.doRequest(ctx, endpoint, extra, token)
+	if err == nil {
+		return body, nil
+	}
+	if errors.Is(err, errTokenUnusable) {
+		p.Log.Debug("token unusable, retiring", "slot", idx)
+		p.pool.retire(idx)
+		return nil, providers.ErrRateLimited
+	}
+	return nil, err
 }
 
-func (p *Provider) get(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
-	secret, err := p.signer.Get(ctx)
-	if err != nil {
-		return nil, err
-	}
-	body, err := p.sendSigned(ctx, endpoint, extra, secret)
-	if errors.Is(err, errInvalidSignature) {
-		secret, err = p.signer.Refresh()
-		if err != nil {
-			return nil, fmt.Errorf("refresh secret: %w", err)
-		}
-		body, err = p.sendSigned(ctx, endpoint, extra, secret)
-	}
-	return body, err
-}
+func (p *Provider) doRequest(ctx context.Context, endpoint string, extra url.Values, token string) (json.RawMessage, error) {
+	params := url.Values{}
+	params.Set("app_id", appID)
+	params.Set("format", "json")
+	params.Set("usertoken", token)
+	maps.Copy(params, extra)
 
-func (p *Provider) sendSigned(ctx context.Context, endpoint string, extra url.Values, secret []byte) (json.RawMessage, error) {
-	signed := signWith(buildURL(endpoint, extra), secret, time.Now())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signed, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+endpoint+"?"+params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Referer", "https://www.musixmatch.com/")
-	req.Header.Set("Cookie", sessionCookie)
 
-	resp, err := p.client.Do(req)
+	resp, err := p.HTTP.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request: %w", err)
 	}
@@ -194,12 +207,11 @@ func (p *Provider) sendSigned(ctx context.Context, endpoint string, extra url.Va
 	switch {
 	case res.Message.Header.StatusCode == 200:
 		return res.Message.Body, nil
-	case res.Message.Header.StatusCode == 401 && res.Message.Header.Hint == "invalid_signature":
-		return nil, errInvalidSignature
-	case res.Message.Header.StatusCode == 401 && res.Message.Header.Hint == "captcha":
-		return nil, providers.ErrRateLimited
+	case res.Message.Header.StatusCode == 401:
+		return nil, errTokenUnusable
 	case res.Message.Header.StatusCode == 404:
 		return nil, lyrics.ErrNotFound
 	}
+	p.Log.Debug("api error", "status", res.Message.Header.StatusCode, "hint", res.Message.Header.Hint)
 	return nil, fmt.Errorf("api %d (%s)", res.Message.Header.StatusCode, res.Message.Header.Hint)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,28 +13,17 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
-const defaultBaseURL = "https://lrclib.net"
-
-func init() {
-	providers.Register("lrclib", factory)
-}
-
-func factory(args providers.FactoryArgs) (providers.Impl, error) {
-	var c Config
-	if err := args.Decode(&c); err != nil {
-		return nil, err
-	}
-	base := c.BaseURL
-	if base == "" {
-		base = defaultBaseURL
-	}
-	return &Provider{http: args.Client, log: args.Log, baseURL: strings.TrimRight(base, "/")}, nil
-}
-
 type Provider struct {
-	http    *http.Client
-	log     *slog.Logger
-	baseURL string
+	providers.Common
+	BaseURL string `toml:"base_url,commented,omitempty" comment:"which LRCLIB instance to use"`
+}
+
+func (p *Provider) ID() string { return "lrclib" }
+func (p *Provider) Init() {
+	if p.BaseURL == "" {
+		p.BaseURL = "https://lrclib.net"
+	}
+	p.BaseURL = strings.TrimRight(p.BaseURL, "/")
 }
 
 func (p *Provider) Name() string               { return "LRCLIB" }
@@ -63,7 +51,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 	if q.Track.Duration > 0 {
 		params.Set("duration", strconv.FormatInt(q.Track.Duration, 10))
 	}
-	endpoint := p.baseURL + "/api/get?" + params.Encode()
+	endpoint := p.BaseURL + "/api/get?" + params.Encode()
 
 	var r apiResult
 	if err := p.do(ctx, endpoint, &r); err != nil {
@@ -81,7 +69,7 @@ func (p *Provider) do(ctx context.Context, endpoint string, out any) error {
 	if err != nil {
 		return err
 	}
-	resp, err := p.http.Do(req)
+	resp, err := p.HTTP.Do(req)
 	if err != nil {
 		return fmt.Errorf("request: %w", err)
 	}

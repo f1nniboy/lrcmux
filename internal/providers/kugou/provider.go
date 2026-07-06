@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -20,19 +19,11 @@ const (
 	downloadURL = "https://lyrics.kugou.com/download"
 )
 
-func init() {
-	providers.Register("kugou", factory)
-}
-
-func factory(args providers.FactoryArgs) (providers.Impl, error) {
-	return &Provider{http: args.Client, log: args.Log}, nil
-}
-
 type Provider struct {
-	http *http.Client
-	log  *slog.Logger
+	providers.Common
 }
 
+func (p *Provider) ID() string                 { return "kugou" }
 func (p *Provider) Name() string               { return "Kugou" }
 func (p *Provider) Desc() string               { return "Word-level sync for most songs (AI?), censors profanity" }
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
@@ -45,16 +36,6 @@ type searchCandidate struct {
 	KRCType    int    `json:"krctype"`
 	SongName   string `json:"song"`
 	SingerName string `json:"singer"`
-}
-
-type searchResp struct {
-	Status     int               `json:"status"`
-	Candidates []searchCandidate `json:"candidates"`
-}
-
-type downloadResp struct {
-	Status  int    `json:"status"`
-	Content string `json:"content"`
 }
 
 var reBrackets = regexp.MustCompile(`[\(\[（【][^\)\]）】]*[\)\]）】]`)
@@ -105,7 +86,10 @@ func (p *Provider) search(ctx context.Context, artist, title string, durationMs 
 		params.Set("duration", "")
 	}
 
-	var sr searchResp
+	var sr struct {
+		Status     int               `json:"status"`
+		Candidates []searchCandidate `json:"candidates"`
+	}
 	if err := p.do(ctx, searchURL+"?"+params.Encode(), &sr); err != nil {
 		return nil, err
 	}
@@ -148,15 +132,18 @@ func (p *Provider) download(ctx context.Context, cand *searchCandidate) (*lyrics
 	params.Set("fmt", "krc")
 	params.Set("charset", "utf8")
 
-	var dr downloadResp
-	if err := p.do(ctx, downloadURL+"?"+params.Encode(), &dr); err != nil {
+	var resp struct {
+		Status  int    `json:"status"`
+		Content string `json:"content"`
+	}
+	if err := p.do(ctx, downloadURL+"?"+params.Encode(), &resp); err != nil {
 		return nil, err
 	}
-	if dr.Status != 200 || dr.Content == "" {
+	if resp.Status != 200 || resp.Content == "" {
 		return nil, lyrics.ErrNotFound
 	}
 
-	krcText, err := decodeKRC(dr.Content)
+	krcText, err := decodeKRC(resp.Content)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +164,7 @@ func (p *Provider) do(ctx context.Context, endpoint string, out any) error {
 	if err != nil {
 		return err
 	}
-	resp, err := p.http.Do(req)
+	resp, err := p.HTTP.Do(req)
 	if err != nil {
 		return fmt.Errorf("request: %w", err)
 	}

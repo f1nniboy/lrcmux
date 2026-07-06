@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -16,19 +15,11 @@ import (
 
 const baseURL = "https://music.youtube.com/youtubei/v1"
 
-func init() {
-	providers.Register("ytmusic", factory)
-}
-
-func factory(args providers.FactoryArgs) (providers.Impl, error) {
-	return &Provider{http: args.Client, log: args.Log}, nil
-}
-
 type Provider struct {
-	http *http.Client
-	log  *slog.Logger
+	providers.Common
 }
 
+func (p *Provider) ID() string                 { return "ytmusic" }
 func (p *Provider) Name() string               { return "YouTube Music" }
 func (p *Provider) Desc() string               { return "Uses various sources, mix of line-synced and plain text" }
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncLine }
@@ -57,7 +48,7 @@ func (p *Provider) searchVideoID(ctx context.Context, q lyrics.Query) (string, e
 	if err := p.post(ctx, "search", body, &resp); err != nil {
 		return "", err
 	}
-	id := resp.videoID(q.Track.Artist, utils.NormalizeTitle(q.Track.Title), p.log)
+	id := resp.videoID(q.Track.Artist, utils.NormalizeTitle(q.Track.Title), p.Log)
 	if id == "" {
 		return "", lyrics.ErrNotFound
 	}
@@ -136,7 +127,7 @@ func (p *Provider) post(ctx context.Context, endpoint string, body any, out any)
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0")
 
-	resp, err := p.http.Do(req)
+	resp, err := p.HTTP.Do(req)
 	if err != nil {
 		return fmt.Errorf("request: %w", err)
 	}

@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"io"
 	"log/slog"
@@ -20,7 +21,6 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
-	"github.com/f1nniboy/lrcmux/internal/proxy"
 )
 
 var (
@@ -48,7 +48,6 @@ type Request struct {
 	Level     lyrics.SyncLevel
 	Strict    bool
 	FetchMode string // "default", "cache", "force"
-	Charge    func(ctx context.Context) error
 }
 
 type Response struct {
@@ -90,6 +89,12 @@ func New(provs []providers.Provider, c cache.Cache, breaker *Breaker, resolver *
 
 func (o *Orchestrator) Providers() []providers.Provider { return o.providers }
 
+func (o *Orchestrator) recordOutcome(stage string) {
+	if o.metrics != nil {
+		o.metrics.RequestOutcomes.WithLabelValues(stage).Inc()
+	}
+}
+
 func (o *Orchestrator) Health(ctx context.Context) []ProviderInfo {
 	disabled := o.breaker.states(ctx, o.providers)
 	infos := make([]ProviderInfo, len(o.providers))
@@ -127,6 +132,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		CacheOnly: req.FetchMode == "cache",
 	})
 	if err != nil {
+		o.recordOutcome("isrc_not_found")
 		return nil, ErrNotFound
 	}
 
@@ -136,20 +142,32 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 
 	if best != nil && best.SyncLevel >= req.Level {
 		o.log.Debug("serving from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
+		o.recordOutcome("cache_hit")
 		return o.respond(ctx, best, true, req.Level, q), nil
 	}
 
 	// don't hit providers in cache-only mode
 	if req.FetchMode == "cache" {
 		if !req.Strict && best != nil {
+			o.recordOutcome("cache_hit")
 			return o.respond(ctx, best, true, req.Level, q), nil
 		}
 		return nil, ErrNotFound
 	}
 
 	unknowns = o.breaker.Filter(ctx, unknowns)
+	if req.Strict {
+		filtered := unknowns[:0]
+		for _, p := range unknowns {
+			if p.MaxLevel() >= req.Level {
+				filtered = append(filtered, p)
+			}
+		}
+		unknowns = filtered
+	}
 
 	if len(unknowns) == 0 {
+		o.recordOutcome("breakers_open")
 		if !req.Strict && best != nil {
 			o.log.Debug("all providers explored, serving best available from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
 			return o.respond(ctx, best, true, req.Level, q), nil
@@ -157,16 +175,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		return nil, ErrNotFound
 	}
 
+	o.recordOutcome("fanout")
+
 	v, err, _ := o.sf.Do(queryKey(q, req.Level), func() (any, error) {
-		if req.Charge != nil {
-			if err := req.Charge(ctx); err != nil {
-				return nil, err
-			}
-		}
-
 		results := o.fanOut(ctx, unknowns, q, req.Level)
-
 		picked := o.pick(results, req.Level)
+
 		if picked == nil && !req.Strict {
 			all := results
 			if best != nil {
@@ -259,7 +273,7 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 			defer wg.Done()
 			o.log.Debug("querying provider", "provider", p.ID())
 			start := time.Now()
-			r, err := p.Search(proxy.Sticky(fanCtx), q)
+			r, err := p.Search(fanCtx, q)
 			ch <- providerOutcome{id: p.ID(), name: p.Name(), result: r, err: err, latency: time.Since(start)}
 		}(p)
 	}
@@ -419,6 +433,9 @@ func isNetworkNoise(err error) bool {
 		return true
 	}
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	if _, ok := errors.AsType[*tls.CertificateVerificationError](err); ok {
 		return true
 	}
 	return false

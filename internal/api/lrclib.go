@@ -48,7 +48,7 @@ func (s *Server) lrclibOp() huma.Operation {
 }
 
 func (s *Server) handleLrclib(ctx context.Context, input *LrclibInput) (*LrclibOutput, error) {
-	resp, err := s.fetch(ctx, orchestrator.Request{
+	result, err := s.fetch(ctx, orchestrator.Request{
 		Artist:   input.ArtistName,
 		Title:    input.TrackName,
 		Album:    input.AlbumName,
@@ -64,11 +64,11 @@ func (s *Server) handleLrclib(ctx context.Context, input *LrclibInput) (*LrclibO
 	lrcEnc, _ := format.Get("lrc")
 
 	var plain bytes.Buffer
-	txtEnc.Encode(&plain, resp.Result)
+	txtEnc.Encode(&plain, result.Result)
 
 	var synced bytes.Buffer
-	if resp.Result.SyncLevel >= lyrics.SyncLine {
-		lrcEnc.Encode(&synced, resp.Result)
+	if result.Result.SyncLevel >= lyrics.SyncLine {
+		lrcEnc.Encode(&synced, result.Result)
 	}
 
 	out := &LrclibOutput{Body: LrclibResponse{
@@ -80,8 +80,8 @@ func (s *Server) handleLrclib(ctx context.Context, input *LrclibInput) (*LrclibO
 		PlainLyrics:  plain.String(),
 		SyncedLyrics: synced.String(),
 	}}
-	if resp.TTL > 0 {
-		out.CacheControl = fmt.Sprintf("public, max-age=%d", int(resp.TTL.Seconds()))
+	if result.TTL > 0 {
+		out.CacheControl = fmt.Sprintf("public, max-age=%d", int(result.TTL.Seconds()))
 	}
 	return out, nil
 }

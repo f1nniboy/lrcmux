@@ -19,7 +19,7 @@ func (t uaTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	return t.inner.RoundTrip(r)
 }
 
-func withUserAgent(c *http.Client) *http.Client {
+func WithUserAgent(c *http.Client) *http.Client {
 	inner := c.Transport
 	if inner == nil {
 		inner = http.DefaultTransport

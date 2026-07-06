@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/f1nniboy/lrcmux/internal/api"
@@ -21,11 +22,8 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/meta"
 	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
-	"github.com/f1nniboy/lrcmux/internal/providers"
 	"github.com/f1nniboy/lrcmux/internal/proxy"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
-
-	_ "github.com/f1nniboy/lrcmux/internal/providers/all"
 )
 
 func main() {
@@ -70,23 +68,15 @@ func main() {
 		cacheLayer = cache.NewRedis(rdb)
 	}
 
-	pools, err := proxy.LoadAll(cfg.Proxies, logging.New("proxy"))
+	pools, err := proxy.LoadAll(cfg.Proxies)
 	if err != nil {
 		log.Error("proxy load failed", "err", err)
 		os.Exit(1)
 	}
-	resolve := func(name string, timeout time.Duration) *http.Client {
-		if name != "" {
-			if _, ok := pools.Pool(name); !ok {
-				log.Warn("provider references unknown proxy pool, using default client", "pool", name)
-			}
-		}
-		return pools.ClientFor(name, timeout)
-	}
 
-	provs, err := providers.BuildAll(cfg, cacheLayer, resolve)
+	provs, err := buildProviders(cfg, cacheLayer, pools, log)
 	if err != nil {
-		log.Error("provider build failed", "err", err)
+		log.Error("provider setup failed", "err", err)
 		os.Exit(1)
 	}
 	if len(provs) == 0 {
@@ -117,7 +107,13 @@ func main() {
 
 	var rl *ratelimit.Limiter
 	if cfg.RateLimit.Limit > 0 && rdb != nil {
-		rl = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration, logging.New("ratelimit"))
+		var denied *prometheus.CounterVec
+		var penalized prometheus.Counter
+		if coll != nil {
+			denied = coll.RateLimitDenied
+			penalized = coll.RateLimitPenalized
+		}
+		rl = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration, logging.New("ratelimit"), denied, penalized)
 	}
 
 	srv := api.NewServer(orch, rl, cfg, coll, logging.New("api"))

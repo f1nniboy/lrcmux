@@ -10,15 +10,15 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/config"
 	"github.com/f1nniboy/lrcmux/internal/logging"
 	"github.com/f1nniboy/lrcmux/internal/providers"
-	_ "github.com/f1nniboy/lrcmux/internal/providers/all"
+	"github.com/f1nniboy/lrcmux/internal/providers/genius"
+	"github.com/f1nniboy/lrcmux/internal/providers/kugou"
+	"github.com/f1nniboy/lrcmux/internal/providers/lrclib"
+	"github.com/f1nniboy/lrcmux/internal/providers/musixmatch"
+	"github.com/f1nniboy/lrcmux/internal/providers/ytmusic"
 )
 
 func main() {
-	names := providers.Names()
-	provs := make(map[string]any, len(names))
-	for _, name := range names {
-		provs[name] = providers.Common{Enable: true}
-	}
+	enabled := providers.Common{Enable: true}
 
 	cfg := config.Root{
 		Server: config.Server{
@@ -42,7 +42,13 @@ func main() {
 		Proxies: map[string]config.Proxy{
 			"mypool": {URLs: []string{"socks5://user:pass@proxy1.example.com:1080"}},
 		},
-		Providers: provs,
+		Providers: map[string]any{
+			"genius":     genius.Provider{Common: enabled},
+			"kugou":      kugou.Provider{Common: enabled},
+			"lrclib":     lrclib.Provider{Common: enabled, BaseURL: "https://lrclib.net"},
+			"musixmatch": musixmatch.Provider{Common: enabled, PoolSize: 5},
+			"ytmusic":    ytmusic.Provider{Common: enabled},
+		},
 	}
 
 	b, err := toml.Marshal(cfg)

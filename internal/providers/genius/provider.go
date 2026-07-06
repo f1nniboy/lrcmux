@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -19,24 +18,16 @@ import (
 
 const (
 	searchURL = "https://genius.com/api/search/multi"
-	userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0"
+	userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0"
 )
 
 var reSection = regexp.MustCompile(`\[.*?\]`)
 
-func init() {
-	providers.Register("genius", factory)
-}
-
-func factory(args providers.FactoryArgs) (providers.Impl, error) {
-	return &Provider{client: args.Client, log: args.Log}, nil
-}
-
 type Provider struct {
-	client *http.Client
-	log    *slog.Logger
+	providers.Common
 }
 
+func (p *Provider) ID() string                 { return "genius" }
 func (p *Provider) Name() string               { return "Genius" }
 func (p *Provider) Desc() string               { return "Best song coverage, but only plain text lyrics" }
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncNone }
@@ -75,16 +66,22 @@ type searchResponse struct {
 
 func (p *Provider) search(ctx context.Context, q lyrics.Query) (string, error) {
 	endpoint := searchURL + "?per_page=5&q=" + url.QueryEscape(q.Track.Artist+" "+q.Track.Title)
-	p.log.Debug("search", "artist", q.Track.Artist, "title", q.Track.Title)
+	p.Log.Debug("search", "artist", q.Track.Artist, "title", q.Track.Title)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Referer", "https://genius.com/search/embed")
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
 
-	resp, err := p.client.Do(req)
+	resp, err := p.HTTP.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("search: %w", err)
 	}
@@ -115,15 +112,15 @@ func (p *Provider) search(ctx context.Context, q lyrics.Query) (string, error) {
 			gotTitle := utils.NormalizeTitle(r.Title)
 			titleOK := gotTitle == wantTitle
 			artistOK := utils.ArtistMatch(r.ArtistNames, wantArtist)
-			p.log.Debug("candidate", "title", r.Title, "artist", r.ArtistNames, "title_ok", titleOK, "artist_ok", artistOK)
+			p.Log.Debug("candidate", "title", r.Title, "artist", r.ArtistNames, "title_ok", titleOK, "artist_ok", artistOK)
 			if !titleOK || !artistOK {
 				continue
 			}
-			p.log.Debug("matched", "url", r.URL)
+			p.Log.Debug("matched", "url", r.URL)
 			return r.URL, nil
 		}
 	}
-	p.log.Debug("no match", "want_title", wantTitle, "want_artist", wantArtist)
+	p.Log.Debug("no match", "want_title", wantTitle, "want_artist", wantArtist)
 	return "", lyrics.ErrNotFound
 }
 
@@ -133,8 +130,14 @@ func (p *Provider) scrape(ctx context.Context, pageURL string) ([]lyrics.Line, e
 		return nil, err
 	}
 	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "none")
 
-	resp, err := p.client.Do(req)
+	resp, err := p.HTTP.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("scrape: %w", err)
 	}

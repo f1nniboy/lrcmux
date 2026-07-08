@@ -6,9 +6,6 @@
   import UseItInYourApp from "$components/UseItInYourApp.svelte";
   import CompatGuides from "$components/CompatGuides.svelte";
   import Wordmark from "$components/Wordmark.svelte";
-  import type { PageData } from "./$types";
-
-  let { data }: { data: PageData } = $props();
 </script>
 
 <Meta
@@ -33,7 +30,7 @@
 
   <SearchBar />
 
-  <TrendingGrid tracks={data.trending} />
+  <TrendingGrid />
 
   <hr class="m-0 border-rule" />
 

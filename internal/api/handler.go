@@ -195,9 +195,9 @@ func (s *Server) mapError(err error) error {
 			"Retry-After": {strconv.Itoa(int(e.RetryAfter.Seconds()))},
 		})
 	case errors.Is(err, orchestrator.ErrNoProviders):
-		return huma.Error503ServiceUnavailable("no providers available")
+		return huma.Error503ServiceUnavailable(err.Error())
 	case errors.Is(err, orchestrator.ErrNotFound):
-		e := huma.Error404NotFound("no lyrics found for the given query")
+		e := huma.Error404NotFound(err.Error())
 		if s.cfg.Cache.MissTTL.Duration > 0 {
 			return huma.ErrorWithHeaders(e, http.Header{"Cache-Control": {fmt.Sprintf("public, max-age=%d", int(s.cfg.Cache.MissTTL.Duration.Seconds()))}})
 		}

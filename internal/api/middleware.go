@@ -54,6 +54,44 @@ func recoverer(log *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
+func accessLog(log *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			sr := &statusRecorder{ResponseWriter: w}
+			next.ServeHTTP(sr, r)
+			if r.URL.Path == "/" || r.URL.Path == "/health" {
+				return
+			}
+			log.Info("request",
+				"path", r.URL.Path,
+				"query", r.URL.RawQuery,
+				"status", sr.status,
+				"ua", r.Header.Get("User-Agent"),
+			)
+		})
+	}
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+	bytes  int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *statusRecorder) Write(b []byte) (int, error) {
+	if s.status == 0 {
+		s.status = http.StatusOK
+	}
+	n, err := s.ResponseWriter.Write(b)
+	s.bytes += n
+	return n, err
+}
+
 func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")

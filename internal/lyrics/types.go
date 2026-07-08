@@ -16,7 +16,6 @@ const (
 	SyncWord
 )
 
-// Levels lists every sync level from most to least precision.
 var Levels = []SyncLevel{SyncWord, SyncLine, SyncNone}
 
 func (s SyncLevel) String() string {

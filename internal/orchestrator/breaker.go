@@ -37,16 +37,16 @@ func (b *Breaker) states(ctx context.Context, provs []providers.Provider) map[st
 	if err != nil {
 		return nil
 	}
+	vals, _, err := cache.GetMany[breakerState](ctx, b.cache, keys)
+	if err != nil {
+		return nil
+	}
 	out := make(map[string]breakerState, len(provs))
 	for i, p := range provs {
 		if ttls[i] <= 0 {
 			continue
 		}
-		open := breakerState{TTL: ttls[i]}
-		if st, status, _ := cache.Get[breakerState](ctx, b.cache, keys[i]); status == cache.Found {
-			open.Reason = st.Reason
-		}
-		out[p.ID()] = open
+		out[p.ID()] = breakerState{TTL: ttls[i], Reason: vals[i].Reason}
 	}
 	return out
 }
@@ -93,7 +93,11 @@ func (b *Breaker) Record(provider, outcome string) {
 	default:
 		ctx := context.Background()
 		streakKey := "cb:" + provider + ":streak"
-		n, _ := b.cache.Incr(ctx, streakKey, breakerTTL)
+		n, err := b.cache.Incr(ctx, streakKey, breakerTTL)
+		if err != nil {
+			b.log.Warn("breaker increment failed", "provider", provider, "err", err)
+			return
+		}
 		if n >= breakerThreshold {
 			cache.Set(ctx, b.cache, "cb:"+provider, breakerState{Reason: outcome}, breakerTTL)
 			b.cache.Delete(ctx, streakKey)

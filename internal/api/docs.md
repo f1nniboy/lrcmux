@@ -1,4 +1,4 @@
-**{{.AppName}}** is a lyrics aggregation API. It queries multiple providers in parallel, caches results, and returns the best available lyrics for a given track.
+**{{.AppName}}** is a lyrics aggregation API. It queries multiple providers, caches results, and returns the best available lyrics for a given track.
 {{if .Providers}}
 
 ## Providers

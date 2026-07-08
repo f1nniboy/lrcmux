@@ -7,8 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -160,21 +158,24 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		return nil, ErrNotFound
 	}
 
+	// filter out providers that are currently disabled
 	unknowns = o.breaker.Filter(ctx, unknowns)
+
+	// drop providers that can never satisfy the requested level
 	if req.Strict {
-		filtered := unknowns[:0]
+		var capable []providers.Provider
 		for _, p := range unknowns {
 			if p.MaxLevel() >= req.Level {
-				filtered = append(filtered, p)
+				capable = append(capable, p)
 			}
 		}
-		unknowns = filtered
+		unknowns = capable
 	}
 
+	// no providers left to query: all were cached misses, breaker-open, or filtered by strict
 	if len(unknowns) == 0 {
-		o.recordOutcome("breakers_open")
 		if !req.Strict && best != nil {
-			o.log.Debug("all providers explored, serving best available from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
+			o.log.Debug("no providers to query, serving best available from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
 			return o.respond(ctx, best, true, req.Level, q), nil
 		}
 		return nil, ErrNotFound
@@ -186,27 +187,40 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		}
 	}
 
-	o.recordOutcome("fanout")
-
 	v, err, _ := o.sf.Do(queryKey(q, req.Level), func() (any, error) {
-		results := o.fanOut(ctx, unknowns, q, req.Level)
-		picked := o.pick(results, req.Level)
+		o.recordOutcome("fanout")
 
-		if picked == nil && !req.Strict {
-			all := results
+		var allResults []*lyrics.Result
+		for i, tier := range buildTiers(unknowns, req.Level) {
+			if len(tier) == 0 {
+				continue
+			}
+			o.log.Debug("fanout tier", "tier", i, "providers", providerIDs(tier), "target_level", req.Level.String())
+			allResults = append(allResults, o.fanOut(ctx, tier, q, req.Level)...)
+
+			if picked := o.pick(allResults, req.Level); picked != nil {
+				o.log.Debug("tier satisfied", "tier", i, "provider", picked.Source.ID, "sync", picked.SyncLevel.String())
+				return o.respond(ctx, picked, false, req.Level, q), nil
+			}
+			o.log.Debug("tier exhausted", "tier", i, "collected", len(allResults))
+			if len(allResults) > 0 {
+				// we have results but can't meet the level
+				// remaining tiers are worse, so they won't improve on what we have
+				break
+			}
+		}
+		if !req.Strict {
 			if best != nil {
-				all = append(all, best)
+				allResults = append(allResults, best)
 			}
-			picked = o.pick(all, lyrics.SyncNone)
-			if picked != nil {
-				o.log.Debug("pick: falling back to best available", "provider", picked.Source.ID, "sync", picked.SyncLevel.String())
+			if len(allResults) > 0 {
+				if picked := o.pick(allResults, lyrics.SyncNone); picked != nil {
+					o.log.Debug("pick: falling back to best available", "provider", picked.Source.ID, "sync", picked.SyncLevel.String())
+					return o.respond(ctx, picked, false, req.Level, q), nil
+				}
 			}
 		}
-		if picked == nil {
-			return nil, ErrNotFound
-		}
-
-		return o.respond(ctx, picked, false, req.Level, q), nil
+		return nil, ErrNotFound
 	})
 	if err != nil {
 		return nil, err
@@ -270,11 +284,7 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 	fanCtx, cancel := context.WithTimeout(ctx, o.opts.Timeout)
 	defer cancel()
 
-	ids := make([]string, len(active))
-	for i, p := range active {
-		ids[i] = p.ID()
-	}
-	o.log.Debug("fanning out", "providers", ids, "target_level", level.String(), "timeout", o.opts.Timeout.Milliseconds())
+	o.log.Debug("fanning out", "providers", providerIDs(active), "target_level", level.String(), "timeout", o.opts.Timeout.Milliseconds())
 
 	ch := make(chan providerOutcome, len(active))
 	var wg sync.WaitGroup
@@ -292,13 +302,12 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 
 	var results []*lyrics.Result
 	var misses []string
-	var successes []string
+
 	collect := func(out providerOutcome) {
 		if out.err == nil && out.result != nil {
 			out.result.Source = lyrics.Source{ID: out.id, Name: out.name}
 			out.result.Lines = lyrics.CleanLines(out.result.Lines)
 			results = append(results, out.result)
-			successes = append(successes, out.id)
 		}
 		if errors.Is(out.err, lyrics.ErrNotFound) {
 			misses = append(misses, out.id)
@@ -323,7 +332,10 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 
 	go func() {
 		bg := context.Background()
-		for _, r := range results {
+		ids := make([]string, len(results))
+
+		for i, r := range results {
+			ids[i] = r.Source.ID
 			if err := cache.Set(bg, o.cache, cacheKey(q.Track.ISRC, r.Source.ID), *r, o.opts.CacheTTL); err != nil {
 				o.log.Warn("cache set failed", "err", err, "provider", r.Source.ID)
 			}
@@ -333,7 +345,8 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 				o.log.Warn("miss cache set failed", "provider", provider, "err", err)
 			}
 		}
-		o.breaker.ResetStreak(bg, successes)
+
+		o.breaker.ResetStreak(bg, ids)
 	}()
 
 	return results
@@ -388,44 +401,23 @@ func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) string {
 }
 
 func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *lyrics.Result {
-	if len(results) == 0 {
-		return nil
-	}
-	sort.SliceStable(results, func(i, j int) bool {
-		return rankResult(results[i], results[j])
-	})
-
-	for i, r := range results {
-		o.log.Debug("pick candidate", "rank", i+1, "provider", r.Source.ID, "sync", r.SyncLevel.String())
-	}
-
+	var best *lyrics.Result
 	for _, r := range results {
-		if r.SyncLevel >= level {
-			o.log.Debug("pick selected", "provider", r.Source.ID, "sync", r.SyncLevel.String())
-			return r
+		if r.SyncLevel >= level && (best == nil || rankResult(r, best)) {
+			best = r
 		}
 	}
-	o.log.Debug("pick: no result meets target level")
-	return nil
-}
-
-func censorCount(r *lyrics.Result) int {
-	n := 0
-	for _, l := range r.Lines {
-		if strings.Contains(l.Text, "**") {
-			n++
-		}
+	if best != nil {
+		o.log.Debug("pick selected", "provider", best.Source.ID, "sync", best.SyncLevel.String())
+	} else {
+		o.log.Debug("pick: no result meets target level")
 	}
-	return n
+	return best
 }
 
 func rankResult(a, b *lyrics.Result) bool {
 	if a.SyncLevel != b.SyncLevel {
 		return a.SyncLevel > b.SyncLevel
-	}
-	ca, cb := censorCount(a), censorCount(b)
-	if ca != cb {
-		return ca < cb
 	}
 	return len(a.Lines) > len(b.Lines)
 }

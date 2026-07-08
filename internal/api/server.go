@@ -48,7 +48,7 @@ func NewServer(orch *orchestrator.Orchestrator, rate *ratelimit.Limiter, cfg *co
 
 func (s *Server) Run(ctx context.Context, listen string) error {
 	r := chi.NewRouter()
-	r.Use(cors, recoverer(s.log), withIP)
+	r.Use(cors, recoverer(s.log), withIP, accessLog(s.log))
 
 	// why is there no good way to get the requesting client's IP in CURRENT_YEAR
 	if s.cfg.Server.RequireCloudflare {

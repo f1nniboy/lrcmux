@@ -6,7 +6,7 @@
   </a>
 </div>
 
-A lyrics aggregator. Fans out requests across multiple providers in parallel, picks the best result, and caches everything.
+A lyrics aggregator API. Fans out requests across multiple providers, picks the best result, and caches everything.
 
 A public instance runs at **[lrcmux.dev](https://lrcmux.dev)**. The API docs are browsable at [lrcmux.dev/docs](https://lrcmux.dev/docs).
 

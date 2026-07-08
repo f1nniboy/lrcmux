@@ -1,11 +1,6 @@
 <script lang="ts">
-  import { marked, Renderer } from "marked";
   import TabBar from "$components/TabBar.svelte";
   import { API_URL } from "$lib/env";
-
-  const renderer = new Renderer();
-  renderer.link = ({ href, text }) =>
-    `<a href="${href}" target="_blank" rel="noopener" class="text-ink underline">${text}</a>`;
 
   interface Guide {
     id: string;
@@ -21,9 +16,9 @@
       name: "YouLy+",
       url: "/compat/kpoe",
       steps: [
-        "Click the YouLy+ icon in your browser toolbar and open **More Settings**.",
-        "Under **Sources**, remove all other providers and add **Custom KPoe Server**.",
-        "Set **Custom KPoe Server URL** to the endpoint URL above.",
+        "Click the YouLy+ icon in your browser toolbar and open <strong>More Settings</strong>.",
+        "Under <strong>Sources</strong>, remove all other providers and add <strong>Custom KPoe Server</strong>.",
+        "Set <strong>Custom KPoe Server URL</strong> to the endpoint URL above.",
       ],
     },
     {
@@ -31,9 +26,9 @@
       name: "LRCGET",
       url: "/compat/lrclib",
       steps: [
-        "Open LRCGET and click the **three dots** menu, then open **Settings**.",
-        "Under **LRCLIB instance**, replace the default URL with the endpoint URL above.",
-        "Click **Save**.",
+        "Open LRCGET and click the <strong>three dots</strong> menu, then open <strong>Settings</strong>.",
+        "Under <strong>LRCLIB instance</strong>, replace the default URL with the endpoint URL above.",
+        "Click <strong>Save</strong>.",
       ],
     },
   ];
@@ -67,9 +62,7 @@
           >
             {i + 1}
           </span>
-          <span class="text-muted text-sm leading-relaxed"
-            >{@html marked.parseInline(step, { renderer })}</span
-          >
+          <span class="text-muted text-sm leading-relaxed">{@html step}</span>
         </li>
       {/each}
     </ol>

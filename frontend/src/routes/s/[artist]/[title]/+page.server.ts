@@ -1,3 +1,4 @@
+import { error } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
 import type { LyricsResult } from "$lib/types";
 import { fromSlug } from "$lib/slug";
@@ -7,25 +8,29 @@ const apiUrl = env.API_URL ?? "http://localhost:8080";
 
 export type { PageData } from "./$types";
 
-export const load: PageServerLoad = async ({ params, fetch, setHeaders }) => {
+export const load: PageServerLoad = async ({
+  params,
+  fetch,
+  setHeaders,
+  request,
+}) => {
   const artist = fromSlug(params.artist);
   const title = fromSlug(params.title);
 
-  const p = new URLSearchParams({
-    artist,
-    title,
-    format: "json",
-    fetch: "cache",
-  });
+  const origUA = request.headers.get("user-agent");
+  const ua = origUA ? `lrcmux ${origUA}` : "lrcmux";
 
-  try {
-    const res = await fetch(`${apiUrl}/get?${p}`);
-    if (res.ok) {
-      const result: LyricsResult = await res.json();
-      setHeaders({ "cache-control": "public, max-age=86400" });
-      return { artist, title, lyrics: result };
-    }
-  } catch {}
+  const res = await fetch(
+    `${apiUrl}/get?${new URLSearchParams({ artist, title })}`,
+    { headers: { "User-Agent": ua } },
+  ).catch(() => null);
 
-  return { artist, title };
+  if (!res) error(500);
+  if (res.status === 404)
+    error(404, "We couldn't find the lyrics for this track.");
+  if (!res.ok) error(res.status);
+
+  const lyrics: LyricsResult = await res.json();
+  setHeaders({ "cache-control": "public, max-age=86400" });
+  return { artist, title, lyrics };
 };

@@ -1,9 +1,4 @@
 <script lang="ts">
-  import {
-    searchDeezer,
-    deezerToAPITrack,
-    type SearchOptions,
-  } from "$lib/deezer";
   import { debounce } from "$lib/utils";
   import type { Track } from "$lib/types";
   import Spinner from "$components/Spinner.svelte";
@@ -19,14 +14,12 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
 
-  const search = debounce(
-    (
-      signal: AbortSignal,
-      q: string,
-      opts: Omit<SearchOptions, "signal"> = {},
-    ) => searchDeezer({ ...opts, signal }, q),
-    300,
-  );
+  const search = debounce(async (signal: AbortSignal, q: string) => {
+    const p = new URLSearchParams({ q, limit: "8" });
+    const res = await fetch(`/api/search?${p}`, { signal });
+    if (!res.ok) throw new Error("Search failed");
+    return res.json() as Promise<Track[]>;
+  }, 300);
 
   const showDropdown = $derived(
     query.trim().length >= 2 && (!!error || tracks.length > 0 || !loading),
@@ -50,9 +43,9 @@
     loading = true;
     error = null;
     search
-      .run(q, { limit: 8 })
+      .run(q)
       .then((r) => {
-        tracks = r.map(deezerToAPITrack);
+        tracks = r;
         loading = false;
       })
       .catch((e: Error) => {

@@ -2,8 +2,6 @@
   import { page } from "$app/state";
   import Wordmark from "./Wordmark.svelte";
   import SearchBar from "./SearchBar.svelte";
-
-  const isHome = $derived(page.url.pathname === "/");
 </script>
 
 <header class="sticky top-0 z-40 border-b border-rule bg-paper">
@@ -14,7 +12,7 @@
       <Wordmark class="text-xl tracking-tight" />
     </a>
 
-    {#if !isHome}
+    {#if page.url.pathname !== "/"}
       <div class="flex-1 max-w-md min-w-0">
         <SearchBar slim={true} />
       </div>

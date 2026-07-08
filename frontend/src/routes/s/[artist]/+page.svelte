@@ -1,51 +1,9 @@
-<script module lang="ts">
-  import type { Track } from "$lib/types";
-  const cache = new Map<number, Track[]>();
-</script>
-
 <script lang="ts">
-  import { getArtistTopTracks, deezerToAPITrack } from "$lib/deezer";
-  import type { Track } from "$lib/types";
   import Meta from "$lib/Meta.svelte";
   import TrackItem from "$components/TrackItem.svelte";
-  import Spinner from "$components/Spinner.svelte";
-  import ErrorAlert from "$components/ErrorAlert.svelte";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
-
-  let tracks = $state<Track[]>([]);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-
-  $effect(() => {
-    const artistId = data.artist.id;
-    if (cache.has(artistId)) {
-      tracks = cache.get(artistId)!;
-      loading = false;
-      return;
-    }
-
-    loading = true;
-    tracks = [];
-    error = null;
-
-    void getArtistTopTracks({}, artistId)
-      .then((deezerTracks) => {
-        const mapped = deezerTracks.map((dt) => ({
-          ...deezerToAPITrack(dt),
-          isrc: dt.isrc || String(dt.id),
-        }));
-        cache.set(artistId, mapped);
-        tracks = mapped;
-      })
-      .catch((e: Error) => {
-        error = e.message;
-      })
-      .finally(() => {
-        loading = false;
-      });
-  });
 </script>
 
 <Meta
@@ -73,15 +31,9 @@
       </h1>
     </header>
 
-    {#if loading}
-      <div class="flex justify-center py-12 text-muted">
-        <Spinner size={48} />
-      </div>
-    {:else if error}
-      <ErrorAlert message={error} />
-    {:else if tracks.length}
-      <div class="divide-y divide-rule -mx-3">
-        {#each tracks as track (track.isrc)}
+    {#if data.tracks.length > 0}
+      <div class="divide-y divide-rule">
+        {#each data.tracks as track (track.isrc)}
           <TrackItem {track} variant="row" />
         {/each}
       </div>

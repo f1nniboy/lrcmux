@@ -8,71 +8,12 @@ import type {
 const BASE_URL = "https://api.deezer.com";
 
 export interface DeezerRequestOptions {
-  type?: "jsonp" | "json";
   fetch?: typeof globalThis.fetch;
   signal?: AbortSignal;
 }
 
 export interface SearchOptions extends DeezerRequestOptions {
   limit?: number;
-}
-
-let jsonpSeq = 0;
-
-function jsonp<T>(url: string, signal?: AbortSignal): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const cb = `lrcmuxJsonp_${++jsonpSeq}`;
-    const script = document.createElement("script");
-    let settled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const cleanup = () => {
-      if (settled) return;
-      settled = true;
-      if (timer !== null) clearTimeout(timer);
-      try {
-        delete (window as unknown as Record<string, unknown>)[cb];
-      } catch {
-        (window as unknown as Record<string, unknown>)[cb] = undefined;
-      }
-      script.remove();
-    };
-
-    timer = setTimeout(() => {
-      cleanup();
-      reject(new Error("Request timed out"));
-    }, 3000);
-
-    (window as unknown as Record<string, (d: T) => void>)[cb] = (data: T) => {
-      cleanup();
-      resolve(data);
-    };
-
-    script.onerror = () => {
-      cleanup();
-      reject(new Error("Request failed"));
-    };
-
-    if (signal) {
-      if (signal.aborted) {
-        cleanup();
-        reject(new DOMException("Aborted", "AbortError"));
-        return;
-      }
-      signal.addEventListener(
-        "abort",
-        () => {
-          cleanup();
-          reject(new DOMException("Aborted", "AbortError"));
-        },
-        { once: true },
-      );
-    }
-
-    const sep = url.includes("?") ? "&" : "?";
-    script.src = `${url}${sep}output=jsonp&callback=${cb}`;
-    document.head.appendChild(script);
-  });
 }
 
 async function deezerRequest<T>(
@@ -83,15 +24,10 @@ async function deezerRequest<T>(
   const url = new URL(`${BASE_URL}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-  let data: unknown;
-  if (opts.type === "json") {
-    const fetchFn = opts.fetch ?? globalThis.fetch;
-    const res = await fetchFn(url.toString(), { signal: opts.signal });
-    if (!res.ok) throw new Error(`Deezer request failed (${res.status})`);
-    data = await res.json();
-  } else {
-    data = await jsonp<unknown>(url.toString(), opts.signal);
-  }
+  const fetchFn = opts.fetch ?? globalThis.fetch;
+  const res = await fetchFn(url.toString(), { signal: opts.signal });
+  if (!res.ok) throw new Error(`Deezer request failed (${res.status})`);
+  const data: unknown = await res.json();
 
   const err = (data as { error?: { message?: string } })?.error;
   if (err?.message) throw new Error(`Deezer: ${err.message}`);

@@ -6,6 +6,9 @@
   import UseItInYourApp from "$components/UseItInYourApp.svelte";
   import CompatGuides from "$components/CompatGuides.svelte";
   import Wordmark from "$components/Wordmark.svelte";
+  import type { PageData } from "./$types";
+
+  let { data }: { data: PageData } = $props();
 </script>
 
 <Meta
@@ -23,21 +26,19 @@
       Synced lyrics for <span class="text-cue">any song</span>.
     </h1>
     <p class="text-ink/80 text-lg sm:text-xl leading-relaxed max-w-2xl">
-      <Wordmark /> searches every public lyrics provider in parallel and returns the
-      best available match. No API keys, no sign-up, no costs.
+      <Wordmark /> is an API that aggregates every public lyrics provider and returns
+      the best available match. No API keys, no sign-up, no costs.
     </p>
   </section>
 
   <SearchBar />
 
-  <TrendingGrid />
+  <TrendingGrid tracks={data.trending} />
 
   <hr class="m-0 border-rule" />
 
   <section>
-    <h2 class="text-2xl sm:text-3xl font-semibold text-ink mb-3">
-      Drop-in usage
-    </h2>
+    <h2 class="text-2xl font-semibold text-ink mb-3">Drop-in usage</h2>
     <p class="text-muted leading-relaxed mb-6">
       Various apps allow you to set custom endpoints for fetching lyrics. Point
       them at <Wordmark />
@@ -49,7 +50,7 @@
   <hr class="m-0 border-rule" />
 
   <section>
-    <h2 class="text-lg font-semibold text-ink mb-2">Wrong lyrics?</h2>
+    <h2 class="text-2xl font-semibold text-ink mb-3">Wrong lyrics?</h2>
     <p class="text-muted leading-relaxed">
       <Wordmark /> is purely an aggregator with no lyric database of its own. If a
       song has wrong, missing, or badly synchronized lyrics, the fix needs to happen

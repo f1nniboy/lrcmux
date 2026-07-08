@@ -1,5 +1,22 @@
 <script lang="ts">
   import { page } from "$app/state";
+
+  // horrible, but there's no built-in HTTP code -> message map
+  const HTTP_MESSAGE: Record<number, string> = {
+    404: "Not Found",
+    429: "Too Many Requests",
+    500: "Internal Error",
+  };
+
+  const message = $derived(
+    page.error?.message && page.error.message !== HTTP_MESSAGE[page.status]
+      ? page.error.message
+      : page.status === 404
+        ? "This page doesn't exist."
+        : page.status === 429
+          ? "Slow down a bit."
+          : "Something went wrong.",
+  );
 </script>
 
 <svelte:head>
@@ -13,7 +30,7 @@
     {page.status}
   </h1>
   <p class="text-muted text-center max-w-sm">
-    {page.status === 404 ? "This page doesn't exist." : "Something went wrong."}
+    {message}
   </p>
   {#if page.url.pathname !== "/"}
     <a

@@ -1,15 +1,25 @@
 import { error } from "@sveltejs/kit";
 import { fromSlug } from "$lib/slug";
-import { getArtistByName, type DeezerRequestOptions } from "$lib/deezer";
+import {
+  getArtistByName,
+  getArtistTopTracks,
+  deezerToAPITrack,
+} from "$lib/deezer";
 import type { PageServerLoad } from "./$types";
+import type { Track } from "$lib/types";
 
 export const load: PageServerLoad = async ({ params, fetch, setHeaders }) => {
   const name = fromSlug(params.artist);
-  const opts: DeezerRequestOptions = { type: "json", fetch };
 
-  const artist = await getArtistByName(opts, name);
+  const artist = await getArtistByName({ fetch }, name);
   if (!artist) error(404);
 
+  const deezerTracks = await getArtistTopTracks({ fetch }, artist.id);
+  const tracks: Track[] = deezerTracks.map((dt) => ({
+    ...deezerToAPITrack(dt),
+    isrc: dt.isrc || String(dt.id),
+  }));
+
   setHeaders({ "cache-control": "public, max-age=86400" });
-  return { artist };
+  return { artist, tracks };
 };

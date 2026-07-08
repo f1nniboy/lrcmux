@@ -62,4 +62,3 @@ async function failureMessage(res: Response): Promise<string> {
   }
   return `Request failed (${res.status})`;
 }
-

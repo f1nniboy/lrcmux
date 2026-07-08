@@ -2,6 +2,8 @@
   import "../app.css";
   import Header from "$components/Header.svelte";
   import Footer from "$components/Footer.svelte";
+  import { navigating } from "$app/state";
+  import { fade } from "svelte/transition";
 
   let { children } = $props();
 </script>
@@ -23,6 +25,13 @@
   </script>
 </svelte:head>
 
+{#if navigating.to}
+  <div
+    out:fade={{ duration: 200 }}
+    class="nav-bar fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-cue"
+  ></div>
+{/if}
+
 <div class="min-h-screen flex flex-col">
   <Header />
   <main class="flex-1 flex flex-col items-center">
@@ -30,3 +39,18 @@
   </main>
   <Footer />
 </div>
+
+<style>
+  .nav-bar {
+    animation: nav-bar-fill 6s ease-out forwards;
+  }
+
+  @keyframes nav-bar-fill {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(0.85);
+    }
+  }
+</style>

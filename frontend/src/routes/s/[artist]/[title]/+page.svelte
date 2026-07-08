@@ -1,120 +1,66 @@
 <script lang="ts">
-  import type { LyricsResult } from "$lib/types";
-  import { API_URL } from "$lib/env";
-  import Meta from "$lib/Meta.svelte";
-  import ErrorAlert from "$components/ErrorAlert.svelte";
-  import LyricsPanel from "$components/LyricsPanel.svelte";
-  import Spinner from "$components/Spinner.svelte";
-  import UseItInYourApp from "$components/UseItInYourApp.svelte";
   import type { PageData } from "./+page.server";
+  import { toSlug } from "$lib/slug";
+  import Meta from "$lib/Meta.svelte";
+  import UseItInYourApp from "$components/UseItInYourApp.svelte";
 
   let { data }: { data: PageData } = $props();
+  const track = $derived(data.lyrics.track);
 
-  let ogImage = $derived(data.lyrics?.track?.cover?.medium);
-  let description = $derived.by(() => {
-    if (!data.lyrics) return undefined;
-
-    const { title, artist } = data.lyrics.track;
+  const description = $derived.by(() => {
     const level = data.lyrics.meta.level;
     const qualifier = level === "none" ? "" : `${level}-synced `;
-
-    return `View the full ${qualifier}lyrics for ${title} by ${artist}.`;
-  });
-
-  type FetchState =
-    | { status: "loading" }
-    | { status: "ok"; result: LyricsResult }
-    | { status: "error"; code: number; message: string; retryAfter?: number };
-
-  let fetchState: FetchState = $state({ status: "loading" });
-
-  const result = $derived.by(() => {
-    if (data.lyrics) return data.lyrics;
-    if (fetchState.status === "ok") return fetchState.result;
-    return null;
-  });
-
-  $effect(() => {
-    const artist = data.artist;
-    const title = data.title;
-
-    if (data.lyrics) return;
-    fetchState = { status: "loading" };
-
-    const controller = new AbortController();
-    const p = new URLSearchParams({ artist, title, format: "json" });
-
-    fetch(`${API_URL}/get?${p}`, { signal: controller.signal })
-      .then(async (res) => {
-        if (res.ok) {
-          fetchState = { status: "ok", result: await res.json() };
-          return;
-        }
-
-        const body = await res.text().catch(() => "");
-        let message = body;
-
-        try {
-          const json = JSON.parse(body);
-          if (json.detail) message = String(json.detail).slice(0, 500);
-        } catch {}
-        fetchState = {
-          status: "error",
-          code: res.status,
-          message: message || `Request failed (${res.status})`,
-          retryAfter:
-            parseInt(res.headers.get("Retry-After") ?? "0", 10) || undefined,
-        };
-      })
-      .catch((e) => {
-        if ((e as Error).name === "AbortError") return;
-        fetchState = {
-          status: "error",
-          code: 0,
-          message: (e as Error).message,
-        };
-      });
-
-    return () => controller.abort();
+    return `View the full ${qualifier}lyrics for ${track.title} by ${track.artist}.`;
   });
 </script>
 
 <Meta
   title="{data.title} by {data.artist}"
   {description}
-  og={{ type: "music.song", image: ogImage }}
+  og={{ type: "music.song", image: track.cover.medium }}
 />
 
 <div
-  class="w-full max-w-3xl min-w-0 px-5 sm:px-8 pt-12 pb-8 flex-1 flex flex-col"
+  class="flex flex-col gap-12 sm:gap-16 w-full max-w-3xl min-w-0 px-5 sm:px-8 pt-12 pb-16 flex-1"
 >
-  {#if result}
-    <div class="flex-1 flex flex-col">
-      <LyricsPanel track={result.track} {result} />
-      {#if result.meta.source}
-        <p class="mt-3 text-xs text-muted text-center">
-          &copy; {result.meta.source.name}
-        </p>
+  <div class="flex flex-col gap-8">
+    <header class="flex items-start gap-4">
+      {#if track.cover.medium}
+        <img
+          src={track.cover.medium}
+          alt=""
+          class="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-md shadow-md shrink-0"
+        />
+      {:else}
+        <div
+          class="w-20 h-20 sm:w-24 sm:h-24 rounded-md bg-paper-2 shrink-0"
+        ></div>
       {/if}
+      <div class="flex-1 min-w-0 pt-1">
+        <h2 class="text-2xl sm:text-3xl font-semibold text-ink leading-tight">
+          {track.title}
+        </h2>
+        <a
+          href={`/s/${toSlug(track.artist)}`}
+          class="text-muted mt-1 hover:underline no-underline"
+        >
+          {track.artist}
+        </a>
+      </div>
+    </header>
+
+    <div class="text-ink text-base leading-9 whitespace-pre-wrap">
+      {data.lyrics.lines.map((l) => l.text).join("\n")}
     </div>
-  {:else if fetchState.status === "loading"}
-    <div class="flex flex-col items-center justify-center py-32 gap-5">
-      <span class="text-muted"><Spinner size={48} /></span>
-      <p class="text-muted text-sm text-center">
-        <span class="text-ink font-medium">{data.title}</span> by
-        <span class="text-ink font-medium">{data.artist}</span>
+
+    {#if data.lyrics.meta.source}
+      <p class="text-xs text-muted text-center">
+        &copy; {data.lyrics.meta.source.name}
       </p>
-    </div>
-  {:else if fetchState.status === "error"}
-    {#if fetchState.code === 404}
-      <ErrorAlert heading="No lyrics found." message={fetchState.message} />
-    {:else if fetchState.code === 429}
-      <ErrorAlert heading="Slow down a bit.">
-        Try again in <strong>{fetchState.retryAfter ?? "a few"}</strong>
-        {fetchState.retryAfter === 1 ? "second" : "seconds"}.
-      </ErrorAlert>
-    {:else}
-      <ErrorAlert message={fetchState.message} />
     {/if}
-  {/if}
+  </div>
+
+  <hr class="m-0 border-rule" />
+
+  <UseItInYourApp />
 </div>

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { page } from "$app/state";
   import Wordmark from "./Wordmark.svelte";
   import SearchBar from "./SearchBar.svelte";
 </script>
@@ -12,14 +11,13 @@
       <Wordmark class="text-xl tracking-tight" />
     </a>
 
-    {#if page.url.pathname !== "/"}
-      <div class="flex-1 max-w-md min-w-0">
-        <SearchBar slim={true} />
-      </div>
-    {/if}
+    <div class="flex-1 max-w-md min-w-0">
+      <SearchBar slim={true} />
+    </div>
 
     <nav class="flex items-center gap-6 text-sm shrink-0">
-      <a href="/docs" class="text-muted hover:text-ink transition-colors">API</a
+      <a href="/docs" class="text-muted hover:text-ink transition-colors"
+        >API docs</a
       >
       <a
         href="https://github.com/f1nniboy/lrcmux"

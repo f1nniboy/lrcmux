@@ -1,8 +1,7 @@
 <script lang="ts">
   import "../app.css";
   import Header from "$components/Header.svelte";
-  import Footer from "$components/Footer.svelte";
-  import { navigating } from "$app/state";
+  import { navigating, page } from "$app/state";
   import { fade } from "svelte/transition";
 
   let { children } = $props();
@@ -33,11 +32,12 @@
 {/if}
 
 <div class="min-h-screen flex flex-col">
-  <Header />
+  {#if page.url.pathname !== "/"}
+    <Header />
+  {/if}
   <main class="flex-1 flex flex-col items-center">
     {@render children()}
   </main>
-  <Footer />
 </div>
 
 <style>

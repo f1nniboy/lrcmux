@@ -14,12 +14,15 @@
   let { tabs, active, onchange }: Props = $props();
 </script>
 
-<header
+<div
+  role="tablist"
   class="flex items-center gap-1 border-b border-rule px-2 py-1.5 overflow-x-auto"
 >
   {#each tabs as tab (tab.id)}
     <button
       type="button"
+      role="tab"
+      aria-selected={active === tab.id}
       onclick={() => tab.id !== active && onchange(tab.id)}
       disabled={tab.disabled}
       class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {tab.disabled
@@ -31,4 +34,4 @@
       {tab.label}
     </button>
   {/each}
-</header>
+</div>

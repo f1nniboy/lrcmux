@@ -11,20 +11,24 @@
 
 <svelte:head>
   <title>{title ? `${title} - ${page.url.hostname}` : page.url.hostname}</title>
-  <meta property="og:type" content={og?.type ?? "website"} />
-  <meta property="og:url" content={page.url.href} />
-  {#if title}
-    <meta property="og:site_name" content={page.url.hostname} />
-  {/if}
-  <meta property="og:title" content={title || page.url.hostname} />
   {#if description}
     <meta name="description" content={description} />
-    <meta property="og:description" content={description} />
   {/if}
-  {#if og?.image}
-    <meta
-      property="og:image"
-      content={new URL(og.image, page.url.origin).href}
-    />
+  {#if og}
+    <meta property="og:type" content={og.type ?? "website"} />
+    <meta property="og:url" content={page.url.href} />
+    <meta property="og:title" content={title || page.url.hostname} />
+    {#if title}
+      <meta property="og:site_name" content={page.url.hostname} />
+    {/if}
+    {#if description}
+      <meta property="og:description" content={description} />
+    {/if}
+    {#if og.image}
+      <meta
+        property="og:image"
+        content={new URL(og.image, page.url.origin).href}
+      />
+    {/if}
   {/if}
 </svelte:head>

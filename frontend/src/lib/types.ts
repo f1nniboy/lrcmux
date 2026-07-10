@@ -46,28 +46,6 @@ export interface Track {
 
 export type LyricsFormat = "lrc" | "txt" | "json" | "srt" | "vtt";
 
-export interface FormatDef {
-  id: LyricsFormat;
-  rich?: boolean;
-  minLevel?: SyncLevel;
-}
-
-export const FORMATS: FormatDef[] = [
-  { id: "txt", rich: true },
-  { id: "lrc" },
-  { id: "srt", minLevel: "line" },
-  { id: "vtt", minLevel: "line" },
-  { id: "json" },
-];
-
-export const LEVELS: SyncLevel[] = ["word", "line", "none"];
-
-export const LEVEL_RANK: Record<SyncLevel, number> = {
-  word: 2,
-  line: 1,
-  none: 0,
-};
-
 export interface DeezerArtist {
   id: number;
   name: string;

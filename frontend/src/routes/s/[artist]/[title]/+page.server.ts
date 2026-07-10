@@ -1,4 +1,3 @@
-import { error } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
 import type { LyricsResult } from "$lib/types";
 import { fromSlug } from "$lib/slug";
@@ -20,17 +19,17 @@ export const load: PageServerLoad = async ({
   const origUA = request.headers.get("user-agent");
   const ua = origUA ? `lrcmux ${origUA}` : "lrcmux";
 
-  const res = await fetch(
-    `${apiUrl}/get?${new URLSearchParams({ artist, title })}`,
-    { headers: { "User-Agent": ua } },
-  ).catch(() => null);
+  try {
+    const res = await fetch(
+      `${apiUrl}/get?${new URLSearchParams({ artist, title, fetch: "cache" })}`,
+      { headers: { "User-Agent": ua } },
+    );
+    if (res.ok) {
+      const lyrics: LyricsResult = await res.json();
+      setHeaders({ "cache-control": "public, max-age=86400" });
+      return { artist, title, lyrics };
+    }
+  } catch {}
 
-  if (!res) error(500);
-  if (res.status === 404)
-    error(404, "We couldn't find the lyrics for this track.");
-  if (!res.ok) error(res.status);
-
-  const lyrics: LyricsResult = await res.json();
-  setHeaders({ "cache-control": "public, max-age=86400" });
-  return { artist, title, lyrics };
+  return { artist, title };
 };

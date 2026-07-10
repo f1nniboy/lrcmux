@@ -15,7 +15,7 @@
   let error = $state<string | null>(null);
 
   const search = debounce(async (signal: AbortSignal, q: string) => {
-    const p = new URLSearchParams({ q, limit: "8" });
+    const p = new URLSearchParams({ q, limit: "5" });
     const res = await fetch(`/api/search?${p}`, { signal });
     if (!res.ok) throw new Error("Search failed");
     return res.json() as Promise<Track[]>;
@@ -73,7 +73,7 @@
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" stroke-linecap="round" />
     </svg>
-    <span class="sr-only">Search for a song</span>
+    <span class="sr-only">Search for a track</span>
     <input
       bind:value={query}
       type="search"
@@ -101,7 +101,6 @@
             <li>
               <TrackItem
                 {track}
-                variant="row"
                 onclick={() => {
                   query = "";
                   tracks = [];

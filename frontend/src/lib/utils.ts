@@ -4,6 +4,7 @@ export function debounce<Args extends unknown[], T>(
 ): { run: (...args: Args) => Promise<T>; abort: () => void } {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   let controller: AbortController | null = null;
+  let pendingReject: ((reason: unknown) => void) | null = null;
 
   function abort() {
     if (timeout) {
@@ -12,11 +13,16 @@ export function debounce<Args extends unknown[], T>(
     }
     controller?.abort();
     controller = null;
+    if (pendingReject) {
+      pendingReject(new DOMException("Aborted", "AbortError"));
+      pendingReject = null;
+    }
   }
 
   function run(...args: Args): Promise<T> {
     abort();
     return new Promise((resolve, reject) => {
+      pendingReject = reject;
       timeout = setTimeout(async () => {
         controller = new AbortController();
         try {
@@ -26,6 +32,7 @@ export function debounce<Args extends unknown[], T>(
         } finally {
           controller = null;
           timeout = null;
+          pendingReject = null;
         }
       }, delayMs);
     });

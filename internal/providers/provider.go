@@ -24,7 +24,7 @@ var ErrRateLimited = errors.New("provider rate limited")
 
 type Common struct {
 	Enable bool   `toml:"enable"`
-	Proxy  string `toml:"proxy,omitempty"`
+	Proxy  string `toml:"proxy,omitempty,commented"`
 
 	HTTP  *http.Client `toml:"-"`
 	Cache cache.Cache  `toml:"-"`

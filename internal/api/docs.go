@@ -16,7 +16,6 @@ import (
 type docsData struct {
 	AppName   string
 	AppDomain string
-	Version   string
 	Levels    []levelDoc
 	Formats   []formatDoc
 	Providers []providerDoc
@@ -54,7 +53,6 @@ func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Li
 	d := docsData{
 		AppName:   meta.AppName,
 		AppDomain: meta.AppDomain,
-		Version:   meta.Version,
 	}
 
 	for _, level := range lyrics.Levels {

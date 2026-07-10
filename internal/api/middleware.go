@@ -62,10 +62,11 @@ func accessLog(log *slog.Logger) func(http.Handler) http.Handler {
 			if r.URL.Path == "/" || r.URL.Path == "/health" {
 				return
 			}
-			log.Info("request",
+			log.Debug("request",
 				"path", r.URL.Path,
 				"query", r.URL.RawQuery,
 				"status", sr.status,
+				"ip", clientIP(r.Context()),
 				"ua", r.Header.Get("User-Agent"),
 			)
 		})

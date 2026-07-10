@@ -1,13 +1,12 @@
 package isrc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
 	"net/url"
-
-	"context"
 
 	"github.com/agnivade/levenshtein"
 
@@ -25,6 +24,7 @@ type deezerTrack struct {
 	Duration       int64        `json:"duration"`
 	Preview        string       `json:"preview,omitempty"`
 	ExplicitLyrics bool         `json:"explicit_lyrics"`
+	ReleaseDate    string       `json:"release_date,omitempty"`
 	Artist         deezerArtist `json:"artist"`
 	Album          deezerAlbum  `json:"album"`
 }
@@ -48,19 +48,20 @@ type deezerAlbum struct {
 	CoverBig    string `json:"cover_big,omitempty"`
 }
 
-func toTrack(dt deezerTrack) lyrics.Track {
-	return lyrics.Track{
-		ISRC:     dt.ISRC,
-		Title:    dt.Title,
-		Duration: dt.Duration,
-		Artist:   dt.Artist.Name,
-		Album:    dt.Album.Title,
+func toTrack(raw deezerTrack) lyrics.Track {
+	t := lyrics.Track{
+		ISRC:     raw.ISRC,
+		Title:    raw.Title,
+		Duration: raw.Duration,
+		Artist:   raw.Artist.Name,
+		Album:    raw.Album.Title,
 		Cover: lyrics.TrackCover{
-			Small:  dt.Album.CoverSmall,
-			Medium: dt.Album.CoverMedium,
-			Big:    dt.Album.CoverBig,
+			Small:  raw.Album.CoverSmall,
+			Medium: raw.Album.CoverMedium,
+			Big:    raw.Album.CoverBig,
 		},
 	}
+	return t
 }
 
 func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (lyrics.Track, error) {

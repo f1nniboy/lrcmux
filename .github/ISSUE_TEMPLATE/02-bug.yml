@@ -7,7 +7,7 @@ body:
     attributes:
       label: Description
       description: What happened and what did you expect?
-      placeholder: "Requesting /api/get?isrc=... returns a 500 instead of lyrics."
+      placeholder: "Requesting /get?isrc=... returns a 500 instead of lyrics."
     validations:
       required: true
   - type: textarea
@@ -15,7 +15,7 @@ body:
     attributes:
       label: Reproduction steps
       placeholder: |
-        1. Send GET /api/get?format=json&artist=...&title=...
+        1. Send GET /get?format=json&artist=...&title=...
         2. Observe 500 response
     validations:
       required: true
@@ -23,7 +23,7 @@ body:
     id: commit
     attributes:
       label: Commit
-      description: The `commit` field from `GET /api/stats`
+      description: The `commit` field from `GET /stats`
       placeholder: "abc1234"
   - type: textarea
     id: logs

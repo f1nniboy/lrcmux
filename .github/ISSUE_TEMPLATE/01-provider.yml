@@ -1,6 +1,6 @@
 name: Provider issue
 description: Report a problem with a lyrics provider
-labels: [provider]
+labels: [provider, bug]
 body:
   - type: input
     id: track
@@ -46,7 +46,7 @@ body:
     id: response
     attributes:
       label: API response
-      description: The JSON response from `/api/get?format=json`, or the relevant snippet if there's a specific issue.
+      description: The JSON response from `/get?format=json`, or the relevant snippet if there's a specific issue.
       render: json
   - type: textarea
     id: logs

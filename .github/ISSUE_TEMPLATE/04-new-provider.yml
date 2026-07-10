@@ -1,0 +1,36 @@
+name: New provider request
+description: Suggest a lyrics source to add
+labels: [provider, enhancement]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Provider name
+      placeholder: "e.g. AZLyrics"
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Website
+      placeholder: "https://..."
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Why add it?
+      description: What does this provider offer that existing ones don't? (e.g. language coverage, catalogue size)
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: API
+      description: Does it have a public API or documented endpoints? Link any docs, existing reverse-engineering efforts, etc.
+  - type: input
+    id: example
+    attributes:
+      label: Example track
+      description: A track that can be found there but not via existing providers
+      placeholder: "Artist - Title"

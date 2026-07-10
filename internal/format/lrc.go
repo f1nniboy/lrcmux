@@ -12,25 +12,11 @@ type lrcEncoder struct{}
 
 func (lrcEncoder) Levels() (min, max lyrics.SyncLevel) { return lyrics.SyncNone, lyrics.SyncWord }
 func (lrcEncoder) ContentType() string                 { return "text/plain; charset=utf-8" }
+func (lrcEncoder) Extension() string                   { return "lrc" }
 func (lrcEncoder) Desc() string                        { return "Standard .lrc files for music players" }
 
 func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	bw := bufio.NewWriter(w)
-
-	if r.SyncLevel == lyrics.SyncWord {
-		writeLRCHeader(bw, "ar", r.Track.Artist)
-		writeLRCHeader(bw, "ti", r.Track.Title)
-		writeLRCHeader(bw, "al", r.Track.Album)
-		if r.Source.Name != "" {
-			writeLRCHeader(bw, "re", r.Source.Name)
-		}
-		if r.Track.Duration > 0 {
-			mm := r.Track.Duration / 60
-			ss := r.Track.Duration % 60
-			writeLRCHeader(bw, "length", fmt.Sprintf("%02d:%02d", mm, ss))
-		}
-		fmt.Fprintln(bw)
-	}
 
 	switch r.SyncLevel {
 	case lyrics.SyncWord:
@@ -55,11 +41,4 @@ func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 		}
 	}
 	return bw.Flush()
-}
-
-func writeLRCHeader(bw *bufio.Writer, key, val string) {
-	if val == "" {
-		return
-	}
-	fmt.Fprintf(bw, "[%s:%s]\n", key, val)
 }

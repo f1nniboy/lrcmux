@@ -3,6 +3,7 @@ package api
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,7 +14,6 @@ import (
 	"time"
 
 	"github.com/f1nniboy/lrcmux/internal/meta"
-	"github.com/f1nniboy/lrcmux/internal/utils"
 )
 
 const (
@@ -75,7 +75,7 @@ func fetchCFList(ctx context.Context, url string) ([]netip.Prefix, error) {
 	}
 	prefixes := parseCIDRList(string(body))
 	if len(prefixes) == 0 {
-		return nil, fmt.Errorf("empty list")
+		return nil, errors.New("empty list")
 	}
 	return prefixes, nil
 }
@@ -92,7 +92,7 @@ func refreshCloudflareIPs(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("ipv6: %w", err)
 	}
-	merged := append(v4, v6...)
+	merged := append(v4, v6...) //nolint:gocritic // intentionally a new variable
 	cfPrefixes.Store(&merged)
 	return nil
 }
@@ -124,7 +124,7 @@ func requireCloudflare(next http.Handler) http.Handler {
 			return
 		}
 		ip := r.Header.Get("Fly-Client-IP")
-		if ip == "" || utils.IsPrivateIP(ip) {
+		if ip == "" || isPrivateIP(ip) {
 			next.ServeHTTP(w, r)
 			return
 		}

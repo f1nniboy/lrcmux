@@ -16,8 +16,8 @@ type KpoeInput struct {
 	Artist   string `query:"artist"   doc:"Artist name"`
 	Title    string `query:"title"    doc:"Song title"`
 	Album    string `query:"album"    doc:"Album name"`
-	Duration int64  `query:"duration" doc:"Track duration in seconds"`
 	ISRC     string `query:"isrc"     doc:"ISRC of the track"`
+	Duration int64  `query:"duration" doc:"Track duration in seconds"`
 }
 
 type KpoeOutput struct {
@@ -29,8 +29,8 @@ type KpoeResponse struct {
 	KpoeTools string       `json:"KpoeTools"`
 	Type      string       `json:"type"`
 	Metadata  KpoeMetadata `json:"metadata"`
-	Lyrics    []KpoeLine   `json:"lyrics"`
 	Cached    string       `json:"cached"`
+	Lyrics    []KpoeLine   `json:"lyrics"`
 }
 
 type KpoeMetadata struct {
@@ -41,14 +41,14 @@ type KpoeLine struct {
 	Time     *int64         `json:"time,omitempty"`
 	Duration *int64         `json:"duration,omitempty"`
 	Text     string         `json:"text"`
-	Syllabus []KpoeSyllabus `json:"syllabus"`
 	Element  KpoeElement    `json:"element"`
+	Syllabus []KpoeSyllabus `json:"syllabus"`
 }
 
 type KpoeSyllabus struct {
+	Text     string `json:"text"`
 	Time     int64  `json:"time"`
 	Duration int64  `json:"duration"`
-	Text     string `json:"text"`
 }
 
 type KpoeElement struct {

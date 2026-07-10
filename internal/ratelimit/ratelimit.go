@@ -26,10 +26,10 @@ var ErrRateLimited = errors.New("rate limit exceeded")
 
 type Limiter struct {
 	limiter *redis_rate.Limiter
+	log     *slog.Logger
 	rate    redis_rate.Limit
 	limit   int64
 	window  time.Duration
-	log     *slog.Logger
 }
 
 func (l *Limiter) Limit() int64          { return l.limit }

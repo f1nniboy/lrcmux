@@ -11,22 +11,22 @@ import (
 	"github.com/agnivade/levenshtein"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
-	"github.com/f1nniboy/lrcmux/internal/utils"
+	"github.com/f1nniboy/lrcmux/internal/normalize"
 )
 
 const lookupBase = "https://api.deezer.com/search"
 
 type deezerTrack struct {
-	ID             int64        `json:"id"`
 	ISRC           string       `json:"isrc"`
 	Title          string       `json:"title"`
 	TitleShort     string       `json:"title_short"`
-	Duration       int64        `json:"duration"`
 	Preview        string       `json:"preview,omitempty"`
-	ExplicitLyrics bool         `json:"explicit_lyrics"`
 	ReleaseDate    string       `json:"release_date,omitempty"`
-	Artist         deezerArtist `json:"artist"`
 	Album          deezerAlbum  `json:"album"`
+	Artist         deezerArtist `json:"artist"`
+	ID             int64        `json:"id"`
+	Duration       int64        `json:"duration"`
+	ExplicitLyrics bool         `json:"explicit_lyrics"`
 }
 
 type deezerSearchResponse struct {
@@ -34,18 +34,18 @@ type deezerSearchResponse struct {
 }
 
 type deezerArtist struct {
-	ID            int64  `json:"id"`
 	Name          string `json:"name"`
 	PictureSmall  string `json:"picture_small,omitempty"`
 	PictureMedium string `json:"picture_medium,omitempty"`
+	ID            int64  `json:"id"`
 }
 
 type deezerAlbum struct {
-	ID          int64  `json:"id"`
 	Title       string `json:"title"`
 	CoverSmall  string `json:"cover_small,omitempty"`
 	CoverMedium string `json:"cover_medium,omitempty"`
 	CoverBig    string `json:"cover_big,omitempty"`
+	ID          int64  `json:"id"`
 }
 
 func toTrack(raw deezerTrack) lyrics.Track {
@@ -129,8 +129,8 @@ func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
 		return tracks[0]
 	}
 
-	wantTitle := utils.NormalizeTitle(in.Title)
-	wantArtist := utils.Normalize(in.Artist)
+	wantTitle := normalize.Title(in.Title)
+	wantArtist := normalize.String(in.Artist)
 
 	type scored struct {
 		track deezerTrack
@@ -140,11 +140,11 @@ func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
 	for _, t := range tracks {
 		var s float64
 
-		gotTitle := utils.NormalizeTitle(t.Title)
+		gotTitle := normalize.Title(t.Title)
 		s += float64(max(0, 5-levenshtein.ComputeDistance(gotTitle, wantTitle)))
 
-		gotArtist := utils.Normalize(t.Artist.Name)
-		if utils.ArtistMatch(t.Artist.Name, in.Artist) || utils.ArtistMatch(in.Artist, t.Artist.Name) {
+		gotArtist := normalize.String(t.Artist.Name)
+		if normalize.ArtistMatch(t.Artist.Name, in.Artist) || normalize.ArtistMatch(in.Artist, t.Artist.Name) {
 			s += 3
 		} else if d := levenshtein.ComputeDistance(gotArtist, wantArtist); d <= 3 {
 			s += float64(max(0, 2-d))
@@ -155,7 +155,7 @@ func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
 			s += max(0, 3.0-diff/2.0)
 		}
 
-		if in.Album != "" && utils.Normalize(t.Album.Title) == utils.Normalize(in.Album) {
+		if in.Album != "" && normalize.String(t.Album.Title) == normalize.String(in.Album) {
 			s += 2
 		}
 

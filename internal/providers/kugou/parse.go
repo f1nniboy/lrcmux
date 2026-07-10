@@ -54,6 +54,11 @@ func parseKRC(text string) []lyrics.Line {
 				continue
 			}
 
+			// kugou is inconsistent with trailing spaces, normalize to at most one
+			if trimmed := strings.TrimRight(t, " "); trimmed != t {
+				t = trimmed + " "
+			}
+
 			offset, _ := strconv.ParseInt(w[1], 10, 64)
 			dur, _ := strconv.ParseInt(w[2], 10, 64)
 			lineWords = append(lineWords, lyrics.Word{
@@ -67,8 +72,9 @@ func parseKRC(text string) []lyrics.Line {
 			continue
 		}
 
-		// kugou seems to be very inconsistent with whitespace
-		lineWords[len(lineWords)-1].Text = strings.TrimRight(lineWords[len(lineWords)-1].Text, " ")
+		// sometimes the last word in a line has a trailing space
+		last := &lineWords[len(lineWords)-1]
+		last.Text = strings.TrimSuffix(last.Text, " ")
 
 		var b strings.Builder
 		for _, w := range lineWords {

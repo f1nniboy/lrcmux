@@ -28,26 +28,27 @@ var (
 )
 
 type Orchestrator struct {
-	providers []providers.Provider
 	cache     cache.Cache
+	sf        singleflight.Group
 	breaker   *Breaker
 	resolver  *isrc.Resolver
-	opts      Options
 	log       *slog.Logger
-	sf        singleflight.Group
 	metrics   *metrics.Collector
+	providers []providers.Provider
+	opts      Options
 }
 
 type Request struct {
-	Artist    string
-	Title     string
-	Album     string
+	Charge func(ctx context.Context) error
+	Artist string
+	Title  string
+	Album  string
+	ISRC   string
+	// "default", "cache", "force"
+	FetchMode string
 	Duration  int64
-	ISRC      string
 	Level     lyrics.SyncLevel
 	Strict    bool
-	FetchMode string // "default", "cache", "force"
-	Charge    func(ctx context.Context) error
 }
 
 type Response struct {
@@ -57,9 +58,9 @@ type Response struct {
 }
 
 type ProviderHealth struct {
-	Ok     bool   `json:"ok"`
-	TTL    int64  `json:"ttl,omitempty"`
 	Reason string `json:"reason,omitempty"`
+	TTL    int64  `json:"ttl,omitempty"`
+	Ok     bool   `json:"ok"`
 }
 
 type ProviderInfo struct {
@@ -109,10 +110,10 @@ func (o *Orchestrator) Health(ctx context.Context) []ProviderInfo {
 }
 
 type providerOutcome struct {
+	err     error
+	result  *lyrics.Result
 	id      string
 	name    string
-	result  *lyrics.Result
-	err     error
 	latency time.Duration
 }
 
@@ -257,7 +258,7 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force boo
 			unknowns = append(unknowns, p)
 		}
 	}
-	return
+	return best, unknowns
 }
 
 func (o *Orchestrator) respond(ctx context.Context, r *lyrics.Result, cached bool, level lyrics.SyncLevel, q lyrics.Query) *Response {
@@ -288,14 +289,12 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 	ch := make(chan providerOutcome, len(active))
 	var wg sync.WaitGroup
 	for _, p := range active {
-		wg.Add(1)
-		go func(p providers.Provider) {
-			defer wg.Done()
+		wg.Go(func() {
 			o.log.Debug("querying provider", "provider", p.ID())
 			start := time.Now()
 			r, err := p.Search(fanCtx, q)
 			ch <- providerOutcome{id: p.ID(), name: p.Name(), result: r, err: err, latency: time.Since(start)}
-		}(p)
+		})
 	}
 	go func() { wg.Wait(); close(ch) }()
 
@@ -353,7 +352,7 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 
 func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) string {
 	var (
-		lvl     slog.Level = slog.LevelDebug
+		lvl     = slog.LevelDebug
 		outcome string
 		extra   []any
 	)

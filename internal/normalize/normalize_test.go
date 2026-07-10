@@ -1,10 +1,10 @@
-package utils
+package normalize
 
 import (
 	"testing"
 )
 
-func TestNormalize(t *testing.T) {
+func TestString(t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
@@ -12,18 +12,18 @@ func TestNormalize(t *testing.T) {
 		{"  spaces  ", "spaces"},
 		{"Héros", "heros"},
 		{"naïve café", "naive cafe"},
-		{"‘smart’ “quotes”", "'smart' \"quotes\""},
+		{"'smart' “quotes”", "'smart' \"quotes\""},
 		{"collapse   whitespace", "collapse whitespace"},
 		{"UPPER", "upper"},
 	}
 	for _, c := range cases {
-		if got := Normalize(c.in); got != c.want {
-			t.Errorf("Normalize(%q) = %q, want %q", c.in, got, c.want)
+		if got := String(c.in); got != c.want {
+			t.Errorf("String(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }
 
-func TestNormalizeTitle(t *testing.T) {
+func TestTitle(t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
@@ -36,8 +36,8 @@ func TestNormalizeTitle(t *testing.T) {
 		{"Title", "title"},
 	}
 	for _, c := range cases {
-		if got := NormalizeTitle(c.in); got != c.want {
-			t.Errorf("NormalizeTitle(%q) = %q, want %q", c.in, got, c.want)
+		if got := Title(c.in); got != c.want {
+			t.Errorf("Title(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }
@@ -46,20 +46,13 @@ func TestCleanQuery(t *testing.T) {
 	cases := []struct {
 		artist, title, wantArtist, wantTitle string
 	}{
-		// no prefix: artist unchanged
 		{"Artist", "Title", "Artist", "Title"},
-		// youtube prefix: prefix replaces artist
 		{"Uploader", "Performer - Song ft. Other", "Performer", "Song"},
-		// matching prefix: still replaced (same result)
 		{"Artist", "Artist - Title", "Artist", "Title"},
-		// no artist: prefix not stripped
 		{"", "Artist - Title", "", "Artist - Title"},
-		// english video suffix + prefix + feat
 		{"Uploader", "Performer - Song ft. Other (Official Video)", "Performer", "Song"},
-		// multilingual video suffixes
 		{"Artist", "Artist - Title (Offizielles Musikvideo)", "Artist", "Title"},
 		{"", "Title (Vídeo Oficial)", "", "Title"},
-		// production credit stripped
 		{"Artist", "Artist - Title (prod by Someone)", "Artist", "Title"},
 		{"", "Title (prod. Producer)", "", "Title"},
 		{"", "Title (produced by Producer)", "", "Title"},
@@ -88,7 +81,7 @@ func TestSplitArtists(t *testing.T) {
 		{"Artist und Another", []string{"artist", "another"}},
 		{"Artist et Another", []string{"artist", "another"}},
 		{"Artist x Another", []string{"artist", "another"}},
-		{"Artxst", []string{"artxst"}}, // "x" inside a word doesn't get removed
+		{"Artxst", []string{"artxst"}},
 		{"A & B, C feat D", []string{"a", "b", "c", "d"}},
 	}
 	for _, c := range cases {

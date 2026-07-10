@@ -13,15 +13,15 @@ import (
 
 	"github.com/f1nniboy/lrcmux/internal/cache"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
-	"github.com/f1nniboy/lrcmux/internal/utils"
+	"github.com/f1nniboy/lrcmux/internal/normalize"
 )
 
 type ResolveInput struct {
 	Artist    string
 	Title     string
 	Album     string
-	Duration  int64
 	ISRC      string
+	Duration  int64
 	CacheOnly bool
 }
 
@@ -39,12 +39,12 @@ func New(client *http.Client, c cache.Cache, missTTL time.Duration, log *slog.Lo
 
 func (r *Resolver) Resolve(ctx context.Context, in ResolveInput) (lyrics.Track, error) {
 	if in.ISRC != "" {
-		return r.resolveByISRC(ctx, in.ISRC, in.CacheOnly)
+		return r.resolveByISRC(ctx, in.ISRC)
 	}
 	return r.resolveBySearch(ctx, in)
 }
 
-func (r *Resolver) resolveByISRC(ctx context.Context, isrc string, cacheOnly bool) (lyrics.Track, error) {
+func (r *Resolver) resolveByISRC(ctx context.Context, isrc string) (lyrics.Track, error) {
 	key := metaKey(isrc)
 	switch track, status, _ := cache.Get[lyrics.Track](ctx, r.cache, key); status {
 	case cache.Found:
@@ -52,10 +52,6 @@ func (r *Resolver) resolveByISRC(ctx context.Context, isrc string, cacheOnly boo
 		return track, nil
 	case cache.KnownMiss:
 		r.log.Debug("isrc meta negative cache hit", "isrc", isrc)
-		return lyrics.Track{}, lyrics.ErrNotFound
-	}
-
-	if cacheOnly {
 		return lyrics.Track{}, lyrics.ErrNotFound
 	}
 
@@ -84,7 +80,7 @@ func (r *Resolver) resolveBySearch(ctx context.Context, in ResolveInput) (lyrics
 	key := trackKey(in.Artist, in.Title)
 	switch isrc, status, _ := cache.Get[string](ctx, r.cache, key); status {
 	case cache.Found:
-		return r.resolveByISRC(ctx, isrc, in.CacheOnly)
+		return r.resolveByISRC(ctx, isrc)
 	case cache.KnownMiss:
 		r.log.Debug("isrc negative cache hit", "artist", in.Artist, "title", in.Title)
 		return lyrics.Track{}, lyrics.ErrNotFound
@@ -94,7 +90,7 @@ func (r *Resolver) resolveBySearch(ctx context.Context, in ResolveInput) (lyrics
 		return lyrics.Track{}, lyrics.ErrNotFound
 	}
 
-	sfKey := utils.Normalize(in.Artist) + ":" + utils.Normalize(in.Title)
+	sfKey := normalize.String(in.Artist) + ":" + normalize.String(in.Title)
 	v, err, _ := r.group.Do(sfKey, func() (any, error) {
 		track, err := r.lookup(ctx, in)
 		if err != nil && !errors.Is(err, lyrics.ErrNotFound) {
@@ -103,7 +99,7 @@ func (r *Resolver) resolveBySearch(ctx context.Context, in ResolveInput) (lyrics
 		}
 
 		if errors.Is(err, lyrics.ErrNotFound) {
-			if primary := utils.PrimaryArtist(in.Artist); primary != "" && utils.Normalize(primary) != utils.Normalize(in.Artist) {
+			if primary := normalize.PrimaryArtist(in.Artist); primary != "" && normalize.String(primary) != normalize.String(in.Artist) {
 				primaryIn := in
 				primaryIn.Artist = primary
 				track, err = r.lookup(ctx, primaryIn)
@@ -132,7 +128,7 @@ func (r *Resolver) resolveBySearch(ctx context.Context, in ResolveInput) (lyrics
 }
 
 func trackKey(artist, title string) string {
-	s := utils.Normalize(artist) + ":" + utils.Normalize(title)
+	s := normalize.String(artist) + ":" + normalize.String(title)
 	sum := sha256.Sum256([]byte(s))
 	return "track2isrc:" + hex.EncodeToString(sum[:16])
 }

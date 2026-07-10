@@ -8,11 +8,11 @@
 </script>
 
 <span
-  class="inline-block rounded-full animate-spin align-middle opacity-70 box-border border-current border-solid"
   style:width="{size}px"
   style:height="{size}px"
   style:border-width="{stroke}px"
   style:border-top-color="transparent"
-  role="status"
+  class="inline-block rounded-full animate-spin align-middle opacity-70 box-border border-current border-solid"
   aria-label="Loading"
+  role="status"
 ></span>

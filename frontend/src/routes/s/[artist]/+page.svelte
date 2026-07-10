@@ -7,9 +7,9 @@
 </script>
 
 <Meta
-  title={data.artist.name}
   description="View lyrics for all tracks by {data.artist.name}."
   og={{ image: data.artist.picture_medium }}
+  title={data.artist.name}
 />
 
 <div
@@ -18,9 +18,9 @@
   <header class="flex items-center gap-5">
     {#if data.artist.picture_medium}
       <img
-        src={data.artist.picture_medium}
-        alt=""
         class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-md shrink-0"
+        alt=""
+        src={data.artist.picture_medium}
       />
     {:else}
       <div

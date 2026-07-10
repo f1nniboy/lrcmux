@@ -26,8 +26,8 @@
 
 {#if navigating.to}
   <div
-    out:fade={{ duration: 200 }}
     class="nav-bar fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-cue"
+    out:fade={{ duration: 200 }}
   ></div>
 {/if}
 

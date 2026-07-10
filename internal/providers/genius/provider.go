@@ -12,8 +12,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
+	"github.com/f1nniboy/lrcmux/internal/normalize"
 	"github.com/f1nniboy/lrcmux/internal/providers"
-	"github.com/f1nniboy/lrcmux/internal/utils"
 )
 
 const (
@@ -33,7 +33,7 @@ func (p *Provider) Desc() string               { return "Best song coverage, but
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncNone }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
-	pageURL, err := p.search(ctx, q)
+	pageURL, err := p.findURL(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ type searchResponse struct {
 	} `json:"response"`
 }
 
-func (p *Provider) search(ctx context.Context, q lyrics.Query) (string, error) {
+func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (string, error) {
 	endpoint := searchURL + "?per_page=5&q=" + url.QueryEscape(q.Track.Artist+" "+q.Track.Title)
 	p.Log.Debug("search", "artist", q.Track.Artist, "title", q.Track.Title)
 
@@ -100,8 +100,8 @@ func (p *Provider) search(ctx context.Context, q lyrics.Query) (string, error) {
 		return "", fmt.Errorf("search decode: %w", err)
 	}
 
-	wantTitle := utils.NormalizeTitle(q.Track.Title)
-	wantArtist := utils.Normalize(q.Track.Artist)
+	wantTitle := normalize.Title(q.Track.Title)
+	wantArtist := normalize.String(q.Track.Artist)
 
 	for _, section := range sr.Response.Sections {
 		for _, hit := range section.Hits {
@@ -109,9 +109,9 @@ func (p *Provider) search(ctx context.Context, q lyrics.Query) (string, error) {
 				continue
 			}
 			r := hit.Result
-			gotTitle := utils.NormalizeTitle(r.Title)
+			gotTitle := normalize.Title(r.Title)
 			titleOK := gotTitle == wantTitle
-			artistOK := utils.ArtistMatch(r.ArtistNames, wantArtist)
+			artistOK := normalize.ArtistMatch(r.ArtistNames, wantArtist)
 			p.Log.Debug("candidate", "title", r.Title, "artist", r.ArtistNames, "title_ok", titleOK, "artist_ok", artistOK)
 			if !titleOK || !artistOK {
 				continue

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
-	"github.com/f1nniboy/lrcmux/internal/utils"
+	"github.com/f1nniboy/lrcmux/internal/normalize"
 )
 
 var noteChars = "♩♪♫♬𝄞𝄟𝄠"
@@ -45,15 +45,6 @@ type searchResp struct {
 								MusicShelfRenderer *struct {
 									Contents []struct {
 										MusicResponsiveListItemRenderer struct {
-											FlexColumns []struct {
-												MusicResponsiveListItemFlexColumnRenderer struct {
-													Text struct {
-														Runs []struct {
-															Text string `json:"text"`
-														} `json:"runs"`
-													} `json:"text"`
-												} `json:"musicResponsiveListItemFlexColumnRenderer"`
-											} `json:"flexColumns"`
 											Overlay struct {
 												MusicItemThumbnailOverlayRenderer struct {
 													Content struct {
@@ -72,6 +63,15 @@ type searchResp struct {
 													} `json:"content"`
 												} `json:"musicItemThumbnailOverlayRenderer"`
 											} `json:"overlay"`
+											FlexColumns []struct {
+												MusicResponsiveListItemFlexColumnRenderer struct {
+													Text struct {
+														Runs []struct {
+															Text string `json:"text"`
+														} `json:"runs"`
+													} `json:"text"`
+												} `json:"musicResponsiveListItemFlexColumnRenderer"`
+											} `json:"flexColumns"`
 										} `json:"musicResponsiveListItemRenderer"`
 									} `json:"contents"`
 								} `json:"musicShelfRenderer"`
@@ -109,8 +109,8 @@ func (r *searchResp) videoID(inputArtist, wantTitle string, log *slog.Logger) st
 						ytArtist = runs[0].Text
 					}
 				}
-				titleOK := utils.NormalizeTitle(ytTitle) == wantTitle
-				artistOK := utils.ArtistMatch(ytArtist, inputArtist)
+				titleOK := normalize.Title(ytTitle) == wantTitle
+				artistOK := normalize.ArtistMatch(ytArtist, inputArtist)
 				log.Debug("candidate",
 					"yt_title", ytTitle, "yt_artist", ytArtist,
 					"want_title", wantTitle, "want_artist", inputArtist,
@@ -132,8 +132,7 @@ type nextResp struct {
 				WatchNextTabbedResultsRenderer struct {
 					Tabs []struct {
 						TabRenderer struct {
-							Unselectable bool `json:"unselectable"`
-							Endpoint     struct {
+							Endpoint struct {
 								BrowseEndpoint struct {
 									BrowseID                              string `json:"browseId"`
 									BrowseEndpointContextSupportedConfigs struct {
@@ -143,6 +142,7 @@ type nextResp struct {
 									} `json:"browseEndpointContextSupportedConfigs"`
 								} `json:"browseEndpoint"`
 							} `json:"endpoint"`
+							Unselectable bool `json:"unselectable"`
 						} `json:"tabRenderer"`
 					} `json:"tabs"`
 				} `json:"watchNextTabbedResultsRenderer"`
@@ -175,6 +175,7 @@ type timedBrowseResp struct {
 						Model struct {
 							TimedLyricsModel struct {
 								LyricsData struct {
+									SourceMessage   string `json:"sourceMessage"`
 									TimedLyricsData []struct {
 										LyricLine string `json:"lyricLine"`
 										CueRange  struct {
@@ -182,7 +183,6 @@ type timedBrowseResp struct {
 											EndTimeMilliseconds   int64S `json:"endTimeMilliseconds"`
 										} `json:"cueRange"`
 									} `json:"timedLyricsData"`
-									SourceMessage string `json:"sourceMessage"`
 								} `json:"lyricsData"`
 							} `json:"timedLyricsModel"`
 						} `json:"model"`

@@ -15,8 +15,8 @@ const (
 )
 
 type breakerState struct {
-	TTL    time.Duration
 	Reason string
+	TTL    time.Duration
 }
 
 type Breaker struct {
@@ -74,12 +74,12 @@ func (b *Breaker) Filter(ctx context.Context, provs []providers.Provider) []prov
 	return out
 }
 
-func (b *Breaker) ResetStreak(ctx context.Context, providers []string) {
-	if len(providers) == 0 {
+func (b *Breaker) ResetStreak(ctx context.Context, ids []string) {
+	if len(ids) == 0 {
 		return
 	}
-	keys := make([]string, len(providers))
-	for i, id := range providers {
+	keys := make([]string, len(ids))
+	for i, id := range ids {
 		keys[i] = "cb:" + id + ":streak"
 	}
 	b.cache.Delete(ctx, keys...)

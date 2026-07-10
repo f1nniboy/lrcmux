@@ -31,11 +31,11 @@ func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 type searchCandidate struct {
 	ID         string `json:"id"`
 	AccessKey  string `json:"accesskey"`
+	SongName   string `json:"song"`
+	SingerName string `json:"singer"`
 	Duration   int64  `json:"duration"`
 	Score      int64  `json:"score"`
 	KRCType    int    `json:"krctype"`
-	SongName   string `json:"song"`
-	SingerName string `json:"singer"`
 }
 
 var reBrackets = regexp.MustCompile(`[\(\[（【][^\)\]）】]*[\)\]）】]`)
@@ -60,7 +60,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		cand, err := p.search(ctx, a.artist, a.title, q.Track.Duration*1000)
+		cand, err := p.findCandidate(ctx, a.artist, a.title, q.Track.Duration*1000)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +72,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 	return nil, lyrics.ErrNotFound
 }
 
-func (p *Provider) search(ctx context.Context, artist, title string, durationMs int64) (*searchCandidate, error) {
+func (p *Provider) findCandidate(ctx context.Context, artist, title string, durationMs int64) (*searchCandidate, error) {
 	params := url.Values{}
 	params.Set("ver", "1")
 	params.Set("man", "yes")
@@ -87,8 +87,8 @@ func (p *Provider) search(ctx context.Context, artist, title string, durationMs 
 	}
 
 	var sr struct {
-		Status     int               `json:"status"`
 		Candidates []searchCandidate `json:"candidates"`
+		Status     int               `json:"status"`
 	}
 	if err := p.do(ctx, searchURL+"?"+params.Encode(), &sr); err != nil {
 		return nil, err
@@ -133,8 +133,8 @@ func (p *Provider) download(ctx context.Context, cand *searchCandidate) (*lyrics
 	params.Set("charset", "utf8")
 
 	var resp struct {
-		Status  int    `json:"status"`
 		Content string `json:"content"`
+		Status  int    `json:"status"`
 	}
 	if err := p.do(ctx, downloadURL+"?"+params.Encode(), &resp); err != nil {
 		return nil, err

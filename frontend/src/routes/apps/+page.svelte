@@ -50,9 +50,9 @@
 </script>
 
 <Meta
-  title="Apps"
   description="Point your music app at lrcmux.dev for better lyrics coverage, no code required."
   og={{ image: "/logo.png" }}
+  title="Apps"
 />
 
 <div
@@ -68,9 +68,9 @@
 
   <div class="border border-rule rounded-md overflow-hidden bg-paper-2">
     <TabBar
-      tabs={guides.map((g) => ({ id: g.id, label: g.name }))}
       active={activeId}
       onchange={(id) => (activeId = id)}
+      tabs={guides.map((g) => ({ id: g.id, label: g.name }))}
     />
 
     <div class="p-5 sm:p-6 flex flex-col gap-6">
@@ -88,13 +88,14 @@
       {/if}
 
       <ol class="flex flex-col gap-3">
-        {#each guide.steps as step, i}
+        {#each guide.steps as step, i (i)}
           <li class="flex gap-3.5">
             <span
               class="shrink-0 w-5 h-5 rounded-full bg-ink text-paper text-xs font-semibold flex items-center justify-center mt-0.5"
             >
               {i + 1}
             </span>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             <span class="text-muted text-sm leading-relaxed">{@html step}</span>
           </li>
         {/each}

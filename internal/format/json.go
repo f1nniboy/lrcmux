@@ -18,17 +18,17 @@ type JSONMeta struct {
 }
 
 type JSONResponse struct {
+	Track lyrics.Track  `json:"track"`
 	Meta  JSONMeta      `json:"meta"`
 	Lines []lyrics.Line `json:"lines"`
-	Track lyrics.Track  `json:"track"`
 }
 
 type jsonEncoder struct{}
 
-func (jsonEncoder) Levels() (min, max lyrics.SyncLevel) { return lyrics.SyncNone, lyrics.SyncWord }
-func (jsonEncoder) ContentType() string                 { return "application/json; charset=utf-8" }
-func (jsonEncoder) Extension() string                   { return "json" }
-func (jsonEncoder) Desc() string                        { return "Default, structured lines and metadata" }
+func (jsonEncoder) Levels() (lo, hi lyrics.SyncLevel) { return lyrics.SyncNone, lyrics.SyncWord }
+func (jsonEncoder) ContentType() string               { return "application/json; charset=utf-8" }
+func (jsonEncoder) Extension() string                 { return "json" }
+func (jsonEncoder) Desc() string                      { return "Default, structured lines and metadata" }
 
 func (jsonEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	out := JSONResponse{

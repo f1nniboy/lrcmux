@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({
       setHeaders({ "cache-control": "public, max-age=86400" });
       return { artist, title, lyrics };
     }
-  } catch {}
+  } catch {} // eslint-disable-line no-empty
 
   return { artist, title };
 };

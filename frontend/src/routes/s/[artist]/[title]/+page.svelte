@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { LyricsResult } from "$lib/types";
   import type { PageData } from "./+page.server";
+  import { resolve } from "$app/paths";
   import { toSlug } from "$lib/slug";
   import { API_URL } from "$lib/env";
   import Meta from "$lib/Meta.svelte";
@@ -60,11 +61,11 @@
 </script>
 
 <Meta
-  title="{data.title} by {data.artist}"
   {description}
   og={data.lyrics
     ? { type: "music.song", image: data.lyrics.track.cover.medium }
     : undefined}
+  title="{data.title} by {data.artist}"
 />
 
 <div
@@ -75,9 +76,9 @@
       <header class="flex items-start gap-4">
         {#if track.cover.medium}
           <img
-            src={track.cover.medium}
-            alt=""
             class="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-md shadow-md shrink-0"
+            alt=""
+            src={track.cover.medium}
           />
         {:else}
           <div
@@ -89,8 +90,8 @@
             {track.title}
           </h1>
           <a
-            href={`/s/${toSlug(track.artist)}`}
             class="text-muted mt-1 hover:underline no-underline"
+            href={resolve("/s/[artist]", { artist: toSlug(track.artist) })}
           >
             {track.artist}
           </a>
@@ -145,10 +146,10 @@
       </div>
       {#if fetchState.code === 404}
         <a
-          href={`https://github.com/f1nniboy/lrcmux/issues/new?template=04-new-provider.yml&example=${encodeURIComponent(`${data.artist} - ${data.title}`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
           class="inline-flex items-center gap-2 bg-ink text-paper px-3 py-2 rounded-md font-medium hover:bg-cue transition-colors"
+          href={`https://github.com/f1nniboy/lrcmux/issues/new?template=04-new-provider.yml&example=${encodeURIComponent(`${data.artist} - ${data.title}`)}`}
+          rel="noopener noreferrer"
+          target="_blank"
         >
           Request a provider
         </a>

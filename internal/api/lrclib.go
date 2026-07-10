@@ -18,8 +18,8 @@ type LrclibInput struct {
 	TrackName  string  `query:"track_name"  doc:"Track name"`
 	ArtistName string  `query:"artist_name" doc:"Artist name"`
 	AlbumName  string  `query:"album_name"  doc:"Album name"`
-	Duration   float64 `query:"duration"    doc:"Track duration in seconds"`
 	ISRC       string  `query:"isrc"        doc:"ISRC of the track"`
+	Duration   float64 `query:"duration"    doc:"Track duration in seconds"`
 }
 
 type LrclibOutput struct {
@@ -28,14 +28,14 @@ type LrclibOutput struct {
 }
 
 type LrclibResponse struct {
-	ID           int     `json:"id"`
 	TrackName    string  `json:"trackName"`
 	ArtistName   string  `json:"artistName"`
 	AlbumName    string  `json:"albumName"`
-	Duration     float64 `json:"duration"`
-	Instrumental bool    `json:"instrumental"`
 	PlainLyrics  string  `json:"plainLyrics"`
 	SyncedLyrics string  `json:"syncedLyrics"`
+	ID           int     `json:"id"`
+	Duration     float64 `json:"duration"`
+	Instrumental bool    `json:"instrumental"`
 }
 
 func (s *Server) lrclibOp() huma.Operation {

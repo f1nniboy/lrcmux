@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -28,17 +29,22 @@ import (
 func main() {
 	cfgPath := flag.String("config", "config.toml", "path to config file")
 	flag.Parse()
+	if err := run(*cfgPath); err != nil {
+		slog.Error("fatal", "err", err)
+		os.Exit(1)
+	}
+}
 
+func run(cfgPath string) error {
 	if dsn := os.Getenv("SENTRY_DSN"); dsn != "" {
 		_ = sentry.Init(sentry.ClientOptions{Dsn: dsn, Release: meta.Version, TracesSampleRate: 0})
 		defer sentry.Flush(2 * time.Second)
 	}
 
-	cfg, err := config.Load(*cfgPath)
+	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		logging.Init(logging.Config{Level: "info", Format: "text"})
-		slog.Error("config load failed", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("config: %w", err)
 	}
 	logging.Init(cfg.Log)
 	log := logging.New("main")
@@ -51,8 +57,7 @@ func main() {
 	} else {
 		rdbOpts, err := redis.ParseURL(cfg.Cache.RedisURL)
 		if err != nil {
-			log.Error("invalid redis url", "err", err)
-			os.Exit(1)
+			return fmt.Errorf("redis url: %w", err)
 		}
 		rdb = redis.NewClient(rdbOpts)
 		defer rdb.Close()
@@ -60,8 +65,7 @@ func main() {
 		pingCtx, cancelPing := context.WithTimeout(context.Background(), 3*time.Second)
 		if err := rdb.Ping(pingCtx).Err(); err != nil {
 			cancelPing()
-			log.Error("redis ping failed", "err", err, "url", cfg.Cache.RedisURL)
-			os.Exit(1)
+			return fmt.Errorf("redis ping: %w", err)
 		}
 		cancelPing()
 		cacheLayer = cache.NewRedis(rdb)
@@ -69,14 +73,12 @@ func main() {
 
 	pools, err := proxy.LoadAll(cfg.Proxies)
 	if err != nil {
-		log.Error("proxy load failed", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("proxies: %w", err)
 	}
 
 	provs, err := buildProviders(cfg, cacheLayer, pools, log)
 	if err != nil {
-		log.Error("provider setup failed", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("providers: %w", err)
 	}
 	if len(provs) == 0 {
 		log.Warn("no providers enabled")
@@ -103,15 +105,14 @@ func main() {
 	defer stop()
 
 	var rate *ratelimit.Limiter
-	if cfg.RateLimit.Limit > 0 && rdb != nil {
+	if cfg.RateLimit.Limit > 0 && cfg.RateLimit.Window.Duration.Seconds() > 0 && rdb != nil {
 		rate = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration, logging.New("ratelimit"))
 	}
 
 	srv := api.NewServer(orch, rate, cfg, coll, logging.New("api"))
-	runErr := srv.Run(ctx, cfg.Server.Listen)
-	if runErr != nil {
-		log.Error("server error", "err", runErr)
-		os.Exit(1)
+	if err := srv.Run(ctx, cfg.Server.Listen); err != nil {
+		return fmt.Errorf("server: %w", err)
 	}
 	log.Info("bye")
+	return nil
 }

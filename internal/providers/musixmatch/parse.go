@@ -9,12 +9,12 @@ import (
 
 func parseRichsync(body string) []lyrics.Line {
 	var entries []struct {
-		StartSec float64 `json:"ts"`
-		EndSec   float64 `json:"te"`
-		Lines    []struct {
+		Lines []struct {
 			Content   string  `json:"c"`
 			OffsetSec float64 `json:"o"`
 		} `json:"l"`
+		StartSec float64 `json:"ts"`
+		EndSec   float64 `json:"te"`
 	}
 
 	if err := json.Unmarshal([]byte(body), &entries); err != nil {

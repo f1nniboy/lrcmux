@@ -64,25 +64,25 @@
   >
     <svg
       class="{slim ? 'w-4 h-4' : 'w-5 h-5'} text-muted shrink-0"
-      viewBox="0 0 24 24"
+      aria-hidden="true"
       fill="none"
       stroke="currentColor"
       stroke-width="2.5"
-      aria-hidden="true"
+      viewBox="0 0 24 24"
     >
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" stroke-linecap="round" />
     </svg>
     <span class="sr-only">Search for a track</span>
     <input
-      bind:value={query}
-      type="search"
-      autocomplete="off"
-      spellcheck="false"
-      placeholder={slim ? "Search..." : "Search for a track..."}
       class="flex-1 bg-transparent outline-none text-ink {slim
         ? 'text-sm min-w-0'
         : 'text-base sm:text-lg'} placeholder:text-muted/70"
+      autocomplete="off"
+      placeholder={slim ? "Search..." : "Search for a track..."}
+      spellcheck="false"
+      type="search"
+      bind:value={query}
     />
     {#if loading}
       <span class="text-muted shrink-0 flex items-center"
@@ -100,11 +100,11 @@
           {#each tracks as track (track.isrc)}
             <li>
               <TrackItem
-                {track}
                 onclick={() => {
                   query = "";
                   tracks = [];
                 }}
+                {track}
               />
             </li>
           {/each}

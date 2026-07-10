@@ -46,14 +46,14 @@ type Metrics struct {
 }
 
 type Root struct {
-	Server    Server           `toml:"server"`
-	Cache     Cache            `toml:"cache"`
-	Log       logging.Config   `toml:"log"`
-	Provider  ProviderOptions  `toml:"provider"`
-	RateLimit RateLimit        `toml:"ratelimit"`
-	Metrics   Metrics          `toml:"metrics,commented"`
 	Proxies   map[string]Proxy `toml:"proxies,commented"`
 	Providers map[string]any   `toml:"providers"`
+	Log       logging.Config   `toml:"log"`
+	Metrics   Metrics          `toml:"metrics,commented"`
+	Server    Server           `toml:"server"`
+	Cache     Cache            `toml:"cache"`
+	Provider  ProviderOptions  `toml:"provider"`
+	RateLimit RateLimit        `toml:"ratelimit"`
 }
 
 func Load(path string) (*Root, error) {
@@ -71,11 +71,6 @@ func Load(path string) (*Root, error) {
 	}
 	if r.Provider.Timeout.Duration == 0 {
 		r.Provider.Timeout.Duration = 5 * time.Second
-	}
-	if r.RateLimit.Limit > 0 {
-		if r.RateLimit.Window.Duration <= 0 {
-			return nil, fmt.Errorf("ratelimit.window must be set when enabled")
-		}
 	}
 	if v := os.Getenv("REDIS_URL"); v != "" {
 		r.Cache.RedisURL = v

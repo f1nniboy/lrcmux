@@ -94,6 +94,7 @@ func parseStamp(s string) (int64, bool) {
 			frac = f * 10
 		case 3:
 			frac = f
+		default:
 		}
 	}
 	return int64(mm)*60_000 + int64(secs)*1000 + int64(frac), true

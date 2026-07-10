@@ -1,0 +1,11 @@
+pre-commit:
+  commands:
+    fmt:
+      run: treefmt
+      stage_fixed: true
+    lint-backend:
+      run: just lint-backend
+      glob: "**/*.go"
+    lint-frontend:
+      run: just lint-frontend
+      glob: "frontend/src/**/*.{ts,svelte}"

@@ -8,13 +8,13 @@ import (
 )
 
 type memEntry struct {
-	data    []byte
 	expires time.Time
+	data    []byte
 }
 
 type Memory struct {
-	mu      sync.RWMutex
 	entries map[string]memEntry
+	mu      sync.RWMutex
 }
 
 func NewMemory() *Memory {

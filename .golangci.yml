@@ -1,0 +1,79 @@
+version: "2"
+
+linters:
+  disable:
+    # defer/Write/Close error returns are intentionally ignored throughout,
+    # adding checks everywhere would only be noise
+    - errcheck
+  enable:
+    - revive
+    - govet
+    - staticcheck
+    - misspell
+    - gocritic
+    - nilerr
+    - bodyclose
+    - forbidigo
+    - mirror
+  settings:
+    staticcheck:
+      checks:
+        - all
+        # package-level doc comment required
+        - -ST1000
+        # godoc "FuncName ..." form required
+        - -ST1020
+        - -ST1021
+        # suggest removing redundant embedded field selectors, it's fine
+        - -QF1008
+    revive:
+      enable-all-rules: true
+      rules:
+        # conflicts with our "casual" comment style
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        # redundant, errcheck is already disabled project-wide
+        - name: unhandled-error
+          disabled: true
+        # no agreed Go line length standard
+        - name: line-length-limit
+          disabled: true
+        # splitting main() and large handlers would hurt readability more than help
+        - name: function-length
+          disabled: true
+        # bool control params are used intentionally in private functions (force, cached, hide, cacheOnly)
+        - name: flag-parameter
+          disabled: true
+        # inline structs for one-off JSON bodies are fine
+        - name: nested-structs
+          disabled: true
+        # named constants for 0, "", 1000 etc. would only add noise
+        - name: add-constant
+          disabled: true
+        # subjective
+        - name: cognitive-complexity
+          disabled: true
+        - name: cyclomatic
+          disabled: true
+        - name: max-public-structs
+          disabled: true
+        # interface method impls don't reference receiver by design
+        - name: unused-receiver
+          disabled: true
+        # singleflight closures assert known types; suppressed inline at the two call sites
+        - name: unchecked-type-assertion
+          disabled: true
+        # go-toml uses a non-standard "commented" tag option that revive doesn't know about
+        - name: struct-tag
+          disabled: true
+        # kugou's search API is HTTP-only, not our choice
+        - name: unsecure-url-scheme
+          disabled: true
+
+    govet:
+      enable-all: true
+      disable:
+        # variable shadowing is checked by import-shadowing in revive already
+        - shadow

@@ -23,8 +23,8 @@ func result(source string, level lyrics.SyncLevel, lines ...string) *lyrics.Resu
 }
 
 type stubProvider struct {
+	id string
 	providers.Common
-	id       string
 	maxLevel lyrics.SyncLevel
 }
 
@@ -97,8 +97,9 @@ func TestBuildTiers(t *testing.T) {
 
 func TestRankResult(t *testing.T) {
 	cases := []struct {
+		a    *lyrics.Result
+		b    *lyrics.Result
 		name string
-		a, b *lyrics.Result
 	}{
 		{
 			name: "word beats line",
@@ -167,5 +168,4 @@ func TestPick(t *testing.T) {
 			t.Error("exact level match should be accepted")
 		}
 	})
-
 }

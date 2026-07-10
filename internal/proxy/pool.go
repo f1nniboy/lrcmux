@@ -46,7 +46,7 @@ func (r *Registry) ClientFor(name string, timeout time.Duration) *http.Client {
 	pool, ok := r.Pool(name)
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	if ok {
-		t.Proxy = func(req *http.Request) (*url.URL, error) {
+		t.Proxy = func(_ *http.Request) (*url.URL, error) {
 			return pool.urls[rand.IntN(len(pool.urls))], nil
 		}
 		t.DisableKeepAlives = true

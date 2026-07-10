@@ -14,8 +14,8 @@ import (
 )
 
 type Provider struct {
-	providers.Common
 	BaseURL string `toml:"base_url,commented,omitempty" comment:"which LRCLIB instance to use"`
+	providers.Common
 }
 
 func (p *Provider) ID() string { return "lrclib" }
@@ -31,14 +31,14 @@ func (p *Provider) Desc() string               { return "Community-sourced lyric
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncLine }
 
 type apiResult struct {
-	ID           int64   `json:"id"`
 	TrackName    string  `json:"trackName"`
 	ArtistName   string  `json:"artistName"`
 	AlbumName    string  `json:"albumName"`
-	Duration     float64 `json:"duration"`
-	Instrumental bool    `json:"instrumental"`
 	PlainLyrics  string  `json:"plainLyrics"`
 	SyncedLyrics string  `json:"syncedLyrics"`
+	ID           int64   `json:"id"`
+	Duration     float64 `json:"duration"`
+	Instrumental bool    `json:"instrumental"`
 }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {

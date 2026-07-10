@@ -14,21 +14,21 @@ import (
 
 	"github.com/f1nniboy/lrcmux/internal/format"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
+	"github.com/f1nniboy/lrcmux/internal/normalize"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
-	"github.com/f1nniboy/lrcmux/internal/utils"
 )
 
 type GetLyricsInput struct {
 	Artist   string `query:"artist" doc:"Artist name" example:"Rick Astley"`
 	Title    string `query:"title" doc:"Song title" example:"Never Gonna Give You Up"`
 	Album    string `query:"album" doc:"Album name"`
-	Duration int64  `query:"duration" doc:"Track duration in seconds"`
 	ISRC     string `query:"isrc" doc:"ISRC of the track, has priority over artist and title"`
 	Level    string `query:"level" doc:"Highest sync level to accept, or exact level if strict is set" enum:"word,line,none" default:"word"`
 	Format   string `query:"format" doc:"Response format" enum:"lrc,txt,json,srt,vtt,lyricsfile" default:"json"`
-	Strict   bool   `query:"strict" doc:"Fail instead of falling back to a lower sync level"`
 	Fetch    string `query:"fetch" doc:"Cache strategy" enum:"default,cache,force" default:"default"`
+	Duration int64  `query:"duration" doc:"Track duration in seconds"`
+	Strict   bool   `query:"strict" doc:"Fail instead of falling back to a lower sync level"`
 }
 
 var responseHeaders = map[string]*huma.Param{
@@ -65,7 +65,7 @@ func (s *Server) getOp() huma.Operation {
 }
 
 func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *huma.StreamResponse, herr error) {
-	internal := utils.IsPrivateIP(clientIP(ctx))
+	internal := isPrivateIP(clientIP(ctx))
 	if s.metrics != nil && !internal {
 		start := time.Now()
 		defer func() {
@@ -144,7 +144,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		return nil, huma.Error500InternalServerError(err.Error())
 	}
 
-	filename := fmt.Sprintf("%s - %s.%s", utils.SanitizeFilename(lyricsResp.Result.Track.Artist), utils.SanitizeFilename(lyricsResp.Result.Track.Title), encoder.Extension())
+	filename := fmt.Sprintf("%s - %s.%s", sanitizeFilename(lyricsResp.Result.Track.Artist), sanitizeFilename(lyricsResp.Result.Track.Title), encoder.Extension())
 
 	return &huma.StreamResponse{
 		Body: func(ctx huma.Context) {
@@ -179,7 +179,7 @@ func (s *Server) fetch(ctx context.Context, req orchestrator.Request) (*orchestr
 		}
 	}
 
-	req.Artist, req.Title = utils.CleanQuery(req.Artist, req.Title)
+	req.Artist, req.Title = normalize.CleanQuery(req.Artist, req.Title)
 	return s.orch.Get(ctx, req)
 }
 

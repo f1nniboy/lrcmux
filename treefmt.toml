@@ -6,4 +6,5 @@ includes = ["*.go"]
 [formatter.prettier]
 command = "frontend/node_modules/.bin/prettier"
 includes = ["*.{js,ts,svelte,css,json,yaml,yml}"]
+excludes = ["**/pnpm-lock.yaml"]
 options = ["--plugin", "./frontend/node_modules/prettier-plugin-svelte/plugin.js", "--write"]

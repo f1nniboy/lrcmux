@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w \
       -X 'github.com/f1nniboy/lrcmux/internal/meta.Commit=$(git rev-parse --short HEAD)' \
-      -X 'github.com/f1nniboy/lrcmux/internal/meta.Version=$(git describe --tags --always 2>/dev/null || echo dev)'" \
+      -X 'github.com/f1nniboy/lrcmux/internal/meta.Version=$(git describe --tags --abbrev=0 2>/dev/null || echo dev)'" \
     -o lrcmux ./cmd/lrcmux
 
 FROM gcr.io/distroless/static-debian12 AS api

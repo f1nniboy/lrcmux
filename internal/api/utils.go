@@ -1,12 +1,16 @@
-package utils
+package api
 
 import (
+	"net"
 	"strings"
 )
 
-// sanitizes the given string for use in a Content-Disposition filename
-// parameter
-func SanitizeFilename(s string) string {
+func isPrivateIP(ip string) bool {
+	p := net.ParseIP(ip)
+	return p != nil && (p.IsLoopback() || p.IsPrivate())
+}
+
+func sanitizeFilename(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
 	for _, r := range s {

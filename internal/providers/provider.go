@@ -23,17 +23,16 @@ type Provider interface {
 var ErrRateLimited = errors.New("provider rate limited")
 
 type Common struct {
-	Enable bool   `toml:"enable"`
-	Proxy  string `toml:"proxy,omitempty,commented"`
-
-	HTTP  *http.Client `toml:"-"`
-	Cache cache.Cache  `toml:"-"`
-	Log   *slog.Logger `toml:"-"`
+	Cache  cache.Cache  `toml:"-"`
+	HTTP   *http.Client `toml:"-"`
+	Log    *slog.Logger `toml:"-"`
+	Proxy  string       `toml:"proxy,omitempty,commented"`
+	Enable bool         `toml:"enable"`
 }
 
-func (c *Common) SetDeps(http *http.Client, cache cache.Cache, log *slog.Logger) {
-	c.HTTP = http
-	c.Cache = cache
+func (c *Common) SetDeps(client *http.Client, ca cache.Cache, log *slog.Logger) {
+	c.HTTP = client
+	c.Cache = ca
 	c.Log = log
 }
 

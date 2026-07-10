@@ -44,8 +44,6 @@ func (s SyncLevel) Desc() string {
 
 func ParseLevel(s string) (SyncLevel, error) {
 	switch s {
-	case "":
-		return SyncWord, nil
 	case "none":
 		return SyncNone, nil
 	case "line":
@@ -67,25 +65,25 @@ type TrackCover struct {
 }
 
 type Track struct {
+	Cover    TrackCover `json:"cover"`
 	ISRC     string     `json:"isrc"`
 	Title    string     `json:"title"`
-	Duration int64      `json:"duration"`
 	Artist   string     `json:"artist"`
 	Album    string     `json:"album"`
-	Cover    TrackCover `json:"cover"`
+	Duration int64      `json:"duration"`
 }
 
 type Word struct {
+	Text    string `json:"text"`
 	StartMs int64  `json:"start"`
 	EndMs   int64  `json:"end"`
-	Text    string `json:"text"`
 }
 
 type Line struct {
-	StartMs int64  `json:"start,omitempty"`
-	EndMs   int64  `json:"end,omitempty"`
 	Text    string `json:"text"`
 	Words   []Word `json:"words,omitempty"`
+	StartMs int64  `json:"start,omitempty"`
+	EndMs   int64  `json:"end,omitempty"`
 }
 
 type Source struct {
@@ -94,10 +92,10 @@ type Source struct {
 }
 
 type Result struct {
+	Track     Track
+	Source    Source
 	Lines     []Line
 	SyncLevel SyncLevel
-	Source    Source
-	Track     Track
 }
 
 // filters out empty lines and bracketed section labels such as

@@ -4,15 +4,16 @@ import (
 	"io"
 	"strings"
 
-	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"gopkg.in/yaml.v3"
+
+	"github.com/f1nniboy/lrcmux/internal/lyrics"
 )
 
 // https://github.com/tranxuanthang/lrcget/blob/main/LYRICSFILE_CONCEPT.md
 
 type lfEncoder struct{}
 
-func (lfEncoder) Levels() (min, max lyrics.SyncLevel) {
+func (lfEncoder) Levels() (lo, hi lyrics.SyncLevel) {
 	return lyrics.SyncNone, lyrics.SyncWord
 }
 func (lfEncoder) ContentType() string { return "text/yaml; charset=utf-8" }
@@ -34,16 +35,16 @@ type lfWord struct {
 
 type lfLine struct {
 	Text    string   `yaml:"text"`
+	Words   []lfWord `yaml:"words,omitempty"`
 	StartMs int64    `yaml:"start_ms"`
 	EndMs   int64    `yaml:"end_ms,omitempty"`
-	Words   []lfWord `yaml:"words,omitempty"`
 }
 
 type lfDoc struct {
 	Version  string   `yaml:"version"`
+	Plain    string   `yaml:"plain,omitempty"`
 	Metadata lfMeta   `yaml:"metadata"`
 	Lines    []lfLine `yaml:"lines,omitempty"`
-	Plain    string   `yaml:"plain,omitempty"`
 }
 
 func (lfEncoder) Encode(w io.Writer, r *lyrics.Result) error {

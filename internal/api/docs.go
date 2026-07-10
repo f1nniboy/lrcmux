@@ -14,12 +14,12 @@ import (
 )
 
 type docsData struct {
+	RateLimit *rateLimitDoc
 	AppName   string
 	AppDomain string
 	Levels    []levelDoc
 	Formats   []formatDoc
 	Providers []providerDoc
-	RateLimit *rateLimitDoc
 }
 
 type providerDoc struct {
@@ -40,8 +40,8 @@ type formatDoc struct {
 }
 
 type rateLimitDoc struct {
-	Limit  int64
 	Window string
+	Limit  int64
 }
 
 func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Limiter, hide bool) (string, error) {
@@ -61,11 +61,11 @@ func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Li
 
 	for _, name := range format.All() {
 		enc, _ := format.Get(name)
-		min, _ := enc.Levels()
+		lo, _ := enc.Levels()
 		d.Formats = append(d.Formats, formatDoc{
 			Name:        name,
 			ContentType: enc.ContentType(),
-			MinLevel:    min.String(),
+			MinLevel:    lo.String(),
 			UseCase:     enc.Desc(),
 		})
 	}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
 
   // horrible, but there's no built-in HTTP code -> message map
@@ -32,10 +33,10 @@
   <p class="text-muted text-center max-w-sm">
     {message}
   </p>
-  {#if page.url.pathname !== "/"}
+  {#if page.url.pathname !== resolve("/")}
     <a
-      href="/"
       class="inline-flex items-center gap-1.5 text-sm font-medium text-paper bg-ink px-4 py-2 rounded-md hover:opacity-80 transition-all no-underline"
+      href={resolve("/")}
     >
       Go home
     </a>

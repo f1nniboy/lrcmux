@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
   import Meta from "$lib/Meta.svelte";
   import SearchBar from "$components/SearchBar.svelte";
   import Wordmark from "$components/Wordmark.svelte";
@@ -22,19 +23,21 @@
     <SearchBar />
   </div>
   <nav class="flex items-center gap-5 text-sm text-muted">
-    <a href="/apps" class="hover:text-ink transition-colors">Apps</a>
-    <a href="/docs" class="hover:text-ink transition-colors">API docs</a>
-    <a
-      href="https://github.com/f1nniboy/lrcmux"
-      target="_blank"
-      rel="noopener"
-      class="hover:text-ink transition-colors">Source</a
+    <a class="hover:text-ink transition-colors" href={resolve("/apps")}>Apps</a>
+    <a class="hover:text-ink transition-colors" href={resolve("/docs")}
+      >API docs</a
     >
     <a
+      class="hover:text-ink transition-colors"
+      href="https://github.com/f1nniboy/lrcmux"
+      rel="noopener noreferrer"
+      target="_blank">Source</a
+    >
+    <a
+      class="hover:text-ink transition-colors"
       href="https://matrix.to/#/#lrcmux:oss.zone"
-      target="_blank"
-      rel="noopener"
-      class="hover:text-ink transition-colors">Matrix</a
+      rel="noopener noreferrer"
+      target="_blank">Matrix</a
     >
   </nav>
 </div>

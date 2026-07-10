@@ -1,4 +1,4 @@
-package utils
+package normalize
 
 import (
 	"regexp"
@@ -39,7 +39,7 @@ var (
 	prodRE = regexp.MustCompile(`(?i)\s*[\[(]prod(?:uced)?\b[^\])]*[\])]`)
 )
 
-func Normalize(s string) string {
+func String(s string) string {
 	s = strings.TrimSpace(s)
 	s = smartQuotes.Replace(s)
 	s = strings.ToLower(s)
@@ -50,22 +50,21 @@ func Normalize(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func NormalizeTitle(s string) string {
-	return Normalize(titleFeatureRE.ReplaceAllString(s, ""))
+func Title(s string) string {
+	return String(titleFeatureRE.ReplaceAllString(s, ""))
 }
 
 func SplitArtists(s string) []string {
 	parts := collaborationRE.Split(s, -1)
 	out := make([]string, 0, len(parts))
 	for _, p := range parts {
-		if n := Normalize(p); n != "" {
+		if n := String(p); n != "" {
 			out = append(out, n)
 		}
 	}
 	return out
 }
 
-// returns the normalized first artist from a collaboration string
 func PrimaryArtist(s string) string {
 	if parts := SplitArtists(s); len(parts) > 0 {
 		return parts[0]
@@ -74,7 +73,7 @@ func PrimaryArtist(s string) string {
 }
 
 func ArtistMatch(a, b string) bool {
-	na := Normalize(a)
+	na := String(a)
 	for _, part := range SplitArtists(b) {
 		if strings.Contains(na, part) {
 			return true
@@ -83,7 +82,7 @@ func ArtistMatch(a, b string) bool {
 	return false
 }
 
-func CleanQuery(artist, title string) (string, string) {
+func CleanQuery(artist, title string) (cleanArtist, cleanTitle string) {
 	title = videoSuffixRE.ReplaceAllString(title, "")
 	title = prodRE.ReplaceAllString(title, "")
 	title = strings.TrimSpace(title)

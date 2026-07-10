@@ -3,7 +3,7 @@ package format
 import (
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 )
@@ -13,7 +13,7 @@ type Encoder interface {
 	ContentType() string
 	Extension() string
 	// specifies which range of sync levels this encoder can output
-	Levels() (min, max lyrics.SyncLevel)
+	Levels() (lo, hi lyrics.SyncLevel)
 	Desc() string
 }
 
@@ -31,7 +31,7 @@ func All() []string {
 	for name := range registry {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

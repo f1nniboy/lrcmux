@@ -23,11 +23,11 @@ const (
 )
 
 type tier struct {
-	endpoint     string
 	extra        url.Values
+	parse        func(string) []lyrics.Line
+	endpoint     string
 	bodyKey      string
 	contentField string
-	parse        func(string) []lyrics.Line
 }
 
 var tierByLevel = map[lyrics.SyncLevel]tier{
@@ -37,10 +37,9 @@ var tierByLevel = map[lyrics.SyncLevel]tier{
 }
 
 type Provider struct {
+	pool *tokenPool
 	providers.Common
 	PoolSize int `toml:"pool_size,commented,omitempty" comment:"how many tokens to use in rotation"`
-
-	pool *tokenPool
 }
 
 func (p *Provider) ID() string { return "musixmatch" }
@@ -107,9 +106,7 @@ func (p *Provider) fetchTrackMeta(ctx context.Context, isrc, token string, idx i
 			HasLyrics    int `json:"has_lyrics"`
 		} `json:"track"`
 	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, nil
-	}
+	json.Unmarshal(body, &resp)
 	track := resp.Track
 	switch {
 	case track.HasRichsync == 1:
@@ -139,11 +136,10 @@ func (p *Provider) fetchTier(ctx context.Context, t tier, isrc, token string, id
 	}
 
 	var outer map[string]map[string]json.RawMessage
-	if err := json.Unmarshal(body, &outer); err != nil {
-		return nil, nil
-	}
+	json.Unmarshal(body, &outer)
 	var content string
-	if err := json.Unmarshal(outer[t.bodyKey][t.contentField], &content); err != nil || content == "" {
+	json.Unmarshal(outer[t.bodyKey][t.contentField], &content)
+	if content == "" {
 		return nil, nil
 	}
 	return t.parse(content), nil
@@ -194,8 +190,8 @@ func (p *Provider) doRequest(ctx context.Context, endpoint string, extra url.Val
 	var res struct {
 		Message struct {
 			Header struct {
-				StatusCode int    `json:"status_code"`
 				Hint       string `json:"hint"`
+				StatusCode int    `json:"status_code"`
 			} `json:"header"`
 			Body json.RawMessage `json:"body"`
 		} `json:"message"`
@@ -204,12 +200,12 @@ func (p *Provider) doRequest(ctx context.Context, endpoint string, extra url.Val
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 
-	switch {
-	case res.Message.Header.StatusCode == 200:
+	switch res.Message.Header.StatusCode {
+	case 200:
 		return res.Message.Body, nil
-	case res.Message.Header.StatusCode == 401:
+	case 401:
 		return nil, errTokenUnusable
-	case res.Message.Header.StatusCode == 404:
+	case 404:
 		return nil, lyrics.ErrNotFound
 	}
 	p.Log.Debug("api error", "status", res.Message.Header.StatusCode, "hint", res.Message.Header.Hint)

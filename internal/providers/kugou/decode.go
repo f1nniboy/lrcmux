@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -16,7 +17,7 @@ func decodeKRC(content string) (string, error) {
 		return "", fmt.Errorf("krc base64: %w", err)
 	}
 	if len(raw) < 4 {
-		return "", fmt.Errorf("krc too short")
+		return "", errors.New("krc too short")
 	}
 	encrypted := raw[4:]
 	decrypted := make([]byte, len(encrypted))

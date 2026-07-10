@@ -21,8 +21,29 @@ logo:
     resvg frontend/static/logo.svg frontend/static/logo.png --width 512 --height 512
     magick frontend/static/logo.png -define icon:auto-resize=256,128,64,48,32,16 frontend/static/favicon.ico
 
+lint: lint-backend lint-frontend
+
+lint-backend:
+    golangci-lint run ./...
+
+lint-frontend:
+    cd frontend && pnpm lint
+
+fix: fmt fix-backend fix-frontend
+
+fix-backend:
+    go run golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@latest -fix ./...
+    go fix ./...
+    golangci-lint run --fix ./...
+
+fix-frontend:
+    cd frontend && pnpm fix
+
+fmt:
+    treefmt
+
 test:
-    go test ./internal/...
+    go test ./...
 
 deploy-api:
     fly deploy --local-only

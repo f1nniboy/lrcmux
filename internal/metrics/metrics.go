@@ -8,7 +8,6 @@ import (
 )
 
 type Collector struct {
-	Listen          string
 	HTTPRequests    *prometheus.CounterVec
 	HTTPLatency     *prometheus.HistogramVec
 	CacheOps        *prometheus.CounterVec
@@ -16,6 +15,7 @@ type Collector struct {
 	ProviderLatency *prometheus.HistogramVec
 	RequestOutcomes *prometheus.CounterVec
 	registry        *prometheus.Registry
+	Listen          string
 }
 
 func New(listen string) *Collector {

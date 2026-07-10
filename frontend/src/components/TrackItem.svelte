@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Track } from "$lib/types";
+  import { resolve } from "$app/paths";
   import { toSlug } from "$lib/slug";
 
   interface Props {
@@ -7,8 +8,6 @@
     onclick?: () => void;
   }
   let { track, onclick }: Props = $props();
-
-  const href = $derived(`/s/${toSlug(track.artist)}/${toSlug(track.title)}`);
 
   function fmtDuration(s: number): string {
     const m = Math.floor(s / 60);
@@ -18,16 +17,19 @@
 </script>
 
 <a
-  {href}
-  {onclick}
   class="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-cue/10 transition-colors cursor-pointer"
+  href={resolve("/s/[artist]/[title]", {
+    artist: toSlug(track.artist),
+    title: toSlug(track.title),
+  })}
+  {onclick}
 >
   {#if track.cover.small}
     <img
-      src={track.cover.small}
-      alt=""
       class="w-10 h-10 rounded object-cover bg-paper-2"
+      alt=""
       loading="lazy"
+      src={track.cover.small}
     />
   {:else}
     <div class="w-10 h-10 rounded bg-paper-2"></div>

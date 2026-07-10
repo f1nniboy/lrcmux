@@ -10,10 +10,10 @@ import (
 
 type lrcEncoder struct{}
 
-func (lrcEncoder) Levels() (min, max lyrics.SyncLevel) { return lyrics.SyncNone, lyrics.SyncWord }
-func (lrcEncoder) ContentType() string                 { return "text/plain; charset=utf-8" }
-func (lrcEncoder) Extension() string                   { return "lrc" }
-func (lrcEncoder) Desc() string                        { return "Standard .lrc files for music players" }
+func (lrcEncoder) Levels() (lo, hi lyrics.SyncLevel) { return lyrics.SyncNone, lyrics.SyncWord }
+func (lrcEncoder) ContentType() string               { return "text/plain; charset=utf-8" }
+func (lrcEncoder) Extension() string                 { return "lrc" }
+func (lrcEncoder) Desc() string                      { return "Standard .lrc files for music players" }
 
 func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	bw := bufio.NewWriter(w)
@@ -39,6 +39,7 @@ func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 		for _, line := range r.Lines {
 			fmt.Fprintf(bw, "[%s] %s\n", formatStamp(line.StartMs), line.Text)
 		}
+	default:
 	}
 	return bw.Flush()
 }

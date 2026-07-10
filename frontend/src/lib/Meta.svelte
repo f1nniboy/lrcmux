@@ -15,19 +15,19 @@
     <meta name="description" content={description} />
   {/if}
   {#if og}
-    <meta property="og:type" content={og.type ?? "website"} />
-    <meta property="og:url" content={page.url.href} />
-    <meta property="og:title" content={title || page.url.hostname} />
+    <meta content={og.type ?? "website"} property="og:type" />
+    <meta content={page.url.href} property="og:url" />
+    <meta content={title || page.url.hostname} property="og:title" />
     {#if title}
-      <meta property="og:site_name" content={page.url.hostname} />
+      <meta content={page.url.hostname} property="og:site_name" />
     {/if}
     {#if description}
-      <meta property="og:description" content={description} />
+      <meta content={description} property="og:description" />
     {/if}
     {#if og.image}
       <meta
-        property="og:image"
         content={new URL(og.image, page.url.origin).href}
+        property="og:image"
       />
     {/if}
   {/if}

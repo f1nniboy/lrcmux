@@ -21,17 +21,17 @@ const tokenTTL = 0 // 24 * time.Hour
 var errTokenUnusable = errors.New("token unusable")
 
 type tokenSlot struct {
-	mu    sync.Mutex
 	token string
+	mu    sync.Mutex
 }
 
 type tokenPool struct {
-	slots   []*tokenSlot
-	mu      sync.RWMutex
-	current int
-	client  *http.Client
 	cache   cache.Cache
+	client  *http.Client
 	log     *slog.Logger
+	slots   []*tokenSlot
+	current int
+	mu      sync.RWMutex
 }
 
 func newTokenPool(n int, client *http.Client, c cache.Cache, log *slog.Logger) *tokenPool {
@@ -158,13 +158,13 @@ func (p *tokenPool) fetch(ctx context.Context) (string, error) {
 
 	var res struct {
 		Message struct {
-			Header struct {
-				StatusCode int    `json:"status_code"`
-				Hint       string `json:"hint"`
-			} `json:"header"`
 			Body struct {
 				UserToken string `json:"user_token"`
 			} `json:"body"`
+			Header struct {
+				Hint       string `json:"hint"`
+				StatusCode int    `json:"status_code"`
+			} `json:"header"`
 		} `json:"message"`
 	}
 	if err := json.Unmarshal(raw, &res); err != nil {

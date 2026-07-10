@@ -116,8 +116,8 @@ func TestPrimaryArtist(t *testing.T) {
 
 func TestArtistMatch(t *testing.T) {
 	cases := []struct {
-		ytArtist, inputArtist string
-		want                  bool
+		sourceArtist, inputArtist string
+		want                      bool
 	}{
 		{"Artist", "Artist", true},
 		{"Artist", "Artist feat. Someone", true},
@@ -130,8 +130,8 @@ func TestArtistMatch(t *testing.T) {
 		{"Another", "Artist x Another", true},
 	}
 	for _, c := range cases {
-		if got := ArtistMatch(c.ytArtist, c.inputArtist); got != c.want {
-			t.Errorf("ArtistMatch(%q, %q) = %v, want %v", c.ytArtist, c.inputArtist, got, c.want)
+		if got := ArtistMatch(c.sourceArtist, c.inputArtist); got != c.want {
+			t.Errorf("ArtistMatch(%q, %q) = %v, want %v", c.sourceArtist, c.inputArtist, got, c.want)
 		}
 	}
 }

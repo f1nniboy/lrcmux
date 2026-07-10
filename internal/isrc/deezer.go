@@ -14,7 +14,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/normalize"
 )
 
-const lookupBase = "https://api.deezer.com/search"
+const baseURL = "https://api.deezer.com"
 
 type deezerTrack struct {
 	ISRC           string       `json:"isrc"`
@@ -49,7 +49,7 @@ type deezerAlbum struct {
 }
 
 func toTrack(raw deezerTrack) lyrics.Track {
-	t := lyrics.Track{
+	return lyrics.Track{
 		ISRC:     raw.ISRC,
 		Title:    raw.Title,
 		Duration: raw.Duration,
@@ -61,12 +61,11 @@ func toTrack(raw deezerTrack) lyrics.Track {
 			Big:    raw.Album.CoverBig,
 		},
 	}
-	return t
 }
 
 func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (lyrics.Track, error) {
 	q := fmt.Sprintf(`artist:"%s" track:"%s"`, in.Artist, in.Title)
-	endpoint := lookupBase + "?q=" + url.QueryEscape(q) + "&limit=10"
+	endpoint := baseURL + "/search?q=" + url.QueryEscape(q) + "&limit=10"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -124,6 +123,10 @@ func (r *Resolver) lookupMeta(ctx context.Context, isrc string) (lyrics.Track, e
 	return toTrack(dt), nil
 }
 
+func distScore(a, b string, n int) float64 {
+	return float64(max(0, n-levenshtein.ComputeDistance(a, b)))
+}
+
 func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
 	if len(tracks) == 1 {
 		return tracks[0]
@@ -132,36 +135,36 @@ func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
 	wantTitle := normalize.Title(in.Title)
 	wantArtist := normalize.String(in.Artist)
 
-	type scored struct {
-		track deezerTrack
-		score float64
-	}
-	best := scored{score: -1}
+	var best deezerTrack
+	bestScore := -1.0
+
 	for _, t := range tracks {
 		var s float64
 
-		gotTitle := normalize.Title(t.Title)
-		s += float64(max(0, 5-levenshtein.ComputeDistance(gotTitle, wantTitle)))
+		// title
+		s += distScore(normalize.Title(t.Title), wantTitle, 5)
 
-		gotArtist := normalize.String(t.Artist.Name)
+		// artist
 		if normalize.ArtistMatch(t.Artist.Name, in.Artist) || normalize.ArtistMatch(in.Artist, t.Artist.Name) {
-			s += 3
-		} else if d := levenshtein.ComputeDistance(gotArtist, wantArtist); d <= 3 {
-			s += float64(max(0, 2-d))
+			s += 5
+		} else {
+			s += distScore(normalize.String(t.Artist.Name), wantArtist, 2)
 		}
 
+		// duration
 		if in.Duration > 0 {
-			diff := math.Abs(float64(t.Duration - in.Duration))
-			s += max(0, 3.0-diff/2.0)
+			delta := math.Abs(float64(t.Duration - in.Duration))
+			s += max(0, 3-delta) // max 3 seconds
 		}
 
-		if in.Album != "" && normalize.String(t.Album.Title) == normalize.String(in.Album) {
-			s += 2
+		// album
+		if in.Album != "" {
+			s += distScore(normalize.String(t.Album.Title), normalize.String(in.Album), 2)
 		}
 
-		if s > best.score {
-			best = scored{track: t, score: s}
+		if s > bestScore {
+			best, bestScore = t, s
 		}
 	}
-	return best.track
+	return best
 }

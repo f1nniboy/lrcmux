@@ -168,4 +168,16 @@ func TestPick(t *testing.T) {
 			t.Error("exact level match should be accepted")
 		}
 	})
+
+	t.Run("best ranked result selected", func(t *testing.T) {
+		results := []*lyrics.Result{
+			result("word", lyrics.SyncWord, "x"),
+			result("line", lyrics.SyncLine, "x", "y", "z"),
+			result("none", lyrics.SyncNone, "x"),
+		}
+		got := o.pick(results, lyrics.SyncNone)
+		if got == nil || got.Source.ID != "word" {
+			t.Errorf("expected word-sync to win, got %v", got)
+		}
+	})
 }

@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.5.0](https://github.com/f1nniboy/lrcmux/compare/v1.4.0...v1.5.0) (2026-07-10)
+
+
+### Features
+
+* **cache:** per-sync-level TTL by sync quality ([dd83afd](https://github.com/f1nniboy/lrcmux/commit/dd83afdf99269ffb3657a5db8e8ea6b45413ad25))
+* **format:** add lyricsfile encoder, Extension() on all encoders ([5bbbf1f](https://github.com/f1nniboy/lrcmux/commit/5bbbf1fc0a1f7abc49ef8484c9847cdfbfb33bae))
+* **frontend:** add /api/search server-side proxy for Deezer search ([bf79d1c](https://github.com/f1nniboy/lrcmux/commit/bf79d1cf4daa2fb1deb9a8144de4aac58c2afaa7))
+* **frontend:** add navigation progress bar to layout ([bf79d1c](https://github.com/f1nniboy/lrcmux/commit/bf79d1cf4daa2fb1deb9a8144de4aac58c2afaa7))
+* **frontend:** fetch trending client-side via proxy ([e20c9d8](https://github.com/f1nniboy/lrcmux/commit/e20c9d8e3775838ba532377861d78f53e41d8340))
+* **frontend:** migrate to full SSR ([bf79d1c](https://github.com/f1nniboy/lrcmux/commit/bf79d1cf4daa2fb1deb9a8144de4aac58c2afaa7))
+* **frontend:** rework landing page, add /apps page, SSR for lyrics page ([3d8de52](https://github.com/f1nniboy/lrcmux/commit/3d8de52f763a33142455e733f0aca6637134ed58))
+* **orchestrator:** make fan-out tiered by sync level, simplify pick ([26ebec8](https://github.com/f1nniboy/lrcmux/commit/26ebec8eac51bbce35facd3b0ca36566c39840af))
+
+
+### Bug fixes
+
+* **api:** pass error message through instead of hardcoded strings ([26ebec8](https://github.com/f1nniboy/lrcmux/commit/26ebec8eac51bbce35facd3b0ca36566c39840af))
+* **breaker:** use GetMany instead of per-key Get in states ([26ebec8](https://github.com/f1nniboy/lrcmux/commit/26ebec8eac51bbce35facd3b0ca36566c39840af))
+* **format/lrc:** only emit headers for word-level sync ([e20c9d8](https://github.com/f1nniboy/lrcmux/commit/e20c9d8e3775838ba532377861d78f53e41d8340))
+* **format/lrc:** remove metadata headers from output ([51b5ee7](https://github.com/f1nniboy/lrcmux/commit/51b5ee7c30a1c8820e1e30e33aaedcbf6f3d9da0))
+* **frontend:** disable link preloading, was triggering on mobile touch ([bf79d1c](https://github.com/f1nniboy/lrcmux/commit/bf79d1cf4daa2fb1deb9a8144de4aac58c2afaa7))
+* **frontend:** forward User-Agent through lyrics API requests ([bf79d1c](https://github.com/f1nniboy/lrcmux/commit/bf79d1cf4daa2fb1deb9a8144de4aac58c2afaa7))
+* **providers/kugou:** reject censored results at provider level ([26ebec8](https://github.com/f1nniboy/lrcmux/commit/26ebec8eac51bbce35facd3b0ca36566c39840af))
+* **providers/kugou:** trim trailing space from last word in line ([329a310](https://github.com/f1nniboy/lrcmux/commit/329a310b6acf08daee4b8bbd48dfa51e430e77f7))
+
+
+### Refactors
+
+* **frontend:** simplify lyrics page ([bf79d1c](https://github.com/f1nniboy/lrcmux/commit/bf79d1cf4daa2fb1deb9a8144de4aac58c2afaa7))
+
 ## [1.4.0](https://github.com/f1nniboy/lrcmux/compare/v1.3.0...v1.4.0) (2026-07-06)
 
 

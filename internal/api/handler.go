@@ -26,7 +26,7 @@ type GetLyricsInput struct {
 	Duration int64  `query:"duration" doc:"Track duration in seconds"`
 	ISRC     string `query:"isrc" doc:"ISRC of the track, has priority over artist and title"`
 	Level    string `query:"level" doc:"Highest sync level to accept, or exact level if strict is set" enum:"word,line,none" default:"word"`
-	Format   string `query:"format" doc:"Response format" enum:"lrc,txt,json,srt,vtt" default:"json"`
+	Format   string `query:"format" doc:"Response format" enum:"lrc,txt,json,srt,vtt,lyricsfile" default:"json"`
 	Strict   bool   `query:"strict" doc:"Fail instead of falling back to a lower sync level"`
 	Fetch    string `query:"fetch" doc:"Cache strategy" enum:"default,cache,force" default:"default"`
 }
@@ -144,7 +144,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		return nil, huma.Error500InternalServerError(err.Error())
 	}
 
-	filename := fmt.Sprintf("%s - %s.%s", utils.SanitizeFilename(lyricsResp.Result.Track.Artist), utils.SanitizeFilename(lyricsResp.Result.Track.Title), input.Format)
+	filename := fmt.Sprintf("%s - %s.%s", utils.SanitizeFilename(lyricsResp.Result.Track.Artist), utils.SanitizeFilename(lyricsResp.Result.Track.Title), encoder.Extension())
 
 	return &huma.StreamResponse{
 		Body: func(ctx huma.Context) {
@@ -198,8 +198,8 @@ func (s *Server) mapError(err error) error {
 		return huma.Error503ServiceUnavailable(err.Error())
 	case errors.Is(err, orchestrator.ErrNotFound):
 		e := huma.Error404NotFound(err.Error())
-		if s.cfg.Cache.MissTTL.Duration > 0 {
-			return huma.ErrorWithHeaders(e, http.Header{"Cache-Control": {fmt.Sprintf("public, max-age=%d", int(s.cfg.Cache.MissTTL.Duration.Seconds()))}})
+		if s.cfg.Cache.TTL.Miss.Duration > 0 {
+			return huma.ErrorWithHeaders(e, http.Header{"Cache-Control": {fmt.Sprintf("public, max-age=%d", int(s.cfg.Cache.TTL.Miss.Duration.Seconds()))}})
 		}
 		return e
 	default:

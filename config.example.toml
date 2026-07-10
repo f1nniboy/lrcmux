@@ -7,10 +7,17 @@ listen = ':8080'
 [cache]
 # Redis URL, overridable via REDIS_URL env var, omit to use in-memory cache
 # redis_url = 'redis://localhost:6379'
-# how long to cache successful lyrics results
-ttl = '24h0m0s'
-# how long to cache provider not-found results
-miss_ttl = '1h0m0s'
+
+# comment out keys to disable expiration
+[cache.ttl]
+# word-level results
+word = '0s'
+# line-level results
+line = '720h0m0s'
+# unsynced results
+none = '168h0m0s'
+# provider not-found results
+miss = '24h0m0s'
 
 [log]
 # debug, info, warn, error
@@ -34,7 +41,6 @@ window = '1h0m0s'
 # address to expose Prometheus metrics on
 # listen = ':9091'
 
-# named proxy pools, providers reference a pool via proxy = "<name>"
 # [proxies]
 # [proxies.mypool]
 # urls = ['socks5://user:pass@proxy1.example.com:1080']
@@ -42,6 +48,7 @@ window = '1h0m0s'
 [providers]
 [providers.genius]
 enable = true
+# proxy = 'mypool'
 
 [providers.kugou]
 enable = true

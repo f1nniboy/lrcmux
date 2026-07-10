@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/f1nniboy/lrcmux/internal/cache"
+	"github.com/f1nniboy/lrcmux/internal/config"
 	"github.com/f1nniboy/lrcmux/internal/isrc"
 	"github.com/f1nniboy/lrcmux/internal/logging"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
@@ -68,9 +69,8 @@ type ProviderInfo struct {
 }
 
 type Options struct {
-	Timeout      time.Duration
-	CacheTTL     time.Duration
-	CacheMissTTL time.Duration
+	Timeout time.Duration
+	TTL     config.CacheTTL
 }
 
 func New(provs []providers.Provider, c cache.Cache, breaker *Breaker, resolver *isrc.Resolver, coll *metrics.Collector, opts Options) *Orchestrator {
@@ -260,21 +260,20 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force boo
 	return
 }
 
-func (o *Orchestrator) remainingTTL(ctx context.Context, q lyrics.Query, r *lyrics.Result) time.Duration {
-	ttl, err := o.cache.TTL(ctx, cacheKey(q.Track.ISRC, r.Source.ID))
-	if err == nil && ttl > 0 {
-		return ttl
-	}
-	return o.opts.CacheTTL
-}
-
 func (o *Orchestrator) respond(ctx context.Context, r *lyrics.Result, cached bool, level lyrics.SyncLevel, q lyrics.Query) *Response {
 	out := lyrics.Downgrade(r, level)
 	out.Track = q.Track
 
-	ttl := o.opts.CacheTTL
-	if cached {
-		ttl = o.remainingTTL(ctx, q, r)
+	ttl := o.ttlFor(r)
+	if cached && ttl > 0 {
+		if cacheTTL, err := o.cache.TTL(ctx, cacheKey(q.Track.ISRC, r.Source.ID)); err == nil {
+			ttl = cacheTTL
+		}
+	}
+	if ttl == 0 {
+		// pretty arbitrary, but we always want some sane value for
+		// Cache-Control header
+		ttl = 365 * 24 * time.Hour
 	}
 
 	return &Response{Result: out, Cached: cached, TTL: ttl}
@@ -336,12 +335,12 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 
 		for i, r := range results {
 			ids[i] = r.Source.ID
-			if err := cache.Set(bg, o.cache, cacheKey(q.Track.ISRC, r.Source.ID), *r, o.opts.CacheTTL); err != nil {
+			if err := cache.Set(bg, o.cache, cacheKey(q.Track.ISRC, r.Source.ID), *r, o.ttlFor(r)); err != nil {
 				o.log.Warn("cache set failed", "err", err, "provider", r.Source.ID)
 			}
 		}
 		for _, provider := range misses {
-			if err := cache.SetMiss(bg, o.cache, cacheKey(q.Track.ISRC, provider), o.opts.CacheMissTTL); err != nil {
+			if err := cache.SetMiss(bg, o.cache, cacheKey(q.Track.ISRC, provider), o.opts.TTL.Miss.Duration); err != nil {
 				o.log.Warn("miss cache set failed", "provider", provider, "err", err)
 			}
 		}
@@ -413,6 +412,17 @@ func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *l
 		o.log.Debug("pick: no result meets target level")
 	}
 	return best
+}
+
+func (o *Orchestrator) ttlFor(r *lyrics.Result) time.Duration {
+	switch r.SyncLevel {
+	case lyrics.SyncWord:
+		return o.opts.TTL.Word.Duration
+	case lyrics.SyncLine:
+		return o.opts.TTL.Line.Duration
+	default:
+		return o.opts.TTL.None.Duration
+	}
 }
 
 func rankResult(a, b *lyrics.Result) bool {

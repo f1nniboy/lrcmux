@@ -27,8 +27,12 @@ func main() {
 		},
 		Cache: config.Cache{
 			RedisURL: "redis://localhost:6379",
-			TTL:      config.Duration{Duration: 24 * time.Hour},
-			MissTTL:  config.Duration{Duration: time.Hour},
+			TTL: config.CacheTTL{
+				Word: config.Duration{Duration: 0},
+				Line: config.Duration{Duration: 720 * time.Hour},
+				None: config.Duration{Duration: 168 * time.Hour},
+				Miss: config.Duration{Duration: 24 * time.Hour},
+			},
 		},
 		Log: logging.Config{Level: "info", Format: "text"},
 		Provider: config.ProviderOptions{
@@ -43,7 +47,7 @@ func main() {
 			"mypool": {URLs: []string{"socks5://user:pass@proxy1.example.com:1080"}},
 		},
 		Providers: map[string]any{
-			"genius":     genius.Provider{Common: enabled},
+			"genius":     genius.Provider{Common: providers.Common{Enable: true, Proxy: "mypool"}},
 			"kugou":      kugou.Provider{Common: enabled},
 			"lrclib":     lrclib.Provider{Common: enabled, BaseURL: "https://lrclib.net"},
 			"musixmatch": musixmatch.Provider{Common: enabled, PoolSize: 5},

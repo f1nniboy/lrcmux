@@ -91,13 +91,12 @@ func main() {
 		log.Info("metrics enabled", "addr", cfg.Metrics.Listen)
 	}
 
-	isrcResolver := isrc.New(&http.Client{Timeout: 3 * time.Second}, cacheLayer, cfg.Cache.MissTTL.Duration, logging.New("isrc"))
+	isrcResolver := isrc.New(&http.Client{Timeout: 3 * time.Second}, cacheLayer, cfg.Cache.TTL.Miss.Duration, logging.New("isrc"))
 
 	breaker := orchestrator.NewBreaker(cacheLayer, logging.New("breaker"))
 	orch := orchestrator.New(provs, cacheLayer, breaker, isrcResolver, coll, orchestrator.Options{
-		Timeout:      cfg.Provider.Timeout.Duration,
-		CacheTTL:     cfg.Cache.TTL.Duration,
-		CacheMissTTL: cfg.Cache.MissTTL.Duration,
+		Timeout: cfg.Provider.Timeout.Duration,
+		TTL:     cfg.Cache.TTL,
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

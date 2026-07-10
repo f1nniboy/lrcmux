@@ -16,6 +16,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers/kugou"
 	"github.com/f1nniboy/lrcmux/internal/providers/lrclib"
 	"github.com/f1nniboy/lrcmux/internal/providers/musixmatch"
+	"github.com/f1nniboy/lrcmux/internal/providers/stub"
 	"github.com/f1nniboy/lrcmux/internal/providers/ytmusic"
 )
 
@@ -27,7 +28,7 @@ func buildProviders(cfg *config.Root, c cache.Cache, pools *proxy.Registry, log 
 		&kugou.Provider{},
 		&lrclib.Provider{},
 		&musixmatch.Provider{},
-		//&stub.Provider{},
+		&stub.Provider{},
 		&ytmusic.Provider{},
 	}
 

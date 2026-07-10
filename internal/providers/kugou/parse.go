@@ -67,6 +67,9 @@ func parseKRC(text string) []lyrics.Line {
 			continue
 		}
 
+		// kugou seems to be very inconsistent with whitespace
+		lineWords[len(lineWords)-1].Text = strings.TrimRight(lineWords[len(lineWords)-1].Text, " ")
+
 		var b strings.Builder
 		for _, w := range lineWords {
 			b.WriteString(w.Text)

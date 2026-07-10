@@ -11,17 +11,19 @@ import (
 type Encoder interface {
 	Encode(w io.Writer, r *lyrics.Result) error
 	ContentType() string
+	Extension() string
 	// specifies which range of sync levels this encoder can output
 	Levels() (min, max lyrics.SyncLevel)
 	Desc() string
 }
 
 var registry = map[string]Encoder{
-	"lrc":  lrcEncoder{},
-	"json": jsonEncoder{},
-	"txt":  txtEncoder{},
-	"srt":  srtEncoder{},
-	"vtt":  vttEncoder{},
+	"lrc":        lrcEncoder{},
+	"json":       jsonEncoder{},
+	"txt":        txtEncoder{},
+	"srt":        srtEncoder{},
+	"vtt":        vttEncoder{},
+	"lyricsfile": lfEncoder{},
 }
 
 func All() []string {

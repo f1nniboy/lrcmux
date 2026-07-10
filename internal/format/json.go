@@ -27,6 +27,7 @@ type jsonEncoder struct{}
 
 func (jsonEncoder) Levels() (min, max lyrics.SyncLevel) { return lyrics.SyncNone, lyrics.SyncWord }
 func (jsonEncoder) ContentType() string                 { return "application/json; charset=utf-8" }
+func (jsonEncoder) Extension() string                   { return "json" }
 func (jsonEncoder) Desc() string                        { return "Default, structured lines and metadata" }
 
 func (jsonEncoder) Encode(w io.Writer, r *lyrics.Result) error {

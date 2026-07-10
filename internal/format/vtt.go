@@ -12,6 +12,7 @@ type vttEncoder struct{}
 
 func (vttEncoder) Levels() (min, max lyrics.SyncLevel) { return lyrics.SyncLine, lyrics.SyncLine }
 func (vttEncoder) ContentType() string                 { return "text/vtt; charset=utf-8" }
+func (vttEncoder) Extension() string                   { return "vtt" }
 func (vttEncoder) Desc() string                        { return "WebVTT for browser-based players" }
 
 func (vttEncoder) Encode(w io.Writer, r *lyrics.Result) error {

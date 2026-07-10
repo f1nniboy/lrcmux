@@ -12,6 +12,7 @@ type srtEncoder struct{}
 
 func (srtEncoder) Levels() (min, max lyrics.SyncLevel) { return lyrics.SyncLine, lyrics.SyncLine }
 func (srtEncoder) ContentType() string                 { return "text/plain; charset=utf-8" }
+func (srtEncoder) Extension() string                   { return "srt" }
 func (srtEncoder) Desc() string                        { return "Subtitles for video editors and media players" }
 
 func (srtEncoder) Encode(w io.Writer, r *lyrics.Result) error {

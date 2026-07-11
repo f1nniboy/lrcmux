@@ -45,12 +45,8 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 	params := url.Values{}
 	params.Set("artist_name", q.Track.Artist)
 	params.Set("track_name", q.Track.Title)
-	if q.Track.Album != "" {
-		params.Set("album_name", q.Track.Album)
-	}
-	if q.Track.Duration > 0 {
-		params.Set("duration", strconv.FormatInt(q.Track.Duration, 10))
-	}
+	params.Set("album_name", q.Track.Album)
+	params.Set("duration", strconv.FormatInt(q.Track.Duration, 10))
 	endpoint := p.BaseURL + "/api/get?" + params.Encode()
 
 	var r apiResult

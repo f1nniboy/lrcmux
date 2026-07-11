@@ -93,20 +93,11 @@ func (r *Resolver) resolveBySearch(ctx context.Context, in ResolveInput) (lyrics
 	sfKey := normalize.String(in.Artist) + ":" + normalize.String(in.Title)
 	v, err, _ := r.group.Do(sfKey, func() (any, error) {
 		track, err := r.lookup(ctx, in)
-		if err != nil && !errors.Is(err, lyrics.ErrNotFound) {
-			r.log.Warn("isrc lookup failed", "artist", in.Artist, "title", in.Title, "err", err)
-			return lyrics.Track{}, err
-		}
-
-		if errors.Is(err, lyrics.ErrNotFound) {
-			if primary := normalize.PrimaryArtist(in.Artist); primary != "" && normalize.String(primary) != normalize.String(in.Artist) {
-				primaryIn := in
-				primaryIn.Artist = primary
-				track, err = r.lookup(ctx, primaryIn)
-			}
-		}
-
 		if err != nil {
+			if !errors.Is(err, lyrics.ErrNotFound) {
+				r.log.Warn("isrc lookup failed", "artist", in.Artist, "title", in.Title, "err", err)
+				return lyrics.Track{}, err
+			}
 			r.log.Debug("isrc not found", "artist", in.Artist, "title", in.Title)
 			go cache.SetMiss(context.Background(), r.cache, key, r.missTTL)
 			return lyrics.Track{}, lyrics.ErrNotFound

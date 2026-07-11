@@ -12,6 +12,12 @@ import (
 
 var noteChars = "♩♪♫♬𝄞𝄟𝄠"
 
+func isOnlyNotes(s string) bool {
+	return strings.TrimFunc(s, func(r rune) bool {
+		return strings.ContainsRune(noteChars, r)
+	}) == ""
+}
+
 // unmarshals a JSON number or JSON string into int64, as YouTube sometimes
 // returns millisecond timestamps as quoted strings (?)
 type int64S int64
@@ -200,34 +206,15 @@ func (r *timedBrowseResp) parse() ([]lyrics.Line, string) {
 	}
 	out := make([]lyrics.Line, 0, len(data.TimedLyricsData))
 	for _, tl := range data.TimedLyricsData {
-		if strings.TrimSpace(tl.LyricLine) == "" {
+		text := strings.TrimSpace(tl.LyricLine)
+		if text == "" || isOnlyNotes(text) {
 			continue
-		}
-		text := tl.LyricLine
-		// lines consisting solely of musical note characters are gap markers
-		stripped := strings.Map(func(r rune) rune {
-			if strings.ContainsRune(noteChars, r) {
-				return -1
-			}
-			return r
-		}, strings.TrimSpace(text))
-		if strings.TrimSpace(stripped) == "" {
-			text = ""
 		}
 		out = append(out, lyrics.Line{
 			StartMs: int64(tl.CueRange.StartTimeMilliseconds),
 			EndMs:   int64(tl.CueRange.EndTimeMilliseconds),
-			Text:    text,
+			Text:    tl.LyricLine,
 		})
 	}
-	// drop leading and trailing gap lines
-	start := 0
-	for start < len(out) && out[start].Text == "" {
-		start++
-	}
-	end := len(out)
-	for end > start && out[end-1].Text == "" {
-		end--
-	}
-	return out[start:end], data.SourceMessage
+	return out, data.SourceMessage
 }

@@ -196,7 +196,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 			if len(tier) == 0 {
 				continue
 			}
-			o.log.Debug("fanout tier", "tier", i, "providers", providerIDs(tier), "target_level", req.Level.String())
+			o.log.Debug("fanout tier", "tier", i, "providers", providers.IDs(tier), "target_level", req.Level.String())
 			allResults = append(allResults, o.fanOut(ctx, tier, q, req.Level)...)
 
 			if picked := o.pick(allResults, req.Level); picked != nil {
@@ -262,7 +262,7 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force boo
 }
 
 func (o *Orchestrator) respond(ctx context.Context, r *lyrics.Result, cached bool, level lyrics.SyncLevel, q lyrics.Query) *Response {
-	out := lyrics.Downgrade(r, level)
+	out := r.Downgrade(level)
 	out.Track = q.Track
 
 	ttl := o.ttlFor(r)
@@ -284,7 +284,7 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 	fanCtx, cancel := context.WithTimeout(ctx, o.opts.Timeout)
 	defer cancel()
 
-	o.log.Debug("fanning out", "providers", providerIDs(active), "target_level", level.String(), "timeout", o.opts.Timeout.Milliseconds())
+	o.log.Debug("fanning out", "providers", providers.IDs(active), "target_level", level.String(), "timeout", o.opts.Timeout.Milliseconds())
 
 	ch := make(chan providerOutcome, len(active))
 	var wg sync.WaitGroup

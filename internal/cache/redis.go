@@ -4,21 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-
-	"github.com/f1nniboy/lrcmux/internal/logging"
 )
 
 type Redis struct {
 	client *redis.Client
-	log    *slog.Logger
 }
 
 func NewRedis(client *redis.Client) *Redis {
-	return &Redis{client: client, log: logging.New("cache")}
+	return &Redis{client: client}
 }
 
 func (r *Redis) GetBytes(ctx context.Context, key string) ([]byte, bool, error) {

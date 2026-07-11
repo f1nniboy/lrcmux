@@ -51,7 +51,7 @@ func New(listen string) *Collector {
 
 	c.RequestOutcomes = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "lrcmux_request_outcomes_total",
-		Help: "Request funnel stages: isrc_not_found, cache_hit, fanout, breakers_open",
+		Help: "Request funnel stages",
 	}, []string{"stage"})
 
 	reg.MustRegister(

@@ -22,6 +22,14 @@ type Provider interface {
 
 var ErrRateLimited = errors.New("provider rate limited")
 
+func IDs(provs []Provider) []string {
+	ids := make([]string, len(provs))
+	for i, p := range provs {
+		ids[i] = p.ID()
+	}
+	return ids
+}
+
 type Common struct {
 	Cache  cache.Cache  `toml:"-"`
 	HTTP   *http.Client `toml:"-"`

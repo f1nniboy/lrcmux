@@ -54,13 +54,13 @@ func TestBuildTiers(t *testing.T) {
 			t.Fatalf("expected 3 tiers, got %d", len(tiers))
 		}
 		if len(tiers[0]) != 2 {
-			t.Errorf("tier 0 should have 2 word providers, got %v", providerIDs(tiers[0]))
+			t.Errorf("tier 0 should have 2 word providers, got %v", providers.IDs(tiers[0]))
 		}
 		if len(tiers[1]) != 1 || tiers[1][0].ID() != "line1" {
-			t.Errorf("tier 1 should be [line1], got %v", providerIDs(tiers[1]))
+			t.Errorf("tier 1 should be [line1], got %v", providers.IDs(tiers[1]))
 		}
 		if len(tiers[2]) != 1 || tiers[2][0].ID() != "none1" {
-			t.Errorf("tier 2 should be [none1], got %v", providerIDs(tiers[2]))
+			t.Errorf("tier 2 should be [none1], got %v", providers.IDs(tiers[2]))
 		}
 	})
 
@@ -70,10 +70,10 @@ func TestBuildTiers(t *testing.T) {
 			t.Fatalf("expected 2 tiers, got %d", len(tiers))
 		}
 		if len(tiers[0]) != 3 {
-			t.Errorf("tier 0 should have word+line providers (3), got %v", providerIDs(tiers[0]))
+			t.Errorf("tier 0 should have word+line providers (3), got %v", providers.IDs(tiers[0]))
 		}
 		if len(tiers[1]) != 1 || tiers[1][0].ID() != "none1" {
-			t.Errorf("tier 1 should be [none1], got %v", providerIDs(tiers[1]))
+			t.Errorf("tier 1 should be [none1], got %v", providers.IDs(tiers[1]))
 		}
 	})
 
@@ -83,14 +83,14 @@ func TestBuildTiers(t *testing.T) {
 			t.Fatalf("expected 1 tier, got %d", len(tiers))
 		}
 		if len(tiers[0]) != 4 {
-			t.Errorf("tier 0 should contain all 4 providers, got %v", providerIDs(tiers[0]))
+			t.Errorf("tier 0 should contain all 4 providers, got %v", providers.IDs(tiers[0]))
 		}
 	})
 
 	t.Run("no providers at requested level still returns tier 0", func(t *testing.T) {
 		tiers := buildTiers([]providers.Provider{none1}, lyrics.SyncWord)
 		if len(tiers[0]) != 0 {
-			t.Errorf("tier 0 should be empty, got %v", providerIDs(tiers[0]))
+			t.Errorf("tier 0 should be empty, got %v", providers.IDs(tiers[0]))
 		}
 	})
 }

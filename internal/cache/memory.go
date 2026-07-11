@@ -30,10 +30,9 @@ func (m *Memory) alive(e memEntry) bool {
 func (m *Memory) cleanup() {
 	t := time.NewTicker(time.Minute)
 	for range t.C {
-		now := time.Now()
 		m.mu.Lock()
 		for k, e := range m.entries {
-			if !e.expires.IsZero() && now.After(e.expires) {
+			if !m.alive(e) {
 				delete(m.entries, k)
 			}
 		}
@@ -87,7 +86,7 @@ func (m *Memory) TTL(_ context.Context, key string) (time.Duration, error) {
 	m.mu.RLock()
 	e, ok := m.entries[key]
 	m.mu.RUnlock()
-	if !ok || !m.alive(e) || e.expires.IsZero() {
+	if !ok || e.expires.IsZero() || !m.alive(e) {
 		return -1, nil
 	}
 	return time.Until(e.expires), nil
@@ -99,7 +98,7 @@ func (m *Memory) TTLMany(_ context.Context, keys ...string) ([]time.Duration, er
 	out := make([]time.Duration, len(keys))
 	for i, k := range keys {
 		e, ok := m.entries[k]
-		if !ok || !m.alive(e) || e.expires.IsZero() {
+		if !ok || e.expires.IsZero() || !m.alive(e) {
 			out[i] = -1
 			continue
 		}

@@ -106,7 +106,19 @@
         </div>
         {#if lyrics.meta.source}
           <p class="mt-3 text-xs text-muted text-center">
-            &copy; {lyrics.meta.source.name}
+            &copy;
+            {#if lyrics.meta.source.url}
+              <!-- eslint-disable svelte/no-navigation-without-resolve -->
+              <a
+                class="hover:underline"
+                href={lyrics.meta.source.url}
+                rel="noopener noreferrer"
+                target="_blank">{lyrics.meta.source.name}</a
+              >
+              <!-- eslint-enable svelte/no-navigation-without-resolve -->
+            {:else}
+              {lyrics.meta.source.name}
+            {/if}
           </p>
         {/if}
       </div>

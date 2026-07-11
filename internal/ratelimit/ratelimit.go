@@ -28,19 +28,15 @@ type Limiter struct {
 	limiter *redis_rate.Limiter
 	log     *slog.Logger
 	rate    redis_rate.Limit
-	limit   int64
-	window  time.Duration
 }
 
-func (l *Limiter) Limit() int64          { return l.limit }
-func (l *Limiter) Window() time.Duration { return l.window }
+func (l *Limiter) Limit() int            { return l.rate.Rate }
+func (l *Limiter) Window() time.Duration { return l.rate.Period }
 
 func New(rdb *redis.Client, limit int64, window time.Duration, log *slog.Logger) *Limiter {
 	return &Limiter{
 		limiter: redis_rate.NewLimiter(rdb),
 		rate:    redis_rate.Limit{Rate: int(limit), Burst: int(limit), Period: window},
-		limit:   limit,
-		window:  window,
 		log:     log,
 	}
 }

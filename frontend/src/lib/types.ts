@@ -16,6 +16,7 @@ export interface Line {
 export interface LyricsSource {
   id: string;
   name: string;
+  url?: string;
 }
 
 export interface LyricsMeta {

@@ -29,6 +29,7 @@ type Provider struct {
 
 func (p *Provider) ID() string                 { return "genius" }
 func (p *Provider) Name() string               { return "Genius" }
+func (p *Provider) URL() string                { return "https://genius.com" }
 func (p *Provider) Desc() string               { return "Best song coverage, but only plain text lyrics" }
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncNone }
 

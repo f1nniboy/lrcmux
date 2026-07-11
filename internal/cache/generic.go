@@ -35,8 +35,8 @@ func Get[T any](ctx context.Context, c Cache, key string) (T, Status, error) {
 		*sp = string(raw)
 		return out, Found, nil
 	}
-	if err := gob.NewDecoder(bytes.NewReader(raw)).Decode(&out); err != nil {
-		return zero, NotFound, fmt.Errorf("gob decode: %w", err)
+	if gob.NewDecoder(bytes.NewReader(raw)).Decode(&out) != nil {
+		return zero, NotFound, nil //nolint:nilerr
 	}
 	return out, Found, nil
 }
@@ -64,7 +64,7 @@ func GetMany[T any](ctx context.Context, c Cache, keys []string) ([]T, []Status,
 			statuses[i] = Found
 			continue
 		}
-		if err := gob.NewDecoder(bytes.NewReader(raw)).Decode(&out); err != nil {
+		if gob.NewDecoder(bytes.NewReader(raw)).Decode(&out) != nil {
 			statuses[i] = NotFound
 			continue
 		}

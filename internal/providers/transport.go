@@ -6,7 +6,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/meta"
 )
 
-var UserAgent = meta.AppName + "/" + meta.Version + " (+https://" + meta.AppDomain + ")"
+var UserAgent = meta.AppName + "/" + meta.Version + " (https://" + meta.AppDomain + ")"
 
 type uaTransport struct{ inner http.RoundTripper }
 

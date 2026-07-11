@@ -13,6 +13,7 @@ import (
 type Provider interface {
 	ID() string
 	Name() string
+	URL() string
 	Desc() string
 	MaxLevel() lyrics.SyncLevel
 	Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error)
@@ -21,6 +22,10 @@ type Provider interface {
 }
 
 var ErrRateLimited = errors.New("provider rate limited")
+
+func Source(p Provider) lyrics.Source {
+	return lyrics.Source{ID: p.ID(), Name: p.Name(), URL: p.URL()}
+}
 
 func IDs(provs []Provider) []string {
 	ids := make([]string, len(provs))
@@ -37,6 +42,8 @@ type Common struct {
 	Proxy  string       `toml:"proxy,omitempty,commented"`
 	Enable bool         `toml:"enable"`
 }
+
+func (c *Common) URL() string { return "" }
 
 func (c *Common) SetDeps(client *http.Client, ca cache.Cache, log *slog.Logger) {
 	c.HTTP = client

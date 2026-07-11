@@ -79,17 +79,3 @@ func parseSubtitles(body string) []lyrics.Line {
 	}
 	return lines
 }
-
-func parseLyrics(body string) []lyrics.Line {
-	body = strings.ReplaceAll(body, "\r\n", "\n")
-	body = strings.TrimRight(body, "\n")
-	if body == "" {
-		return nil
-	}
-	parts := strings.Split(body, "\n")
-	lines := make([]lyrics.Line, 0, len(parts))
-	for _, p := range parts {
-		lines = append(lines, lyrics.Line{Text: p})
-	}
-	return lines
-}

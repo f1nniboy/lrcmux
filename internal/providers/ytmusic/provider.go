@@ -21,6 +21,7 @@ type Provider struct {
 
 func (p *Provider) ID() string                 { return "ytmusic" }
 func (p *Provider) Name() string               { return "YouTube Music" }
+func (p *Provider) URL() string                { return "https://music.youtube.com" }
 func (p *Provider) Desc() string               { return "Uses various sources, mix of line-synced and plain text" }
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncLine }
 

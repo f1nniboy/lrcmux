@@ -14,21 +14,22 @@ import (
 )
 
 type Provider struct {
-	BaseURL string `toml:"base_url,commented,omitempty" comment:"which LRCLIB instance to use"`
+	BaseURL string `toml:"base_url,commented,omitempty" comment:"which instance to use"`
 	providers.Common
 }
 
-func (p *Provider) ID() string { return "lrclib" }
+func (p *Provider) ID() string                 { return "lrclib" }
+func (p *Provider) Name() string               { return "LRCLIB" }
+func (p *Provider) URL() string                { return p.BaseURL }
+func (p *Provider) Desc() string               { return "Community-sourced lyrics database" }
+func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncLine }
+
 func (p *Provider) Init() {
 	if p.BaseURL == "" {
 		p.BaseURL = "https://lrclib.net"
 	}
 	p.BaseURL = strings.TrimRight(p.BaseURL, "/")
 }
-
-func (p *Provider) Name() string               { return "LRCLIB" }
-func (p *Provider) Desc() string               { return "Community-sourced lyrics database" }
-func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncLine }
 
 type apiResult struct {
 	TrackName    string  `json:"trackName"`
@@ -92,22 +93,8 @@ func toResult(r apiResult) *lyrics.Result {
 		res.Lines = parseSynced(r.SyncedLyrics)
 		res.SyncLevel = lyrics.SyncLine
 	} else {
-		res.Lines = plainToLines(r.PlainLyrics)
+		res.Lines = lyrics.ParsePlain(r.PlainLyrics)
 		res.SyncLevel = lyrics.SyncNone
 	}
 	return res
-}
-
-func plainToLines(s string) []lyrics.Line {
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	s = strings.TrimRight(s, "\n")
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, "\n")
-	out := make([]lyrics.Line, 0, len(parts))
-	for _, p := range parts {
-		out = append(out, lyrics.Line{Text: p})
-	}
-	return out
 }

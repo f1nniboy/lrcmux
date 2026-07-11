@@ -64,8 +64,7 @@ type ProviderHealth struct {
 }
 
 type ProviderInfo struct {
-	ID     string         `json:"id"`
-	Name   string         `json:"name"`
+	lyrics.Source
 	Health ProviderHealth `json:"health"`
 }
 
@@ -104,7 +103,7 @@ func (o *Orchestrator) Health(ctx context.Context) []ProviderInfo {
 			health.TTL = int64(open.TTL.Seconds())
 			health.Reason = open.Reason
 		}
-		infos[i] = ProviderInfo{ID: p.ID(), Name: p.Name(), Health: health}
+		infos[i] = ProviderInfo{Source: providers.Source(p), Health: health}
 	}
 	return infos
 }
@@ -112,8 +111,7 @@ func (o *Orchestrator) Health(ctx context.Context) []ProviderInfo {
 type providerOutcome struct {
 	err     error
 	result  *lyrics.Result
-	id      string
-	name    string
+	source  lyrics.Source
 	latency time.Duration
 }
 
@@ -293,7 +291,7 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 			o.log.Debug("querying provider", "provider", p.ID())
 			start := time.Now()
 			r, err := p.Search(fanCtx, q)
-			ch <- providerOutcome{id: p.ID(), name: p.Name(), result: r, err: err, latency: time.Since(start)}
+			ch <- providerOutcome{source: providers.Source(p), result: r, err: err, latency: time.Since(start)}
 		})
 	}
 	go func() { wg.Wait(); close(ch) }()
@@ -303,21 +301,21 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 
 	collect := func(out providerOutcome) {
 		if out.err == nil && out.result != nil {
-			out.result.Source = lyrics.Source{ID: out.id, Name: out.name}
+			out.result.Source = out.source
 			out.result.Lines = lyrics.CleanLines(out.result.Lines)
 			results = append(results, out.result)
 		}
 		if errors.Is(out.err, lyrics.ErrNotFound) {
-			misses = append(misses, out.id)
+			misses = append(misses, out.source.ID)
 		}
 		outcome := o.logOutcome(out, q)
-		o.breaker.Record(out.id, outcome)
+		o.breaker.Record(out.source.ID, outcome)
 	}
 
 	for out := range ch {
 		collect(out)
 		if out.result != nil && out.result.SyncLevel >= level {
-			o.log.Debug("target satisfied, cancelling remaining", "provider", out.id, "sync", out.result.SyncLevel.String())
+			o.log.Debug("target satisfied, cancelling remaining", "provider", out.source.ID, "sync", out.result.SyncLevel.String())
 			cancel()
 			break
 		}
@@ -377,7 +375,7 @@ func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) string {
 		extra = []any{"err", out.err}
 
 		sentry.WithScope(func(scope *sentry.Scope) {
-			scope.SetTag("provider", out.id)
+			scope.SetTag("provider", out.source.ID)
 			scope.SetContext("query", sentry.Context{
 				"isrc":   q.Track.ISRC,
 				"artist": q.Track.Artist,
@@ -387,12 +385,12 @@ func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) string {
 		})
 	}
 
-	args := append([]any{"provider", out.id, "outcome", outcome, "latency", out.latency.Milliseconds()}, extra...)
+	args := append([]any{"provider", out.source.ID, "outcome", outcome, "latency", out.latency.Milliseconds()}, extra...)
 	o.log.Log(context.Background(), lvl, "provider result", args...)
 
 	if o.metrics != nil {
-		o.metrics.ProviderOps.WithLabelValues(out.id, outcome).Inc()
-		o.metrics.ProviderLatency.WithLabelValues(out.id).Observe(out.latency.Seconds())
+		o.metrics.ProviderOps.WithLabelValues(out.source.ID, outcome).Inc()
+		o.metrics.ProviderLatency.WithLabelValues(out.source.ID).Observe(out.latency.Seconds())
 	}
 
 	return outcome

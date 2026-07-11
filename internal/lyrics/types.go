@@ -86,8 +86,9 @@ type Line struct {
 }
 
 type Source struct {
-	ID   string
-	Name string
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	URL  string `json:"url,omitempty"`
 }
 
 type Result struct {

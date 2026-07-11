@@ -10,6 +10,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/meta"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
+	"github.com/f1nniboy/lrcmux/internal/providers"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
 )
 
@@ -17,31 +18,23 @@ type docsData struct {
 	RateLimit *rateLimitDoc
 	AppName   string
 	AppDomain string
-	Levels    []levelDoc
-	Formats   []formatDoc
-	Providers []providerDoc
+	Levels    []lyrics.SyncLevel
+	Formats   []formatEntry
+	Providers []providers.Provider
 }
 
-type providerDoc struct {
+// templates can't call multi-return funcs or access the registry name,
+// so we need this wrapper
+type formatEntry struct {
+	format.Encoder
 	Name string
-	Desc string
 }
 
-type levelDoc struct {
-	Name        string
-	Description string
-}
-
-type formatDoc struct {
-	Name        string
-	ContentType string
-	MinLevel    string
-	UseCase     string
-}
+func (f formatEntry) MinLevel() string { lo, _ := f.Encoder.Levels(); return lo.String() }
 
 type rateLimitDoc struct {
 	Window string
-	Limit  int64
+	Limit  int
 }
 
 func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Limiter, hide bool) (string, error) {
@@ -53,30 +46,16 @@ func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Li
 	d := docsData{
 		AppName:   meta.AppName,
 		AppDomain: meta.AppDomain,
-	}
-
-	for _, level := range lyrics.Levels {
-		d.Levels = append(d.Levels, levelDoc{Name: level.String(), Description: level.Desc()})
+		Levels:    lyrics.Levels,
 	}
 
 	for _, name := range format.All() {
 		enc, _ := format.Get(name)
-		lo, _ := enc.Levels()
-		d.Formats = append(d.Formats, formatDoc{
-			Name:        name,
-			ContentType: enc.ContentType(),
-			MinLevel:    lo.String(),
-			UseCase:     enc.Desc(),
-		})
+		d.Formats = append(d.Formats, formatEntry{Encoder: enc, Name: name})
 	}
 
 	if !hide {
-		for _, p := range orch.Providers() {
-			d.Providers = append(d.Providers, providerDoc{
-				Name: p.Name(),
-				Desc: p.Desc(),
-			})
-		}
+		d.Providers = orch.Providers()
 	}
 
 	if rate != nil {

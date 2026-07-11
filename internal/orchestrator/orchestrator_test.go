@@ -30,6 +30,7 @@ type stubProvider struct {
 
 func (s *stubProvider) ID() string                 { return s.id }
 func (s *stubProvider) Name() string               { return s.id }
+func (s *stubProvider) URL() string                { return "" }
 func (s *stubProvider) Desc() string               { return "" }
 func (s *stubProvider) MaxLevel() lyrics.SyncLevel { return s.maxLevel }
 func (s *stubProvider) Search(_ context.Context, _ lyrics.Query) (*lyrics.Result, error) {

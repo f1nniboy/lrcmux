@@ -25,6 +25,7 @@ type Provider struct {
 
 func (p *Provider) ID() string                 { return "kugou" }
 func (p *Provider) Name() string               { return "Kugou" }
+func (p *Provider) URL() string                { return "https://kugou.com" }
 func (p *Provider) Desc() string               { return "Word-level sync for most songs (AI?), censors profanity" }
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 

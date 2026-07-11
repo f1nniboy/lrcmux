@@ -33,7 +33,7 @@ type tier struct {
 var tierByLevel = map[lyrics.SyncLevel]tier{
 	lyrics.SyncWord: {endpoint: "track.richsync.get", bodyKey: "richsync", contentField: "richsync_body", parse: parseRichsync},
 	lyrics.SyncLine: {endpoint: "track.subtitle.get", bodyKey: "subtitle", contentField: "subtitle_body", parse: parseSubtitles, extra: url.Values{"subtitle_format": {"mxm"}}},
-	lyrics.SyncNone: {endpoint: "track.lyrics.get", bodyKey: "lyrics", contentField: "lyrics_body", parse: parseLyrics},
+	lyrics.SyncNone: {endpoint: "track.lyrics.get", bodyKey: "lyrics", contentField: "lyrics_body", parse: lyrics.ParsePlain},
 }
 
 type Provider struct {
@@ -42,17 +42,18 @@ type Provider struct {
 	PoolSize int `toml:"pool_size,commented,omitempty" comment:"how many tokens to use in rotation"`
 }
 
-func (p *Provider) ID() string { return "musixmatch" }
+func (p *Provider) ID() string                 { return "musixmatch" }
+func (p *Provider) Name() string               { return "Musixmatch" }
+func (p *Provider) URL() string                { return "https://www.musixmatch.com" }
+func (p *Provider) Desc() string               { return "Extensive library and good word-level sync coverage" }
+func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
+
 func (p *Provider) Init() {
 	if p.PoolSize <= 0 {
 		p.PoolSize = 1
 	}
 	p.pool = newTokenPool(p.PoolSize, p.HTTP, p.Cache, p.Log)
 }
-
-func (p *Provider) Name() string               { return "Musixmatch" }
-func (p *Provider) Desc() string               { return "Extensive library and good word-level sync coverage" }
-func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
 	for {

@@ -5,23 +5,23 @@
 
 | Provider | Notes |
 | -------- | ----- |
-{{range .Providers}}| **{{.Name}}** | {{.Desc}} |
+{{range .Providers}}| {{if .URL}}**[{{.Name}}]({{.URL}})**{{else}}**{{.Name}}**{{end}} | {{.Desc}} |
 {{end}}{{end}}
 
 ## Sync levels
 
 | Level | Description |
 | ----- | ----------- |
-{{range .Levels}}| `{{.Name}}` | {{.Description}} |
+{{range .Levels}}| `{{.String}}` | {{.Desc}} |
 {{end}}
 
 ## Formats
 
 The same result can be returned in any of these formats via the `format` query parameter. If the underlying lyrics do not meet a format's minimum sync level, the request fails with a `400`.
 
-| Format | Content-Type | Min level | Use case |
+| Format | Content-Type | Min level | Notes |
 | ------ | ------------ | --------- | -------- |
-{{range .Formats}}| `{{.Name}}` | `{{.ContentType}}` | {{.MinLevel}} | {{.UseCase}} |
+{{range .Formats}}| `{{.Name}}` | `{{.ContentType}}` | {{.MinLevel}} | {{.Desc}} |
 {{end}}
 ## User agent
 

@@ -7,14 +7,9 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 )
 
-type JSONSource struct {
-	ID   string `json:"id" doc:"Provider ID"`
-	Name string `json:"name" doc:"Provider display name"`
-}
-
 type JSONMeta struct {
-	Source *JSONSource `json:"source,omitempty" doc:"Provider that returned the result"`
-	Level  string      `json:"level" doc:"Sync level of the returned lyrics" enum:"word,line,none"`
+	Source *lyrics.Source `json:"source,omitempty" doc:"Provider that returned the result"`
+	Level  string         `json:"level" doc:"Sync level of the returned lyrics" enum:"word,line,none"`
 }
 
 type JSONResponse struct {
@@ -37,7 +32,7 @@ func (jsonEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 		Track: r.Track,
 	}
 	if r.Source.ID != "" {
-		out.Meta.Source = &JSONSource{ID: r.Source.ID, Name: r.Source.Name}
+		out.Meta.Source = &r.Source
 	}
 	if r.SyncLevel >= lyrics.SyncWord {
 		lines := make([]lyrics.Line, len(r.Lines))

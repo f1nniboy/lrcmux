@@ -10,7 +10,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// shared pattern for "feat", "feat.", "ft", "ft."
+// shared pattern for feature markers
 const featRE = `(?:feat|ft)\.?`
 
 var smartQuotes = strings.NewReplacer(
@@ -21,22 +21,20 @@ var smartQuotes = strings.NewReplacer(
 )
 
 var (
-	// splits multi-artist strings on "&", "," and feat/ft markers,
-	// plus the conjunctions "and" (English), "und" (German), "et" (French),
-	// and the "x" marker
-	collaborationRE = regexp.MustCompile(`(?i)\s*[&,]\s*|\s+(?:` + featRE + `|and|und|et|x)\s+`)
+	// splits multi-artist strings on common feature markers
+	collaborationRE = regexp.MustCompile(`(?i)\s*[&,×]\s*|\s+(?:` + featRE + `|and|und|et|con|with|vs\.?|x)\s+`)
 
-	// strips feature credits from song titles: both parenthetical
-	// "(feat. X)" / "[ft. X]" and bare suffix " ft. X ...".
+	// strips feature credits from song titles
 	titleFeatureRE = regexp.MustCompile(`(?i)\s*[(\[]` + featRE + `[^)\]]*[)\]]|\s+` + featRE + `\s+\S.*$`)
 
 	// strips parenthetical/bracketed video and audio type markers from titles
-	// in several languages, e.g. "(Official Video)", "(Offizielles Musikvideo)", "(Vídeo Oficial)",
-	// "(Lyric Video)", "(4K Remastered)"
-	videoSuffixRE = regexp.MustCompile(`(?i)\s*[\[(][^\])]*\b(?:video|v[ií]deo|videoclip|musikvideo|musik|clip|audio|lyric(?:s)?|letra|paroles|mv|hd|4k|remaster(?:ed)?|official|offiziell(?:es)?|oficial|ufficiale|officiel(?:le)?)\b[^\])]*[\])]`)
+	videoSuffixRE = regexp.MustCompile(`(?i)\s*[\[(【][^\])】]*\b(?:video|v[ií]deo|videoclip|musikvideo|musik|clip|audio|lyric(?:s)?|letra|paroles|mv|hd|4k|remaster(?:ed)?|official|offiziell(?:es)?|oficial|ufficiale|officiel(?:le)?)\b[^\])】]*[\])】]`)
 
-	// strips production credits from titles, e.g. "(prod by someone)", "(prod. someone)"
-	prodRE = regexp.MustCompile(`(?i)\s*[\[(]prod(?:uced)?\b[^\])]*[\])]`)
+	// strips production credits from titles
+	prodRE = regexp.MustCompile(`(?i)\s*[\[(]prod(?:uced)?\b[^\])]*[\])]|\s+[|]?\s*prod(?:uced)?\b.*$`)
+
+	// matches the artist–title separator in combined title strings
+	artistTitleSepRE = regexp.MustCompile(`\s[-–~]\s`)
 )
 
 func String(s string) string {
@@ -54,44 +52,51 @@ func Title(s string) string {
 	return String(titleFeatureRE.ReplaceAllString(s, ""))
 }
 
-func SplitArtists(s string) []string {
+func artist(s string) string {
+	s = String(s)
+	s, _ = strings.CutSuffix(s, " - topic")
+	return strings.TrimSpace(s)
+}
+
+func splitArtists(s string) []string {
 	parts := collaborationRE.Split(s, -1)
 	out := make([]string, 0, len(parts))
 	for _, p := range parts {
-		if n := String(p); n != "" {
+		if n := artist(p); n != "" {
 			out = append(out, n)
 		}
 	}
 	return out
 }
 
-func PrimaryArtist(s string) string {
-	if parts := SplitArtists(s); len(parts) > 0 {
+func primaryArtist(s string) string {
+	if parts := splitArtists(s); len(parts) > 0 {
 		return parts[0]
 	}
 	return ""
 }
 
 func ArtistMatch(a, b string) bool {
-	na := String(a)
-	for _, part := range SplitArtists(b) {
-		if strings.Contains(na, part) {
+	aNorm := artist(a)
+	for _, part := range splitArtists(b) {
+		if strings.Contains(aNorm, part) {
 			return true
 		}
 	}
 	return false
 }
 
-func CleanQuery(artist, title string) (cleanArtist, cleanTitle string) {
-	title = videoSuffixRE.ReplaceAllString(title, "")
-	title = prodRE.ReplaceAllString(title, "")
-	title = strings.TrimSpace(title)
-	if artist != "" {
-		if idx := strings.Index(title, " - "); idx != -1 {
-			artist = strings.TrimSpace(title[:idx])
-			title = strings.TrimSpace(title[idx+3:])
-		}
+func Query(inputArtist, inputTitle string) (cleanArtist, cleanTitle string) {
+	inputTitle = videoSuffixRE.ReplaceAllString(inputTitle, "")
+	inputTitle = prodRE.ReplaceAllString(inputTitle, "")
+	inputTitle = strings.TrimSpace(inputTitle)
+
+	// extract artist from title (e.g. YouTube videos)
+	if loc := artistTitleSepRE.FindStringIndex(inputTitle); loc != nil {
+		inputArtist = strings.TrimSpace(inputTitle[:loc[0]])
+		inputTitle = strings.TrimSpace(inputTitle[loc[1]:])
 	}
-	title = titleFeatureRE.ReplaceAllString(title, "")
-	return artist, strings.TrimSpace(title)
+
+	inputTitle = titleFeatureRE.ReplaceAllString(inputTitle, "")
+	return primaryArtist(inputArtist), String(inputTitle)
 }

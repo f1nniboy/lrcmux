@@ -179,7 +179,7 @@ func (s *Server) fetch(ctx context.Context, req orchestrator.Request) (*orchestr
 		}
 	}
 
-	req.Artist, req.Title = normalize.CleanQuery(req.Artist, req.Title)
+	req.Artist, req.Title = normalize.Query(req.Artist, req.Title)
 	return s.orch.Get(ctx, req)
 }
 

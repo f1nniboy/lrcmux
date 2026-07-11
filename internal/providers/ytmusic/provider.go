@@ -40,7 +40,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 
 func (p *Provider) searchVideoID(ctx context.Context, q lyrics.Query) (string, error) {
 	body := map[string]any{
-		"query":   q.Track.Title + " " + normalize.PrimaryArtist(q.Track.Artist),
+		"query":   q.Track.Title + " " + normalize.String(q.Track.Artist),
 		"params":  "EgWKAQIIAWoMEA4QChADEAQQCRAF",
 		"context": webContext(),
 	}

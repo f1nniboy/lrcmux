@@ -23,6 +23,22 @@ func TestString(t *testing.T) {
 	}
 }
 
+func TestArtist(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"Artist", "artist"},
+		{"Artist - Topic", "artist"},
+		{"Artist - TOPIC", "artist"},
+		{"Héros - Topic", "heros"},
+	}
+	for _, c := range cases {
+		if got := artist(c.in); got != c.want {
+			t.Errorf("artist(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
 func TestTitle(t *testing.T) {
 	cases := []struct {
 		in, want string
@@ -42,25 +58,33 @@ func TestTitle(t *testing.T) {
 	}
 }
 
-func TestCleanQuery(t *testing.T) {
+func TestQuery(t *testing.T) {
 	cases := []struct {
 		artist, title, wantArtist, wantTitle string
 	}{
-		{"Artist", "Title", "Artist", "Title"},
-		{"Uploader", "Performer - Song ft. Other", "Performer", "Song"},
-		{"Artist", "Artist - Title", "Artist", "Title"},
-		{"", "Artist - Title", "", "Artist - Title"},
-		{"Uploader", "Performer - Song ft. Other (Official Video)", "Performer", "Song"},
-		{"Artist", "Artist - Title (Offizielles Musikvideo)", "Artist", "Title"},
-		{"", "Title (Vídeo Oficial)", "", "Title"},
-		{"Artist", "Artist - Title (prod by Someone)", "Artist", "Title"},
-		{"", "Title (prod. Producer)", "", "Title"},
-		{"", "Title (produced by Producer)", "", "Title"},
+		{"Artist", "Title", "artist", "title"},
+		{"Artist - Topic", "Title", "artist", "title"},
+		{"Artist feat. Someone", "Title", "artist", "title"},
+		{"Uploader", "Artist - Title", "artist", "title"},
+		{"Uploader", "Artist – Title", "artist", "title"},
+		{"Uploader", "Artist ~ Title", "artist", "title"},
+		{"Uploader", "Artist - Song ft. Other", "artist", "song"},
+		{"Artist", "Artist - Title", "artist", "title"},
+		{"Uploader", "Artist - Song ft. Other (Official Video)", "artist", "song"},
+		{"Artist", "Artist - Title (Offizielles Musikvideo)", "artist", "title"},
+		{"", "Title (Official Video)", "", "title"},
+		{"Artist", "Artist - Title (prod by Someone)", "artist", "title"},
+		{"", "Title (prod. Producer)", "", "title"},
+		{"", "Title (produced by Producer)", "", "title"},
+		{"Uploader", "Artist - Title (OFFICIAL VIDEO) prod. by Producer", "artist", "title"},
+		{"Uploader", "Artist - Title (OFFICIAL VIDEO) | prod. Producer", "artist", "title"},
+		{"Artist", "Title 【MV】", "artist", "title"},
+		{"Artist", "Title 【Official MV】", "artist", "title"},
 	}
 	for _, c := range cases {
-		gotArtist, gotTitle := CleanQuery(c.artist, c.title)
+		gotArtist, gotTitle := Query(c.artist, c.title)
 		if gotArtist != c.wantArtist || gotTitle != c.wantTitle {
-			t.Errorf("CleanQuery(%q, %q) = (%q, %q), want (%q, %q)",
+			t.Errorf("Query(%q, %q) = (%q, %q), want (%q, %q)",
 				c.artist, c.title, gotArtist, gotTitle, c.wantArtist, c.wantTitle)
 		}
 	}
@@ -81,18 +105,24 @@ func TestSplitArtists(t *testing.T) {
 		{"Artist und Another", []string{"artist", "another"}},
 		{"Artist et Another", []string{"artist", "another"}},
 		{"Artist x Another", []string{"artist", "another"}},
+		{"Artist con Another", []string{"artist", "another"}},
+		{"Artist with Another", []string{"artist", "another"}},
+		{"Artist vs Another", []string{"artist", "another"}},
+		{"Artist vs. Another", []string{"artist", "another"}},
+		{"Artist × Another", []string{"artist", "another"}},
+		{"Artist×Another", []string{"artist", "another"}},
 		{"Artxst", []string{"artxst"}},
 		{"A & B, C feat D", []string{"a", "b", "c", "d"}},
 	}
 	for _, c := range cases {
-		got := SplitArtists(c.in)
+		got := splitArtists(c.in)
 		if len(got) != len(c.want) {
-			t.Errorf("SplitArtists(%q) = %v, want %v", c.in, got, c.want)
+			t.Errorf("splitArtists(%q) = %v, want %v", c.in, got, c.want)
 			continue
 		}
 		for i := range got {
 			if got[i] != c.want[i] {
-				t.Errorf("SplitArtists(%q)[%d] = %q, want %q", c.in, i, got[i], c.want[i])
+				t.Errorf("splitArtists(%q)[%d] = %q, want %q", c.in, i, got[i], c.want[i])
 			}
 		}
 	}
@@ -108,8 +138,8 @@ func TestPrimaryArtist(t *testing.T) {
 		{"", ""},
 	}
 	for _, c := range cases {
-		if got := PrimaryArtist(c.in); got != c.want {
-			t.Errorf("PrimaryArtist(%q) = %q, want %q", c.in, got, c.want)
+		if got := primaryArtist(c.in); got != c.want {
+			t.Errorf("primaryArtist(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }

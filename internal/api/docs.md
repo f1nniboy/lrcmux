@@ -25,7 +25,7 @@ The same result can be returned in any of these formats via the `format` query p
 {{end}}
 ## User agent
 
-While it's not mandatory, we encourage you to include a `User-Agent` header identifying your app, its version, and a link to its homepage.
+While it's not mandatory, we encourage you to include a `User-Agent` header identifying your app and a link to its repo (or a way to contact you if something goes wrong).
 
 ```
 User-Agent: MyApp v1.0.0 (https://github.com/example/myapp)

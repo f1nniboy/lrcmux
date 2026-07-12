@@ -90,8 +90,7 @@ func toResult(r apiResult) *lyrics.Result {
 	}
 	res := &lyrics.Result{}
 	if r.SyncedLyrics != "" {
-		res.Lines = parseSynced(r.SyncedLyrics)
-		res.SyncLevel = lyrics.SyncLine
+		res.Lines, res.SyncLevel = lyrics.ParseLRC(r.SyncedLyrics)
 	} else {
 		res.Lines = lyrics.ParsePlain(r.PlainLyrics)
 		res.SyncLevel = lyrics.SyncNone

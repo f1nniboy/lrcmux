@@ -14,6 +14,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers/kugou"
 	"github.com/f1nniboy/lrcmux/internal/providers/lrclib"
 	"github.com/f1nniboy/lrcmux/internal/providers/musixmatch"
+	"github.com/f1nniboy/lrcmux/internal/providers/netease"
 	"github.com/f1nniboy/lrcmux/internal/providers/ytmusic"
 )
 
@@ -51,6 +52,7 @@ func main() {
 			"kugou":      kugou.Provider{Common: enabled},
 			"lrclib":     lrclib.Provider{Common: enabled, BaseURL: "https://lrclib.net"},
 			"musixmatch": musixmatch.Provider{Common: enabled, PoolSize: 5},
+			"netease":    netease.Provider{Common: enabled},
 			"ytmusic":    ytmusic.Provider{Common: enabled},
 		},
 	}

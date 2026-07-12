@@ -35,12 +35,14 @@ func IDs(provs []Provider) []string {
 	return ids
 }
 
+//nolint:govet // fieldalignment
 type Common struct {
-	Cache  cache.Cache  `toml:"-"`
-	HTTP   *http.Client `toml:"-"`
-	Log    *slog.Logger `toml:"-"`
-	Proxy  string       `toml:"proxy,omitempty,commented"`
-	Enable bool         `toml:"enable"`
+	Cache cache.Cache  `toml:"-"`
+	HTTP  *http.Client `toml:"-"`
+	Log   *slog.Logger `toml:"-"`
+
+	Enable bool   `toml:"enable"`
+	Proxy  string `toml:"proxy,omitempty,commented"`
 }
 
 func (c *Common) URL() string { return "" }

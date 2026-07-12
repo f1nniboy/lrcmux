@@ -79,8 +79,7 @@ func parseYRCWords(s string) ([]lyrics.Word, string) {
 			raw = after[:nextIdx]
 			rest = after[nextIdx:]
 		}
-		norm := halfWidth(raw)
-		words = append(words, lyrics.Word{StartMs: wStart, EndMs: wStart + wDur, Text: norm})
+		words = append(words, lyrics.Word{StartMs: wStart, EndMs: wStart + wDur, Text: raw})
 		if nextIdx == -1 {
 			break
 		}
@@ -102,25 +101,19 @@ func hasPlaceholder(lines []lyrics.Line) bool {
 	return false
 }
 
-func filterCredits(lines []lyrics.Line) []lyrics.Line {
+func cleanLines(lines []lyrics.Line) []lyrics.Line {
 	out := lines[:0:len(lines)]
 	for _, l := range lines {
+		l.Text = uncensor(halfWidth(l.Text))
 		if l.StartMs == 0 || creditRE.MatchString(strings.TrimSpace(l.Text)) {
 			continue
+		}
+		for j := range l.Words {
+			l.Words[j].Text = uncensor(halfWidth(l.Words[j].Text))
 		}
 		out = append(out, l)
 	}
 	return out
-}
-
-func applyHalfWidth(lines []lyrics.Line) []lyrics.Line {
-	for i := range lines {
-		lines[i].Text = halfWidth(lines[i].Text)
-		for j := range lines[i].Words {
-			lines[i].Words[j].Text = halfWidth(lines[i].Words[j].Text)
-		}
-	}
-	return lines
 }
 
 // converts full-width chars to normal equivalents
@@ -138,4 +131,17 @@ func halfWidth(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// fix netease's simple censor method, by replacing '!' with 'i' if
+// the character is NOT the last character in a line
+func uncensor(s string) string {
+	end := strings.LastIndexFunc(s, func(r rune) bool { return r != ' ' && r != '\t' })
+	b := []byte(s)
+	for i := range b {
+		if b[i] == '!' && i != end {
+			b[i] = 'i'
+		}
+	}
+	return string(b)
 }

@@ -67,8 +67,6 @@ type searchResponse struct {
 
 func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (string, error) {
 	endpoint := searchURL + "?per_page=5&q=" + url.QueryEscape(q.Track.Artist+" "+q.Track.Title)
-	p.Log.Debug("search", "artist", q.Track.Artist, "title", q.Track.Title)
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", err

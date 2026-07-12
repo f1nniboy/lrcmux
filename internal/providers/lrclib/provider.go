@@ -13,9 +13,10 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
+//nolint:govet // fieldalignment
 type Provider struct {
-	BaseURL string `toml:"base_url,commented,omitempty" comment:"which instance to use"`
 	providers.Common
+	BaseURL string `toml:"base_url,commented,omitempty" comment:"which instance to use"`
 }
 
 func (p *Provider) ID() string                 { return "lrclib" }

@@ -154,13 +154,6 @@ func (p *Provider) download(ctx context.Context, cand *searchCandidate) (*lyrics
 		return nil, lyrics.ErrNotFound
 	}
 
-	// horrible i guess, but no one wants censored lyrics
-	for _, l := range lines {
-		if strings.Contains(l.Text, "**") {
-			return nil, lyrics.ErrNotFound
-		}
-	}
-
 	return &lyrics.Result{
 		Lines:     lines,
 		SyncLevel: lyrics.SyncWord,

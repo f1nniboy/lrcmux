@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"slices"
 	"testing"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
@@ -41,144 +42,46 @@ func prov(id string, level lyrics.SyncLevel) providers.Provider {
 	return &stubProvider{id: id, maxLevel: level}
 }
 
-func TestBuildTiers(t *testing.T) {
-	word1 := prov("word1", lyrics.SyncWord)
-	word2 := prov("word2", lyrics.SyncWord)
-	line1 := prov("line1", lyrics.SyncLine)
-	none1 := prov("none1", lyrics.SyncNone)
+func TestWorthQuerying(t *testing.T) {
+	word := prov("word", lyrics.SyncWord)
+	line := prov("line", lyrics.SyncLine)
+	none := prov("none", lyrics.SyncNone)
+	all := []providers.Provider{word, line, none}
 
-	all := []providers.Provider{word1, word2, line1, none1}
-
-	t.Run("word request: three tiers", func(t *testing.T) {
-		tiers := buildTiers(all, lyrics.SyncWord)
-		if len(tiers) != 3 {
-			t.Fatalf("expected 3 tiers, got %d", len(tiers))
-		}
-		if len(tiers[0]) != 2 {
-			t.Errorf("tier 0 should have 2 word providers, got %v", providers.IDs(tiers[0]))
-		}
-		if len(tiers[1]) != 1 || tiers[1][0].ID() != "line1" {
-			t.Errorf("tier 1 should be [line1], got %v", providers.IDs(tiers[1]))
-		}
-		if len(tiers[2]) != 1 || tiers[2][0].ID() != "none1" {
-			t.Errorf("tier 2 should be [none1], got %v", providers.IDs(tiers[2]))
+	t.Run("no cache: keep all providers (non-strict, level word)", func(t *testing.T) {
+		out := worthQuerying(slices.Clone(all), nil, Request{Level: lyrics.SyncWord})
+		if len(out) != 3 {
+			t.Errorf("expected all 3 providers, got %v", providers.IDs(out))
 		}
 	})
 
-	t.Run("line request: two tiers, word providers in tier 0", func(t *testing.T) {
-		tiers := buildTiers(all, lyrics.SyncLine)
-		if len(tiers) != 2 {
-			t.Fatalf("expected 2 tiers, got %d", len(tiers))
-		}
-		if len(tiers[0]) != 3 {
-			t.Errorf("tier 0 should have word+line providers (3), got %v", providers.IDs(tiers[0]))
-		}
-		if len(tiers[1]) != 1 || tiers[1][0].ID() != "none1" {
-			t.Errorf("tier 1 should be [none1], got %v", providers.IDs(tiers[1]))
+	t.Run("cache has line: drop line-and-below, keep word", func(t *testing.T) {
+		cached := []*lyrics.Result{result("cached", lyrics.SyncLine, "x")}
+		out := worthQuerying(slices.Clone(all), cached, Request{Level: lyrics.SyncWord})
+		if len(out) != 1 || out[0].ID() != "word" {
+			t.Errorf("expected [word], got %v", providers.IDs(out))
 		}
 	})
 
-	t.Run("none request: single tier with all providers", func(t *testing.T) {
-		tiers := buildTiers(all, lyrics.SyncNone)
-		if len(tiers) != 1 {
-			t.Fatalf("expected 1 tier, got %d", len(tiers))
-		}
-		if len(tiers[0]) != 4 {
-			t.Errorf("tier 0 should contain all 4 providers, got %v", providers.IDs(tiers[0]))
+	t.Run("cache has word: drop everything", func(t *testing.T) {
+		cached := []*lyrics.Result{result("cached", lyrics.SyncWord, "x")}
+		out := worthQuerying(slices.Clone(all), cached, Request{Level: lyrics.SyncWord})
+		if len(out) != 0 {
+			t.Errorf("expected empty, got %v", providers.IDs(out))
 		}
 	})
 
-	t.Run("no providers at requested level still returns tier 0", func(t *testing.T) {
-		tiers := buildTiers([]providers.Provider{none1}, lyrics.SyncWord)
-		if len(tiers[0]) != 0 {
-			t.Errorf("tier 0 should be empty, got %v", providers.IDs(tiers[0]))
-		}
-	})
-}
-
-func TestRankResult(t *testing.T) {
-	cases := []struct {
-		a    *lyrics.Result
-		b    *lyrics.Result
-		name string
-	}{
-		{
-			name: "word beats line",
-			a:    result("a", lyrics.SyncWord, "x"),
-			b:    result("b", lyrics.SyncLine, "x", "y", "z"),
-		},
-		{
-			name: "word beats none",
-			a:    result("a", lyrics.SyncWord),
-			b:    result("b", lyrics.SyncNone, "x", "y"),
-		},
-		{
-			name: "line beats none",
-			a:    result("a", lyrics.SyncLine, "x"),
-			b:    result("b", lyrics.SyncNone, "x", "y", "z"),
-		},
-		{
-			name: "more lines wins at equal sync",
-			a:    result("a", lyrics.SyncNone, "a", "b", "c", "d"),
-			b:    result("b", lyrics.SyncNone, "x", "y"),
-		},
-		{
-			name: "higher sync beats more lines",
-			a:    result("a", lyrics.SyncWord, "x"),
-			b:    result("b", lyrics.SyncNone, "x", "y", "z"),
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if !rankResult(c.a, c.b) {
-				t.Errorf("rankResult(%s, %s) = false, want true", c.a.Source.ID, c.b.Source.ID)
-			}
-		})
-	}
-
-	t.Run("equal results do not both outrank each other", func(t *testing.T) {
-		a := result("a", lyrics.SyncLine, "x", "y")
-		b := result("b", lyrics.SyncLine, "x", "y")
-		if rankResult(a, b) && rankResult(b, a) {
-			t.Error("two equal results must not both claim to outrank each other")
-		}
-	})
-}
-
-func TestPick(t *testing.T) {
-	o := testOrch()
-
-	t.Run("empty input", func(t *testing.T) {
-		if got := o.pick(nil, lyrics.SyncWord); got != nil {
-			t.Errorf("expected nil, got %+v", got)
+	t.Run("strict word: drop below-word providers", func(t *testing.T) {
+		out := worthQuerying(slices.Clone(all), nil, Request{Level: lyrics.SyncWord, Strict: true})
+		if len(out) != 1 || out[0].ID() != "word" {
+			t.Errorf("expected [word], got %v", providers.IDs(out))
 		}
 	})
 
-	t.Run("no result meets required level", func(t *testing.T) {
-		results := []*lyrics.Result{
-			result("a", lyrics.SyncNone, "x"),
-			result("b", lyrics.SyncLine, "x"),
-		}
-		if got := o.pick(results, lyrics.SyncWord); got != nil {
-			t.Errorf("expected nil, got %s", got.Source.ID)
-		}
-	})
-
-	t.Run("exact level match accepted", func(t *testing.T) {
-		if got := o.pick([]*lyrics.Result{result("a", lyrics.SyncLine, "x")}, lyrics.SyncLine); got == nil {
-			t.Error("exact level match should be accepted")
-		}
-	})
-
-	t.Run("best ranked result selected", func(t *testing.T) {
-		results := []*lyrics.Result{
-			result("word", lyrics.SyncWord, "x"),
-			result("line", lyrics.SyncLine, "x", "y", "z"),
-			result("none", lyrics.SyncNone, "x"),
-		}
-		got := o.pick(results, lyrics.SyncNone)
-		if got == nil || got.Source.ID != "word" {
-			t.Errorf("expected word-sync to win, got %v", got)
+	t.Run("strict line: drop below-line providers", func(t *testing.T) {
+		out := worthQuerying(slices.Clone(all), nil, Request{Level: lyrics.SyncLine, Strict: true})
+		if len(out) != 2 {
+			t.Errorf("expected [word line], got %v", providers.IDs(out))
 		}
 	})
 }

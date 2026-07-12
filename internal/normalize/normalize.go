@@ -2,6 +2,7 @@ package normalize
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -12,6 +13,13 @@ import (
 
 // shared pattern for feature markers
 const featRE = `(?:feat|ft)\.?`
+
+// only strip Latin combining diacritical marks,
+// not Japanese dakuten (important)
+// or Arabic harakat (could be stripped, not used in metadata)
+var latinDiacritics = &unicode.RangeTable{
+	R16: []unicode.Range16{{Lo: 0x0300, Hi: 0x036F, Stride: 1}},
+}
 
 var smartQuotes = strings.NewReplacer(
 	"‘", "'",
@@ -41,7 +49,7 @@ func String(s string) string {
 	s = strings.TrimSpace(s)
 	s = smartQuotes.Replace(s)
 	s = strings.ToLower(s)
-	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	t := transform.Chain(norm.NFKD, runes.Remove(runes.In(latinDiacritics)), norm.NFKC)
 	if out, _, err := transform.String(t, s); err == nil {
 		s = out
 	}
@@ -77,9 +85,9 @@ func primaryArtist(s string) string {
 }
 
 func ArtistMatch(a, b string) bool {
-	aNorm := artist(a)
-	for _, part := range splitArtists(b) {
-		if strings.Contains(aNorm, part) {
+	as := splitArtists(a)
+	for _, want := range splitArtists(b) {
+		if slices.Contains(as, want) {
 			return true
 		}
 	}

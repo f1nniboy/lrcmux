@@ -9,6 +9,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
+// how many errors need to occur consecutively, in a given timeframe
 const (
 	breakerThreshold int64         = 5
 	breakerTTL       time.Duration = 3 * time.Minute

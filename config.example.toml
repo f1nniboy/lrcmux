@@ -4,6 +4,16 @@ listen = ':8080'
 # reject requests not arriving via Cloudflare
 # require_cloudflare = false
 
+[log]
+# debug, info, warn, error
+level = 'info'
+# text or json
+format = 'text'
+
+# [metrics]
+# address to expose Prometheus metrics on
+# listen = ':9091'
+
 [cache]
 # Redis URL, overridable via REDIS_URL env var, omit to use in-memory cache
 # redis_url = 'redis://localhost:6379'
@@ -19,31 +29,21 @@ none = '168h0m0s'
 # provider not-found results
 miss = '24h0m0s'
 
-[log]
-# debug, info, warn, error
-level = 'info'
-# text or json
-format = 'text'
-
-[provider]
-# timeout for provider requests
-timeout = '5s'
-# hide source from responses and /stats endpoint
-hide = false
-
 [ratelimit]
 # max requests per window per IP
 limit = 45
 # rate limit time window
 window = '1h0m0s'
 
-# [metrics]
-# address to expose Prometheus metrics on
-# listen = ':9091'
-
 # [proxies]
 # [proxies.mypool]
 # urls = ['socks5://user:pass@proxy1.example.com:1080']
+
+[provider]
+# timeout for provider requests
+timeout = '5s'
+# hide source from responses and /stats endpoint
+hide = false
 
 [providers]
 [providers.genius]
@@ -55,13 +55,16 @@ enable = true
 
 [providers.lrclib]
 enable = true
-# which LRCLIB instance to use
+# which instance to use
 # base_url = 'https://lrclib.net'
 
 [providers.musixmatch]
 enable = true
 # how many tokens to use in rotation
 # pool_size = 5
+
+[providers.netease]
+enable = true
 
 [providers.ytmusic]
 enable = true

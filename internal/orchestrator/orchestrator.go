@@ -2,15 +2,11 @@ package orchestrator
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
-	"io"
 	"log/slog"
-	"net"
-	"sync"
+	"slices"
 	"time"
 
-	"github.com/getsentry/sentry-go"
 	"golang.org/x/sync/singleflight"
 
 	"github.com/f1nniboy/lrcmux/internal/cache"
@@ -87,12 +83,6 @@ func New(provs []providers.Provider, c cache.Cache, breaker *Breaker, resolver *
 
 func (o *Orchestrator) Providers() []providers.Provider { return o.providers }
 
-func (o *Orchestrator) recordOutcome(stage string) {
-	if o.metrics != nil {
-		o.metrics.RequestOutcomes.WithLabelValues(stage).Inc()
-	}
-}
-
 func (o *Orchestrator) Health(ctx context.Context) []ProviderInfo {
 	disabled := o.breaker.states(ctx, o.providers)
 	infos := make([]ProviderInfo, len(o.providers))
@@ -106,13 +96,6 @@ func (o *Orchestrator) Health(ctx context.Context) []ProviderInfo {
 		infos[i] = ProviderInfo{Source: providers.Source(p), Health: health}
 	}
 	return infos
-}
-
-type providerOutcome struct {
-	err     error
-	result  *lyrics.Result
-	source  lyrics.Source
-	latency time.Duration
 }
 
 func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) {
@@ -140,42 +123,43 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 
 	q := lyrics.Query{Track: track}
 
-	best, unknowns := o.checkCache(ctx, q, req.FetchMode == "force")
+	respond := func(r *lyrics.Result, cached bool) *Response {
+		out := r.Downgrade(req.Level)
+		out.Track = q.Track
 
-	if best != nil && best.SyncLevel >= req.Level {
-		o.log.Debug("serving from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
-		o.recordOutcome("cache_hit")
-		return o.respond(ctx, best, true, req.Level, q), nil
-	}
-
-	// don't hit providers in cache-only mode
-	if req.FetchMode == "cache" {
-		if !req.Strict && best != nil {
-			o.recordOutcome("cache_hit")
-			return o.respond(ctx, best, true, req.Level, q), nil
-		}
-		return nil, ErrNotFound
-	}
-
-	// filter out providers that are currently disabled
-	unknowns = o.breaker.Filter(ctx, unknowns)
-
-	// drop providers that can never satisfy the requested level
-	if req.Strict {
-		var capable []providers.Provider
-		for _, p := range unknowns {
-			if p.MaxLevel() >= req.Level {
-				capable = append(capable, p)
+		ttl := o.ttlFor(r)
+		if cached && ttl > 0 {
+			if cacheTTL, err := o.cache.TTL(ctx, cacheKey(q.Track.ISRC, r.Source.ID)); err == nil {
+				ttl = cacheTTL
 			}
 		}
-		unknowns = capable
+		if ttl == 0 {
+			// a bit arbitrary, but we always want some TTL for
+			// the Cache-Control header
+			ttl = 365 * 24 * time.Hour
+		}
+
+		return &Response{Result: out, Cached: cached, TTL: ttl}
 	}
 
-	// no providers left to query: all were cached misses, breaker-open, or filtered by strict
-	if len(unknowns) == 0 {
-		if !req.Strict && best != nil {
-			o.log.Debug("no providers to query, serving best available from cache", "provider", best.Source.ID, "sync", best.SyncLevel.String())
-			return o.respond(ctx, best, true, req.Level, q), nil
+	cached, unknowns := o.getCacheAndProviders(ctx, q, req)
+
+	// in strict mode we must meet the level,
+	// otherwise we pick the best across levels
+	pickLevel := lyrics.SyncNone
+	if req.Strict {
+		pickLevel = req.Level
+	}
+
+	// serve directly from cache when nothing worth querying remains
+	//
+	// worthQuerying already dropped providers that can't improve on cache,
+	// so if unknowns is empty, the pick here is as good as we can get
+	if req.FetchMode == "cache" || len(unknowns) == 0 {
+		if picked := o.pick(cached, pickLevel); picked != nil {
+			o.log.Debug("serving from cache", "provider", picked.Source.ID, "sync", picked.SyncLevel.String())
+			o.recordOutcome("cache_hit")
+			return respond(picked, true), nil
 		}
 		return nil, ErrNotFound
 	}
@@ -189,35 +173,22 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	v, err, _ := o.sf.Do(queryKey(q, req.Level), func() (any, error) {
 		o.recordOutcome("fanout")
 
-		var allResults []*lyrics.Result
-		for i, tier := range buildTiers(unknowns, req.Level) {
-			if len(tier) == 0 {
-				continue
-			}
-			o.log.Debug("fanout tier", "tier", i, "providers", providers.IDs(tier), "target_level", req.Level.String())
-			allResults = append(allResults, o.fanOut(ctx, tier, q, req.Level)...)
-
-			if picked := o.pick(allResults, req.Level); picked != nil {
-				o.log.Debug("tier satisfied", "tier", i, "provider", picked.Source.ID, "sync", picked.SyncLevel.String())
-				return o.respond(ctx, picked, false, req.Level, q), nil
-			}
-			o.log.Debug("tier exhausted", "tier", i, "collected", len(allResults))
-			if len(allResults) > 0 {
-				// we have results but can't meet the level
-				// remaining tiers are worse, so they won't improve on what we have
-				break
-			}
-		}
+		// seed with cached so pick considers them alongside fresh results for
+		// each tier, skipped in strict since it will never fall back
+		var results []*lyrics.Result
 		if !req.Strict {
-			if best != nil {
-				allResults = append(allResults, best)
+			results = append(results, cached...)
+		}
+
+		for i, tier := range buildTiers(unknowns, req.Level) {
+			o.log.Debug("fanout tier", "tier", i, "providers", providers.IDs(tier), "target_level", req.Level.String())
+			results = append(results, o.fanOut(ctx, tier, q, req.Level)...)
+
+			if picked := o.pick(results, pickLevel); picked != nil {
+				o.log.Debug("tier satisfied", "tier", i, "provider", picked.Source.ID, "level", picked.SyncLevel.String())
+				return respond(picked, slices.Contains(cached, picked)), nil
 			}
-			if len(allResults) > 0 {
-				if picked := o.pick(allResults, lyrics.SyncNone); picked != nil {
-					o.log.Debug("pick: falling back to best available", "provider", picked.Source.ID, "sync", picked.SyncLevel.String())
-					return o.respond(ctx, picked, false, req.Level, q), nil
-				}
-			}
+			o.log.Debug("tier exhausted", "tier", i, "collected", len(results))
 		}
 		return nil, ErrNotFound
 	})
@@ -227,11 +198,41 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	return v.(*Response), nil
 }
 
-func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force bool) (best *lyrics.Result, unknowns []providers.Provider) {
-	if force {
-		return nil, append([]providers.Provider(nil), o.providers...)
+// returns cached results and the providers still worth querying,
+// after applying force/cache mode, breaker filter, strict, and the
+// "must beat what's already cached" filter
+func (o *Orchestrator) getCacheAndProviders(ctx context.Context, q lyrics.Query, req Request) (cached []*lyrics.Result, unknowns []providers.Provider) {
+	if req.FetchMode == "force" {
+		return nil, slices.Clone(o.providers)
 	}
 
+	cached, unknowns = o.checkCache(ctx, q)
+	if req.FetchMode == "cache" {
+		return cached, nil
+	}
+
+	unknowns = o.breaker.Filter(ctx, unknowns)
+	return cached, worthQuerying(unknowns, cached, req)
+}
+
+// drops providers that can't improve on what's already cached
+// and, in strict mode, those that can't satisfy the requested level
+func worthQuerying(unknowns []providers.Provider, cached []*lyrics.Result, req Request) []providers.Provider {
+	var bestCachedLevel lyrics.SyncLevel
+	for _, c := range cached {
+		if c.SyncLevel > bestCachedLevel {
+			bestCachedLevel = c.SyncLevel
+		}
+	}
+	return slices.DeleteFunc(unknowns, func(p providers.Provider) bool {
+		if len(cached) > 0 && p.MaxLevel() <= bestCachedLevel {
+			return true
+		}
+		return req.Strict && p.MaxLevel() < req.Level
+	})
+}
+
+func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query) (hits []*lyrics.Result, unknowns []providers.Provider) {
 	keys := make([]string, len(o.providers))
 	for i, p := range o.providers {
 		keys[i] = cacheKey(q.Track.ISRC, p.ID())
@@ -239,176 +240,21 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, force boo
 	results, statuses, err := cache.GetMany[lyrics.Result](ctx, o.cache, keys)
 	if err != nil {
 		o.log.Warn("cache get failed", "err", err)
-		return nil, append([]providers.Provider(nil), o.providers...)
+		return nil, slices.Clone(o.providers)
 	}
 	for i, p := range o.providers {
 		switch statuses[i] {
 		case cache.Found:
-			r := results[i]
-			o.log.Debug("cache hit", "provider", p.ID(), "sync", r.SyncLevel.String())
-			if best == nil || rankResult(&r, best) {
-				best = &results[i]
-			}
+			o.log.Debug("cache hit", "provider", p.ID(), "sync", results[i].SyncLevel.String())
+			hits = append(hits, &results[i])
 		case cache.KnownMiss:
-			o.log.Debug("cached miss", "provider", p.ID())
+			o.log.Debug("known miss", "provider", p.ID())
 		default:
 			o.log.Debug("cache miss", "provider", p.ID())
 			unknowns = append(unknowns, p)
 		}
 	}
-	return best, unknowns
-}
-
-func (o *Orchestrator) respond(ctx context.Context, r *lyrics.Result, cached bool, level lyrics.SyncLevel, q lyrics.Query) *Response {
-	out := r.Downgrade(level)
-	out.Track = q.Track
-
-	ttl := o.ttlFor(r)
-	if cached && ttl > 0 {
-		if cacheTTL, err := o.cache.TTL(ctx, cacheKey(q.Track.ISRC, r.Source.ID)); err == nil {
-			ttl = cacheTTL
-		}
-	}
-	if ttl == 0 {
-		// pretty arbitrary, but we always want some sane value for
-		// Cache-Control header
-		ttl = 365 * 24 * time.Hour
-	}
-
-	return &Response{Result: out, Cached: cached, TTL: ttl}
-}
-
-func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, q lyrics.Query, level lyrics.SyncLevel) []*lyrics.Result {
-	fanCtx, cancel := context.WithTimeout(ctx, o.opts.Timeout)
-	defer cancel()
-
-	o.log.Debug("fanning out", "providers", providers.IDs(active), "target_level", level.String(), "timeout", o.opts.Timeout.Milliseconds())
-
-	ch := make(chan providerOutcome, len(active))
-	var wg sync.WaitGroup
-	for _, p := range active {
-		wg.Go(func() {
-			o.log.Debug("querying provider", "provider", p.ID())
-			start := time.Now()
-			r, err := p.Search(fanCtx, q)
-			ch <- providerOutcome{source: providers.Source(p), result: r, err: err, latency: time.Since(start)}
-		})
-	}
-	go func() { wg.Wait(); close(ch) }()
-
-	var results []*lyrics.Result
-	var misses []string
-
-	collect := func(out providerOutcome) {
-		if out.err == nil && out.result != nil {
-			out.result.Source = out.source
-			out.result.Lines = lyrics.CleanLines(out.result.Lines)
-			results = append(results, out.result)
-		}
-		if errors.Is(out.err, lyrics.ErrNotFound) {
-			misses = append(misses, out.source.ID)
-		}
-		outcome := o.logOutcome(out, q)
-		o.breaker.Record(out.source.ID, outcome)
-	}
-
-	for out := range ch {
-		collect(out)
-		if out.result != nil && out.result.SyncLevel >= level {
-			o.log.Debug("target satisfied, cancelling remaining", "provider", out.source.ID, "sync", out.result.SyncLevel.String())
-			cancel()
-			break
-		}
-	}
-	for out := range ch {
-		collect(out)
-	}
-
-	o.log.Debug("fanout done", "collected", len(results), "of", len(active))
-
-	go func() {
-		bg := context.Background()
-		ids := make([]string, len(results))
-
-		for i, r := range results {
-			ids[i] = r.Source.ID
-			if err := cache.Set(bg, o.cache, cacheKey(q.Track.ISRC, r.Source.ID), *r, o.ttlFor(r)); err != nil {
-				o.log.Warn("cache set failed", "err", err, "provider", r.Source.ID)
-			}
-		}
-		for _, provider := range misses {
-			if err := cache.SetMiss(bg, o.cache, cacheKey(q.Track.ISRC, provider), o.opts.TTL.Miss.Duration); err != nil {
-				o.log.Warn("miss cache set failed", "provider", provider, "err", err)
-			}
-		}
-
-		o.breaker.ResetStreak(bg, ids)
-	}()
-
-	return results
-}
-
-func (o *Orchestrator) logOutcome(out providerOutcome, q lyrics.Query) string {
-	var (
-		lvl     = slog.LevelDebug
-		outcome string
-		extra   []any
-	)
-
-	switch {
-	case out.err == nil && out.result != nil:
-		outcome = "ok"
-		extra = []any{"level", out.result.SyncLevel.String()}
-	case errors.Is(out.err, lyrics.ErrNotFound):
-		outcome = "not_found"
-	case errors.Is(out.err, providers.ErrRateLimited):
-		lvl, outcome = slog.LevelInfo, "rate_limited"
-	case errors.Is(out.err, context.DeadlineExceeded):
-		lvl, outcome = slog.LevelInfo, "timeout"
-	case errors.Is(out.err, context.Canceled):
-		outcome = "canceled"
-	case isNetworkNoise(out.err):
-		lvl, outcome = slog.LevelInfo, "network_error"
-		extra = []any{"err", out.err}
-	default:
-		lvl, outcome = slog.LevelWarn, "error"
-		extra = []any{"err", out.err}
-
-		sentry.WithScope(func(scope *sentry.Scope) {
-			scope.SetTag("provider", out.source.ID)
-			scope.SetContext("query", sentry.Context{
-				"isrc":   q.Track.ISRC,
-				"artist": q.Track.Artist,
-				"title":  q.Track.Title,
-			})
-			sentry.CaptureException(out.err)
-		})
-	}
-
-	args := append([]any{"provider", out.source.ID, "outcome", outcome, "latency", out.latency.Milliseconds()}, extra...)
-	o.log.Log(context.Background(), lvl, "provider result", args...)
-
-	if o.metrics != nil {
-		o.metrics.ProviderOps.WithLabelValues(out.source.ID, outcome).Inc()
-		o.metrics.ProviderLatency.WithLabelValues(out.source.ID).Observe(out.latency.Seconds())
-	}
-
-	return outcome
-}
-
-func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *lyrics.Result {
-	var best *lyrics.Result
-	for _, r := range results {
-		if r.SyncLevel >= level && (best == nil || rankResult(r, best)) {
-			best = r
-		}
-	}
-	if best != nil {
-		o.log.Debug("pick selected", "provider", best.Source.ID, "sync", best.SyncLevel.String())
-	} else {
-		o.log.Debug("pick: no result meets target level")
-	}
-	return best
+	return hits, unknowns
 }
 
 func (o *Orchestrator) ttlFor(r *lyrics.Result) time.Duration {
@@ -422,25 +268,8 @@ func (o *Orchestrator) ttlFor(r *lyrics.Result) time.Duration {
 	}
 }
 
-func rankResult(a, b *lyrics.Result) bool {
-	if a.SyncLevel != b.SyncLevel {
-		return a.SyncLevel > b.SyncLevel
+func (o *Orchestrator) recordOutcome(stage string) {
+	if o.metrics != nil {
+		o.metrics.RequestOutcomes.WithLabelValues(stage).Inc()
 	}
-	return len(a.Lines) > len(b.Lines)
-}
-
-func isNetworkNoise(err error) bool {
-	if _, ok := errors.AsType[*net.OpError](err); ok {
-		return true
-	}
-	if ne, ok := errors.AsType[net.Error](err); ok && ne.Timeout() {
-		return true
-	}
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-		return true
-	}
-	if _, ok := errors.AsType[*tls.CertificateVerificationError](err); ok {
-		return true
-	}
-	return false
 }

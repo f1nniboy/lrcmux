@@ -108,27 +108,26 @@ func (p *Provider) fetchLyrics(ctx context.Context, id int64) (*lyrics.Result, e
 	}
 
 	if lr.Yrc.Lyric != "" {
-		lines := parseYRC(lr.Yrc.Lyric)
-		lines = filterCredits(lines)
-		if hasPlaceholder(lines) {
-			return nil, lyrics.ErrNotFound
-		}
-		if len(lines) > 0 {
-			return &lyrics.Result{Lines: lines, SyncLevel: lyrics.SyncWord}, nil
+		if r := buildResult(parseYRC(lr.Yrc.Lyric), lyrics.SyncWord); r != nil {
+			return r, nil
 		}
 	}
 	if lr.Lrc.Lyric != "" {
 		lines, level := lyrics.ParseLRC(lr.Lrc.Lyric)
-		lines = filterCredits(applyHalfWidth(lines))
-		if hasPlaceholder(lines) {
-			return nil, lyrics.ErrNotFound
-		}
-		if len(lines) > 0 {
-			return &lyrics.Result{Lines: lines, SyncLevel: level}, nil
+		if r := buildResult(lines, level); r != nil {
+			return r, nil
 		}
 	}
 
 	return nil, lyrics.ErrNotFound
+}
+
+func buildResult(lines []lyrics.Line, level lyrics.SyncLevel) *lyrics.Result {
+	lines = cleanLines(lines)
+	if hasPlaceholder(lines) || len(lines) == 0 {
+		return nil
+	}
+	return &lyrics.Result{Lines: lines, SyncLevel: level}
 }
 
 func (p *Provider) do(ctx context.Context, endpoint string, out any) error {

@@ -36,10 +36,12 @@ var tierByLevel = map[lyrics.SyncLevel]tier{
 	lyrics.SyncNone: {endpoint: "track.lyrics.get", bodyKey: "lyrics", contentField: "lyrics_body", parse: lyrics.ParsePlain},
 }
 
+//nolint:govet // fieldalignment
 type Provider struct {
-	pool *tokenPool
 	providers.Common
 	PoolSize int `toml:"pool_size,commented,omitempty" comment:"how many tokens to use in rotation"`
+
+	pool *tokenPool
 }
 
 func (p *Provider) ID() string                 { return "musixmatch" }

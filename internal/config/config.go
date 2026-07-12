@@ -45,15 +45,16 @@ type Metrics struct {
 	Listen string `toml:"listen" comment:"address to expose Prometheus metrics on"`
 }
 
+//nolint:govet // fieldalignment
 type Root struct {
-	Proxies   map[string]Proxy `toml:"proxies,commented"`
-	Providers map[string]any   `toml:"providers"`
+	Server    Server           `toml:"server"`
 	Log       logging.Config   `toml:"log"`
 	Metrics   Metrics          `toml:"metrics,commented"`
-	Server    Server           `toml:"server"`
 	Cache     Cache            `toml:"cache"`
-	Provider  ProviderOptions  `toml:"provider"`
 	RateLimit RateLimit        `toml:"ratelimit"`
+	Proxies   map[string]Proxy `toml:"proxies,commented"`
+	Provider  ProviderOptions  `toml:"provider"`
+	Providers map[string]any   `toml:"providers"`
 }
 
 func Load(path string) (*Root, error) {

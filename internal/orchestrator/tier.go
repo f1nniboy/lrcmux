@@ -22,7 +22,10 @@ func buildTiers(provs []providers.Provider, level lyrics.SyncLevel) [][]provider
 
 	// fallback tiers: providers below the requested level, highest first
 	// so we get the best available result if tier 0 comes up empty
-	tiers := [][]providers.Provider{top}
+	var tiers [][]providers.Provider
+	if len(top) > 0 {
+		tiers = append(tiers, top)
+	}
 	for _, l := range lyrics.Levels {
 		if l < level {
 			if t := byLevel[l]; len(t) > 0 {

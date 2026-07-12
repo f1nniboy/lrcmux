@@ -86,6 +86,10 @@ func ArtistMatch(a, b string) bool {
 	return false
 }
 
+func Match(queryTitle, queryArtist, resultTitle, resultArtist string) bool {
+	return Title(resultTitle) == Title(queryTitle) && ArtistMatch(resultArtist, queryArtist)
+}
+
 func Query(inputArtist, inputTitle string) (cleanArtist, cleanTitle string) {
 	inputTitle = videoSuffixRE.ReplaceAllString(inputTitle, "")
 	inputTitle = prodRE.ReplaceAllString(inputTitle, "")

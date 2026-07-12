@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
-	"github.com/f1nniboy/lrcmux/internal/normalize"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
@@ -41,7 +40,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 
 func (p *Provider) searchVideoID(ctx context.Context, q lyrics.Query) (string, error) {
 	body := map[string]any{
-		"query":   q.Track.Title + " " + normalize.String(q.Track.Artist),
+		"query":   q.Track.Title + " " + q.Track.Artist,
 		"params":  "EgWKAQIIAWoMEA4QChADEAQQCRAF",
 		"context": webContext(),
 	}
@@ -49,7 +48,7 @@ func (p *Provider) searchVideoID(ctx context.Context, q lyrics.Query) (string, e
 	if err := p.post(ctx, "search", body, &resp); err != nil {
 		return "", err
 	}
-	id := resp.videoID(q.Track.Artist, normalize.Title(q.Track.Title), p.Log)
+	id := resp.videoID(q.Track.Title, q.Track.Artist)
 	if id == "" {
 		return "", lyrics.ErrNotFound
 	}

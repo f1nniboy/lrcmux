@@ -2,7 +2,6 @@ package ytmusic
 
 import (
 	"encoding/json"
-	"log/slog"
 	"strconv"
 	"strings"
 
@@ -90,7 +89,7 @@ type searchResp struct {
 	} `json:"contents"`
 }
 
-func (r *searchResp) videoID(inputArtist, wantTitle string, log *slog.Logger) string {
+func (r *searchResp) videoID(queryTitle, queryArtist string) string {
 	for _, tab := range r.Contents.TabbedSearchResultsRenderer.Tabs {
 		for _, section := range tab.TabRenderer.Content.SectionListRenderer.Contents {
 			if section.MusicShelfRenderer == nil {
@@ -115,14 +114,7 @@ func (r *searchResp) videoID(inputArtist, wantTitle string, log *slog.Logger) st
 						ytArtist = runs[0].Text
 					}
 				}
-				titleOK := normalize.Title(ytTitle) == wantTitle
-				artistOK := normalize.ArtistMatch(ytArtist, inputArtist)
-				log.Debug("candidate",
-					"yt_title", ytTitle, "yt_artist", ytArtist,
-					"want_title", wantTitle, "want_artist", inputArtist,
-					"title_ok", titleOK, "artist_ok", artistOK,
-				)
-				if titleOK && artistOK {
+				if normalize.Match(queryTitle, queryArtist, ytTitle, ytArtist) {
 					return we.VideoID
 				}
 			}

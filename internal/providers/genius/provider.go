@@ -101,27 +101,17 @@ func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (string, error) 
 		return "", fmt.Errorf("search decode: %w", err)
 	}
 
-	wantTitle := normalize.Title(q.Track.Title)
-	wantArtist := normalize.String(q.Track.Artist)
-
 	for _, section := range sr.Response.Sections {
 		for _, hit := range section.Hits {
 			if hit.Type != "song" {
 				continue
 			}
 			r := hit.Result
-			gotTitle := normalize.Title(r.Title)
-			titleOK := gotTitle == wantTitle
-			artistOK := normalize.ArtistMatch(r.ArtistNames, wantArtist)
-			p.Log.Debug("candidate", "title", r.Title, "artist", r.ArtistNames, "title_ok", titleOK, "artist_ok", artistOK)
-			if !titleOK || !artistOK {
-				continue
+			if normalize.Match(q.Track.Title, q.Track.Artist, r.Title, r.ArtistNames) {
+				return r.URL, nil
 			}
-			p.Log.Debug("matched", "url", r.URL)
-			return r.URL, nil
 		}
 	}
-	p.Log.Debug("no match", "want_title", wantTitle, "want_artist", wantArtist)
 	return "", lyrics.ErrNotFound
 }
 

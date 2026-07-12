@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
+	"github.com/f1nniboy/lrcmux/internal/normalize"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
@@ -89,48 +88,12 @@ func (p *Provider) findSong(ctx context.Context, q lyrics.Query) (*apiSong, erro
 		return nil, lyrics.ErrNotFound
 	}
 
-	return bestMatch(sr.Result.Songs, q), nil
-}
-
-func bestMatch(songs []apiSong, q lyrics.Query) *apiSong {
-	queryArtist := strings.ToLower(q.Track.Artist)
-	queryTitle := strings.ToLower(q.Track.Title)
-	durationMs := q.Track.Duration * 1000
-
-	best := &songs[0]
-	bestScore := -1
-
-	for i := range songs {
-		s := &songs[i]
-		artist := strings.ToLower(s.primaryArtist())
-		title := strings.ToLower(s.Name)
-
-		score := 0
-		if artist == queryArtist {
-			score += 4
-		} else if strings.Contains(artist, queryArtist) || strings.Contains(queryArtist, artist) {
-			score += 2
-		}
-		if title == queryTitle {
-			score += 2
-		} else if strings.Contains(title, queryTitle) {
-			score++
-		}
-		// prefer non-remix, non-live versions
-		if strings.Contains(title, "remix") || strings.Contains(title, "live") ||
-			strings.Contains(title, "instrumental") || strings.Contains(title, "acoustic") {
-			score -= 2
-		}
-		// duration match within 3 seconds
-		if math.Abs(float64(s.Duration-durationMs)) < 3000 {
-			score += 2
-		}
-		if score > bestScore {
-			bestScore = score
-			best = s
+	for i, s := range sr.Result.Songs {
+		if normalize.Match(q.Track.Title, q.Track.Artist, s.Name, s.primaryArtist()) {
+			return &sr.Result.Songs[i], nil
 		}
 	}
-	return best
+	return nil, lyrics.ErrNotFound
 }
 
 func (p *Provider) fetchLyrics(ctx context.Context, id int64) (*lyrics.Result, error) {

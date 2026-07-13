@@ -49,10 +49,16 @@ func TestParseLRC(t *testing.T) {
 		}
 	})
 
-	t.Run("empty timestamps skipped", func(t *testing.T) {
-		lines, _ := ParseLRC("[00:01.00]\n[00:02.00]Text")
-		if len(lines) != 1 || lines[0].Text != "Text" {
-			t.Errorf("expected 1 line with text, got %v", lines)
+	t.Run("empty timestamps preserved", func(t *testing.T) {
+		lines, _ := ParseLRC("[00:01.00]Text\n[00:02.00]\n[00:03.00]Another one")
+		if len(lines) != 3 {
+			t.Fatalf("expected 3 lines, got %v", lines)
+		}
+		if lines[1].Text != "" || lines[1].StartMs != 2000 {
+			t.Errorf("expected empty-text line at 2000ms, got %+v", lines[0])
+		}
+		if lines[0].Text != "Text" || lines[0].StartMs != 1000 {
+			t.Errorf("expected Text line at 1000ms, got %+v", lines[1])
 		}
 	})
 

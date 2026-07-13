@@ -30,7 +30,7 @@ func ParseLRC(body string) ([]Line, SyncLevel) {
 	sc := bufio.NewScanner(strings.NewReader(body))
 	for sc.Scan() {
 		stamps, text := splitLRCStamps(sc.Text())
-		if len(stamps) == 0 || text == "" {
+		if len(stamps) == 0 {
 			continue
 		}
 		words := splitWordStamps(text)

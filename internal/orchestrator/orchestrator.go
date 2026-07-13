@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
 	"golang.org/x/sync/singleflight"
@@ -42,6 +43,7 @@ type Request struct {
 	ISRC   string
 	// "default", "cache", "force"
 	FetchMode string
+	Sources   []string
 	Duration  int64
 	Level     lyrics.SyncLevel
 	Strict    bool
@@ -103,13 +105,20 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		return nil, ErrNoProviders
 	}
 
+	active, err := filterBySources(o.providers, req.Sources)
+	if err != nil {
+		return nil, err
+	}
+	if len(active) == 0 {
+		return nil, ErrNoProviders
+	}
+
 	track, err := o.resolver.Resolve(ctx, isrc.ResolveInput{
-		Artist:    req.Artist,
-		Title:     req.Title,
-		Album:     req.Album,
-		Duration:  req.Duration,
-		ISRC:      req.ISRC,
-		CacheOnly: req.FetchMode == "cache",
+		Artist:   req.Artist,
+		Title:    req.Title,
+		Album:    req.Album,
+		Duration: req.Duration,
+		ISRC:     req.ISRC,
 	})
 	if err != nil {
 		o.recordOutcome("isrc_not_found")
@@ -142,7 +151,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		return &Response{Result: out, Cached: cached, TTL: ttl}
 	}
 
-	cached, unknowns := o.getCacheAndProviders(ctx, q, req)
+	cached, unknowns := o.getCacheAndProviders(ctx, q, req, active)
 
 	// in strict mode we must meet the level,
 	// otherwise we pick the best across levels
@@ -170,7 +179,15 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		}
 	}
 
-	v, err, _ := o.sf.Do(queryKey(q, req.Level), func() (any, error) {
+	key := q.Track.ISRC + ":" + req.Level.String()
+	if len(req.Sources) > 0 {
+		// order of sources shouldn't matter
+		sorted := slices.Clone(req.Sources)
+		slices.Sort(sorted)
+		key += ":" + strings.Join(sorted, ",")
+	}
+
+	v, err, _ := o.sf.Do(key, func() (any, error) {
 		o.recordOutcome("fanout")
 
 		// seed with cached so pick considers them alongside fresh results for
@@ -201,12 +218,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 // returns cached results and the providers still worth querying,
 // after applying force/cache mode, breaker filter, strict, and the
 // "must beat what's already cached" filter
-func (o *Orchestrator) getCacheAndProviders(ctx context.Context, q lyrics.Query, req Request) (cached []*lyrics.Result, unknowns []providers.Provider) {
+func (o *Orchestrator) getCacheAndProviders(ctx context.Context, q lyrics.Query, req Request, provs []providers.Provider) (cached []*lyrics.Result, unknowns []providers.Provider) {
 	if req.FetchMode == "force" {
-		return nil, slices.Clone(o.providers)
+		return nil, slices.Clone(provs)
 	}
 
-	cached, unknowns = o.checkCache(ctx, q)
+	cached, unknowns = o.checkCache(ctx, q, provs)
 	if req.FetchMode == "cache" {
 		return cached, nil
 	}
@@ -232,17 +249,17 @@ func worthQuerying(unknowns []providers.Provider, cached []*lyrics.Result, req R
 	})
 }
 
-func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query) (hits []*lyrics.Result, unknowns []providers.Provider) {
-	keys := make([]string, len(o.providers))
-	for i, p := range o.providers {
+func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, provs []providers.Provider) (hits []*lyrics.Result, unknowns []providers.Provider) {
+	keys := make([]string, len(provs))
+	for i, p := range provs {
 		keys[i] = cacheKey(q.Track.ISRC, p.ID())
 	}
 	results, statuses, err := cache.GetMany[lyrics.Result](ctx, o.cache, keys)
 	if err != nil {
 		o.log.Warn("cache get failed", "err", err)
-		return nil, slices.Clone(o.providers)
+		return nil, slices.Clone(provs)
 	}
-	for i, p := range o.providers {
+	for i, p := range provs {
 		switch statuses[i] {
 		case cache.Found:
 			o.log.Debug("cache hit", "provider", p.ID(), "sync", results[i].SyncLevel.String())

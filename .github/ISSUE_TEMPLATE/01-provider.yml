@@ -21,6 +21,7 @@ body:
         - Kugou
         - LRCLIB
         - Musixmatch
+        - NetEase
         - YouTube Music
     validations:
       required: true

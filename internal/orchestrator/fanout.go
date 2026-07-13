@@ -2,7 +2,9 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"io"
 	"log/slog"
@@ -48,7 +50,6 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 	collect := func(out providerOutcome) {
 		if out.err == nil && out.result != nil {
 			out.result.Source = out.source
-			out.result.Lines = lyrics.CleanLines(out.result.Lines)
 			results = append(results, out.result)
 		}
 		if errors.Is(out.err, lyrics.ErrNotFound) {
@@ -156,4 +157,9 @@ func isNetworkNoise(err error) bool {
 		return true
 	}
 	return false
+}
+
+func cacheKey(isrc, source string) string {
+	sum := sha256.Sum256([]byte(isrc + ":" + source))
+	return "lyrics:" + hex.EncodeToString(sum[:16])
 }

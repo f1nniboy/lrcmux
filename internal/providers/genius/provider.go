@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -20,8 +19,6 @@ const (
 	searchURL = "https://genius.com/api/search/multi"
 	userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0"
 )
-
-var reSection = regexp.MustCompile(`\[.*?\]`)
 
 type Provider struct {
 	providers.Common
@@ -163,19 +160,22 @@ func (p *Provider) scrape(ctx context.Context, pageURL string) ([]lyrics.Line, e
 	if i := strings.Index(text, "["); i >= 0 {
 		text = text[i:]
 	}
-	text = reSection.ReplaceAllString(text, "")
 
+	// genius uses double <br> for section breaks, keep one blank per gap
 	var lines []lyrics.Line
 	for l := range strings.SplitSeq(text, "\n") {
 		t := strings.TrimSpace(l)
-		if t == "" {
-			continue
+		switch {
+		case strings.HasPrefix(t, "[") && strings.HasSuffix(t, "]"):
+		case strings.HasPrefix(t, "(") && strings.HasSuffix(t, ")") && strings.Contains(t, ":"):
+		case t == "" && (len(lines) == 0 || lines[len(lines)-1].Text == ""):
+		default:
+			lines = append(lines, lyrics.Line{Text: t})
 		}
-		// strip lines like "(Intro: ...)", "(Chorus: ...)"
-		if strings.HasPrefix(t, "(") && strings.HasSuffix(t, ")") && strings.Contains(t, ":") {
-			continue
-		}
-		lines = append(lines, lyrics.Line{Text: t})
+	}
+	// pop off all remaining trailing blank lines
+	for len(lines) > 0 && lines[len(lines)-1].Text == "" {
+		lines = lines[:len(lines)-1]
 	}
 	if len(lines) == 0 {
 		return nil, nil

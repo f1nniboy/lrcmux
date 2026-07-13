@@ -23,7 +23,7 @@ func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 		for _, line := range r.Lines {
 			fmt.Fprintf(bw, "[%s]", formatStamp(line.StartMs))
 			if len(line.Words) == 0 {
-				fmt.Fprintf(bw, " %s\n", line.Text)
+				fmt.Fprintln(bw)
 				continue
 			}
 			for _, word := range line.Words {
@@ -37,7 +37,11 @@ func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 		}
 	case lyrics.SyncLine:
 		for _, line := range r.Lines {
-			fmt.Fprintf(bw, "[%s] %s\n", formatStamp(line.StartMs), line.Text)
+			if line.Text != "" {
+				fmt.Fprintf(bw, "[%s] %s\n", formatStamp(line.StartMs), line.Text)
+			} else {
+				fmt.Fprintf(bw, "[%s]\n", formatStamp(line.StartMs))
+			}
 		}
 	default:
 	}

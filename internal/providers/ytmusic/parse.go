@@ -9,11 +9,9 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/normalize"
 )
 
-var noteChars = "♩♪♫♬𝄞𝄟𝄠"
-
-func isOnlyNotes(s string) bool {
+func isInstrumentalMarker(s string) bool {
 	return strings.TrimFunc(s, func(r rune) bool {
-		return strings.ContainsRune(noteChars, r)
+		return strings.ContainsRune("♪", r)
 	}) == ""
 }
 
@@ -198,14 +196,19 @@ func (r *timedBrowseResp) parse() ([]lyrics.Line, string) {
 	}
 	out := make([]lyrics.Line, 0, len(data.TimedLyricsData))
 	for _, tl := range data.TimedLyricsData {
-		text := strings.TrimSpace(tl.LyricLine)
-		if text == "" || isOnlyNotes(text) {
+		start := int64(tl.CueRange.StartTimeMilliseconds)
+		end := int64(tl.CueRange.EndTimeMilliseconds)
+		if start == 0 {
 			continue
 		}
+		text := tl.LyricLine
+		if isInstrumentalMarker(strings.TrimSpace(text)) {
+			text = ""
+		}
 		out = append(out, lyrics.Line{
-			StartMs: int64(tl.CueRange.StartTimeMilliseconds),
-			EndMs:   int64(tl.CueRange.EndTimeMilliseconds),
-			Text:    tl.LyricLine,
+			StartMs: start,
+			EndMs:   end,
+			Text:    text,
 		})
 	}
 	return out, data.SourceMessage

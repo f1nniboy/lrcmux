@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -27,6 +28,7 @@ type GetLyricsInput struct {
 	Level    string `query:"level" doc:"Highest sync level to accept, or exact level if strict is set" enum:"word,line,none" default:"word"`
 	Format   string `query:"format" doc:"Response format" enum:"lrc,txt,json,srt,vtt,lyricsfile" default:"json"`
 	Fetch    string `query:"fetch" doc:"Cache strategy" enum:"default,cache,force" default:"default"`
+	Sources  string `query:"sources" doc:"Comma-separated providers to restrict the fanout to, prefix with '!' to exclude"`
 	Duration int64  `query:"duration" doc:"Track duration in seconds"`
 	Strict   bool   `query:"strict" doc:"Fail instead of falling back to a lower sync level"`
 }
@@ -118,6 +120,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		Level:     level,
 		Strict:    input.Strict,
 		FetchMode: fetchMode,
+		Sources:   splitSources(input.Sources),
 	})
 	if err != nil {
 		return nil, s.mapError(err)
@@ -183,6 +186,23 @@ func (s *Server) fetch(ctx context.Context, req orchestrator.Request) (*orchestr
 	return s.orch.Get(ctx, req)
 }
 
+func splitSources(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := parts[:0]
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 func (s *Server) mapError(err error) error {
 	if e, ok := errors.AsType[*huma.ErrorModel](err); ok {
 		return e
@@ -194,6 +214,8 @@ func (s *Server) mapError(err error) error {
 		return huma.ErrorWithHeaders(huma.Error429TooManyRequests(e.Error()), http.Header{
 			"Retry-After": {strconv.Itoa(int(e.RetryAfter.Seconds()))},
 		})
+	case errors.Is(err, orchestrator.ErrInvalidSource):
+		return huma.Error400BadRequest(err.Error())
 	case errors.Is(err, orchestrator.ErrNoProviders):
 		return huma.Error503ServiceUnavailable(err.Error())
 	case errors.Is(err, orchestrator.ErrNotFound):

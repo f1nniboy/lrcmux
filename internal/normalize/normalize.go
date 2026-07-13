@@ -57,7 +57,10 @@ func String(s string) string {
 }
 
 func Title(s string) string {
-	return String(titleFeatureRE.ReplaceAllString(s, ""))
+	s = videoSuffixRE.ReplaceAllString(s, "")
+	s = prodRE.ReplaceAllString(s, "")
+	s = titleFeatureRE.ReplaceAllString(s, "")
+	return String(s)
 }
 
 func artist(s string) string {

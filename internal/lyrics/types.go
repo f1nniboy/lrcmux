@@ -97,3 +97,12 @@ type Result struct {
 	Lines     []Line
 	SyncLevel SyncLevel
 }
+
+func (r *Result) Downgrade(target SyncLevel) *Result {
+	if r == nil || r.SyncLevel <= target {
+		return r
+	}
+	out := *r
+	out.SyncLevel = target
+	return &out
+}

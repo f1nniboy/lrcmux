@@ -20,9 +20,6 @@ func parseYRC(body string) []lyrics.Line {
 			continue
 		}
 		words, text := parseYRCWords(rest)
-		if len(words) == 0 || text == "" {
-			continue
-		}
 		lines = append(lines, lyrics.Line{StartMs: lineStart, EndMs: lineEnd, Text: text, Words: words})
 	}
 	return lines

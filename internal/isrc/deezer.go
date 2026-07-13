@@ -154,7 +154,9 @@ func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
 		// duration
 		if in.Duration > 0 {
 			delta := math.Abs(float64(t.Duration - in.Duration))
-			s += max(0, 3-delta) // max 3 seconds
+			if delta < 30 {
+				s += 10 - delta/3
+			}
 		}
 
 		// album

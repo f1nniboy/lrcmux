@@ -43,10 +43,6 @@ func parseKRC(text string) []lyrics.Line {
 		lineEnd := lineStart + lineDur
 
 		wordMatches := reWord.FindAllStringSubmatch(m[3], -1)
-		if len(wordMatches) == 0 {
-			continue
-		}
-
 		lineWords := make([]lyrics.Word, 0, len(wordMatches))
 		for _, w := range wordMatches {
 			t := html.UnescapeString(w[3])
@@ -68,23 +64,23 @@ func parseKRC(text string) []lyrics.Line {
 			})
 		}
 
-		if len(lineWords) == 0 {
-			continue
-		}
+		var text string
+		if len(lineWords) > 0 {
+			// sometimes the last word in a line has a trailing space
+			last := &lineWords[len(lineWords)-1]
+			last.Text = strings.TrimSuffix(last.Text, " ")
 
-		// sometimes the last word in a line has a trailing space
-		last := &lineWords[len(lineWords)-1]
-		last.Text = strings.TrimSuffix(last.Text, " ")
-
-		var b strings.Builder
-		for _, w := range lineWords {
-			b.WriteString(w.Text)
+			var b strings.Builder
+			for _, w := range lineWords {
+				b.WriteString(w.Text)
+			}
+			text = b.String()
 		}
 
 		out = append(out, lyrics.Line{
 			StartMs: lineStart,
 			EndMs:   lineEnd,
-			Text:    b.String(),
+			Text:    text,
 			Words:   lineWords,
 		})
 	}

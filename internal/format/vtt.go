@@ -19,6 +19,9 @@ func (vttEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	bw := bufio.NewWriter(w)
 	fmt.Fprint(bw, "WEBVTT\n\n")
 	for _, line := range r.Lines {
+		if line.Text == "" {
+			continue
+		}
 		fmt.Fprintf(bw, "%s --> %s\n%s\n\n", subStamp(line.StartMs, '.'), subStamp(line.EndMs, '.'), line.Text)
 	}
 	return bw.Flush()

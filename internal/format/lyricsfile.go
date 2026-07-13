@@ -67,6 +67,9 @@ func (lfEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	if r.SyncLevel >= lyrics.SyncLine {
 		doc.Lines = make([]lfLine, 0, len(r.Lines))
 		for _, l := range r.Lines {
+			if l.Text == "" {
+				continue
+			}
 			line := lfLine{
 				Text:    l.Text,
 				StartMs: l.StartMs,

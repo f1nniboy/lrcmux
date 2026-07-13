@@ -34,33 +34,24 @@ func (jsonEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	if r.Source.ID != "" {
 		out.Meta.Source = &r.Source
 	}
-	if r.SyncLevel >= lyrics.SyncWord {
-		lines := make([]lyrics.Line, len(r.Lines))
-		for i, l := range r.Lines {
-			line := lyrics.Line{
-				StartMs: l.StartMs,
-				EndMs:   l.EndMs,
-				Text:    l.Text,
-			}
-			if len(l.Words) > 0 {
-				line.Words = make([]lyrics.Word, len(l.Words))
-				copy(line.Words, l.Words)
-			}
-			lines[i] = line
+
+	lines := make([]lyrics.Line, 0, len(r.Lines))
+	for _, l := range r.Lines {
+		if r.SyncLevel != lyrics.SyncNone && l.Text == "" {
+			continue
 		}
-		out.Lines = lines
-	} else {
-		stripped := make([]lyrics.Line, len(r.Lines))
-		for i, l := range r.Lines {
-			line := lyrics.Line{Text: l.Text}
-			if r.SyncLevel >= lyrics.SyncLine {
-				line.StartMs = l.StartMs
-				line.EndMs = l.EndMs
-			}
-			stripped[i] = line
+		line := lyrics.Line{Text: l.Text}
+		if r.SyncLevel >= lyrics.SyncLine {
+			line.StartMs = l.StartMs
+			line.EndMs = l.EndMs
 		}
-		out.Lines = stripped
+		if r.SyncLevel >= lyrics.SyncWord && len(l.Words) > 0 {
+			line.Words = make([]lyrics.Word, len(l.Words))
+			copy(line.Words, l.Words)
+		}
+		lines = append(lines, line)
 	}
+	out.Lines = lines
 	enc := json.NewEncoder(w)
 	return enc.Encode(out)
 }

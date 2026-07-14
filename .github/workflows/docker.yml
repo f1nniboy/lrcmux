@@ -4,6 +4,12 @@ on:
   push:
     tags: ["v*"]
   pull_request:
+    paths:
+      - "Dockerfile"
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - "frontend/src/**"
   workflow_dispatch:
 
 env:

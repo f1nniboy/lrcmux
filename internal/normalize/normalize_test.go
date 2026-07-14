@@ -170,6 +170,8 @@ func TestArtistMatch(t *testing.T) {
 		{"Artist", "Artist und Another", true},
 		{"Another", "Artist et Another", true},
 		{"Another", "Artist x Another", true},
+		{"Artist", "Artist (Ft. Someone)", true},
+		{"Someone", "Artist (Ft. Someone)", true},
 	}
 	for _, c := range cases {
 		if got := ArtistMatch(c.sourceArtist, c.inputArtist); got != c.want {

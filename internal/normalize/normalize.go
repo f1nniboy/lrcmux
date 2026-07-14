@@ -28,6 +28,13 @@ var smartQuotes = strings.NewReplacer(
 	"”", "\"",
 )
 
+var artistBrackets = strings.NewReplacer(
+	"(", "",
+	")", "",
+	"[", "",
+	"]", "",
+)
+
 var (
 	// splits multi-artist strings on common feature markers
 	collaborationRE = regexp.MustCompile(`(?i)\s*[&,×]\s*|\s+(?:` + featRE + `|and|und|et|con|with|vs\.?|x)\s+`)
@@ -70,7 +77,9 @@ func artist(s string) string {
 }
 
 func splitArtists(s string) []string {
+	s = artistBrackets.Replace(s)
 	parts := collaborationRE.Split(s, -1)
+
 	out := make([]string, 0, len(parts))
 	for _, p := range parts {
 		if n := artist(p); n != "" {

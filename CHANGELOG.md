@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.6.0](https://github.com/f1nniboy/lrcmux/compare/v1.5.0...v1.6.0) (2026-07-14)
+
+
+### Features
+
+* **api:** add sources query param to include or exclude providers ([8c740f0](https://github.com/f1nniboy/lrcmux/commit/8c740f021ac8ffc0d087c2f05d4682b3c0f492d6))
+* **frontend:** render source attribution as a clickable link when URL ([1b76cd1](https://github.com/f1nniboy/lrcmux/commit/1b76cd1b4d6cf861f816da94c434c3078919b072))
+* **normalize:** add Match helper, use it across providers ([869a1e5](https://github.com/f1nniboy/lrcmux/commit/869a1e5c7b3a4c927a71729403895fa2c1f8df05))
+* **normalize:** extend patterns, clean up funcs ([904e939](https://github.com/f1nniboy/lrcmux/commit/904e93935a497a74c8f6ba3c2dbd842004d398e2))
+* **providers/netease:** add NetEase provider ([80205db](https://github.com/f1nniboy/lrcmux/commit/80205db4076221e58b0432bec46a2d5151fb5bcb))
+
+
+### Bug fixes
+
+* **isrc/deezer:** improve duration scoring with wider window ([8c740f0](https://github.com/f1nniboy/lrcmux/commit/8c740f021ac8ffc0d087c2f05d4682b3c0f492d6))
+* **isrc:** remove primary artist fallback ([c6851f4](https://github.com/f1nniboy/lrcmux/commit/c6851f48fb3a5f0ae95f19954447fe268ff973c9))
+* **lyrics:** preserve blank lines in ParsePlain as section separators ([b17f16f](https://github.com/f1nniboy/lrcmux/commit/b17f16f709eac0937d45a0353e3b3dab6949b81a))
+* **normalize:** make String idempotent ([69b6ad9](https://github.com/f1nniboy/lrcmux/commit/69b6ad9534cafe8b1f8d27576a34f36d805f0f1e))
+* **normalize:** strip brackets from artist string before splitting ([67fd990](https://github.com/f1nniboy/lrcmux/commit/67fd9904ff5616f11c346ba4d53aa7754e76ceb5))
+* preserve empty-text lines as instrumental markers for LRC ([8c740f0](https://github.com/f1nniboy/lrcmux/commit/8c740f021ac8ffc0d087c2f05d4682b3c0f492d6))
+* **providers/netease:** strip section markers ([28749ec](https://github.com/f1nniboy/lrcmux/commit/28749ecfe24154a61794c61bdd1a6808d615b738))
+
+
+### Refactors
+
+* **cache/redis:** remove unused logger ([c6851f4](https://github.com/f1nniboy/lrcmux/commit/c6851f48fb3a5f0ae95f19954447fe268ff973c9))
+* **isrc:** clean up search result scoring in lookup ([f7a19b1](https://github.com/f1nniboy/lrcmux/commit/f7a19b1ae8e0da8bdba13c44d1a64e5cfb4bc938))
+* **isrc:** remove track-to-ISRC cache layer ([8c740f0](https://github.com/f1nniboy/lrcmux/commit/8c740f021ac8ffc0d087c2f05d4682b3c0f492d6))
+* **lyrics:** extract shared (e)LRC parser ([80205db](https://github.com/f1nniboy/lrcmux/commit/80205db4076221e58b0432bec46a2d5151fb5bcb))
+* **normalize:** strip video suffixes and prod credits in Title ([8c740f0](https://github.com/f1nniboy/lrcmux/commit/8c740f021ac8ffc0d087c2f05d4682b3c0f492d6))
+* **orchestrator:** split code into more logical files, expand ([df1de41](https://github.com/f1nniboy/lrcmux/commit/df1de415e96136d7936a3bcbf25895fa69a30150))
+* **providers/genius:** always drop empty lines ([c6851f4](https://github.com/f1nniboy/lrcmux/commit/c6851f48fb3a5f0ae95f19954447fe268ff973c9))
+* **providers/netease:** combine uncensor and halfWidth into one ([df1de41](https://github.com/f1nniboy/lrcmux/commit/df1de415e96136d7936a3bcbf25895fa69a30150))
+* **providers/ytmusic:** always drop gap/empty lines ([c6851f4](https://github.com/f1nniboy/lrcmux/commit/c6851f48fb3a5f0ae95f19954447fe268ff973c9))
+* **providers:** add URL to providers for easier source attribution ([1b76cd1](https://github.com/f1nniboy/lrcmux/commit/1b76cd1b4d6cf861f816da94c434c3078919b072))
+
 ## [1.5.0](https://github.com/f1nniboy/lrcmux/compare/v1.4.0...v1.5.0) (2026-07-10)
 
 

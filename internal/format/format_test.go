@@ -99,22 +99,22 @@ func TestEncoders(t *testing.T) {
 				if err := enc.Encode(&buf, c.result); err != nil {
 					t.Fatalf("encode: %v", err)
 				}
-				golden := filepath.Join("data", c.name+"."+key) // NOT Extension(), intentional
+				path := filepath.Join("test", c.name+"."+key) // NOT Extension(), intentional
 				if *update {
-					if err := os.MkdirAll("data", 0755); err != nil {
+					if err := os.MkdirAll("test", 0755); err != nil {
 						t.Fatalf("mkdir: %v", err)
 					}
-					if err := os.WriteFile(golden, buf.Bytes(), 0644); err != nil {
+					if err := os.WriteFile(path, buf.Bytes(), 0644); err != nil {
 						t.Fatalf("write golden: %v", err)
 					}
 					return
 				}
-				want, err := os.ReadFile(golden)
+				want, err := os.ReadFile(path)
 				if err != nil {
-					t.Fatalf("missing golden file %s (run with -update to create)", golden)
+					t.Fatalf("missing golden file %s (run with -update to create)", path)
 				}
 				if !bytes.Equal(buf.Bytes(), want) {
-					edits := myers.ComputeEdits(span.URIFromPath(golden), string(want), buf.String())
+					edits := myers.ComputeEdits(span.URIFromPath(path), string(want), buf.String())
 					t.Errorf("output mismatch:\n%s", gotextdiff.ToUnified("want", "got", string(want), edits))
 				}
 			})

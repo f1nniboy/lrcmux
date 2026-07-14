@@ -53,13 +53,13 @@ var (
 )
 
 func String(s string) string {
-	s = strings.TrimSpace(s)
 	s = smartQuotes.Replace(s)
-	s = strings.ToLower(s)
+	s = strings.TrimSpace(s)
 	t := transform.Chain(norm.NFKD, runes.Remove(runes.In(latinDiacritics)), norm.NFKC)
 	if out, _, err := transform.String(t, s); err == nil {
 		s = out
 	}
+	s = strings.ToLower(s)
 	return strings.Join(strings.Fields(s), " ")
 }
 

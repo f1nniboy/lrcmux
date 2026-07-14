@@ -25,6 +25,14 @@ func TestDistScore(t *testing.T) {
 }
 
 func TestPickBest(t *testing.T) {
+	t.Run("single track returned immediately", func(t *testing.T) {
+		tracks := []deezerTrack{{ISRC: "only"}}
+		got := pickBest(tracks, ResolveInput{})
+		if got.ISRC != "only" {
+			t.Fatalf("got %q, want %q", got.ISRC, "only")
+		}
+	})
+
 	t.Run("exact title and artist wins", func(t *testing.T) {
 		tracks := []deezerTrack{
 			{ISRC: "wrong", Title: "Wrong Song", Artist: deezerArtist{Name: "Artist"}},

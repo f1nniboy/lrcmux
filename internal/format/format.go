@@ -44,20 +44,14 @@ func Get(name string) (Encoder, error) {
 }
 
 func formatStamp(ms int64) string {
-	if ms < 0 {
-		ms = 0
-	}
 	mm := ms / 60_000
 	ss := (ms % 60_000) / 1000
 	cs := (ms % 1000) / 10
 	return fmt.Sprintf("%02d:%02d.%02d", mm, ss, cs)
 }
 
-// subStamp formats ms as HH:MM:SS<sep>mmm, used by SRT (sep=',') and VTT (sep='.')
+// formats ms as HH:MM:SS<sep>mmm, used by SRT (sep=',') and VTT (sep='.')
 func subStamp(ms int64, sep byte) string {
-	if ms < 0 {
-		ms = 0
-	}
 	h := ms / 3_600_000
 	m := (ms % 3_600_000) / 60_000
 	s := (ms % 60_000) / 1_000

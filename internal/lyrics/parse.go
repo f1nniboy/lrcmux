@@ -15,9 +15,7 @@ func ParsePlain(s string) []Line {
 	parts := strings.Split(s, "\n")
 	out := make([]Line, 0, len(parts))
 	for _, p := range parts {
-		if t := strings.TrimSpace(p); t != "" {
-			out = append(out, Line{Text: t})
-		}
+		out = append(out, Line{Text: strings.TrimSpace(p)})
 	}
 	return out
 }

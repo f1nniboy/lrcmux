@@ -36,15 +36,16 @@ type lfWord struct {
 type lfLine struct {
 	Text    string   `yaml:"text"`
 	Words   []lfWord `yaml:"words,omitempty"`
-	StartMs int64    `yaml:"start_ms"`
+	StartMs int64    `yaml:"start_ms,omitempty"`
 	EndMs   int64    `yaml:"end_ms,omitempty"`
 }
 
+//nolint:govet // fieldalignment
 type lfDoc struct {
 	Version  string   `yaml:"version"`
-	Plain    string   `yaml:"plain,omitempty"`
 	Metadata lfMeta   `yaml:"metadata"`
 	Lines    []lfLine `yaml:"lines,omitempty"`
+	Plain    string   `yaml:"plain,omitempty"`
 }
 
 func (lfEncoder) Encode(w io.Writer, r *lyrics.Result) error {

@@ -144,6 +144,18 @@ func TestPrimaryArtist(t *testing.T) {
 	}
 }
 
+func TestMatch(t *testing.T) {
+	if !Match("Song", "Artist", "Song", "Artist") {
+		t.Error("identical title and artist should match")
+	}
+	if Match("Song", "Artist", "Other Song", "Artist") {
+		t.Error("different title should not match")
+	}
+	if Match("Song", "Artist", "Song", "Other Artist") {
+		t.Error("different artist should not match")
+	}
+}
+
 func TestArtistMatch(t *testing.T) {
 	cases := []struct {
 		sourceArtist, inputArtist string

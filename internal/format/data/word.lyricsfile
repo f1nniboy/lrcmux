@@ -1,0 +1,28 @@
+version: "1.0"
+metadata:
+    title: Test Song
+    artist: Test Artist
+    album: Test Album
+    duration_ms: 180000
+lines:
+    - text: Hello world
+      words:
+        - text: 'Hello '
+          start_ms: 1000
+          end_ms: 2000
+        - text: world
+          start_ms: 2000
+          end_ms: 3000
+      start_ms: 1000
+      end_ms: 3000
+    - text: Goodbye
+      words:
+        - text: Goodbye
+          start_ms: 5000
+          end_ms: 7000
+      start_ms: 5000
+      end_ms: 7000
+plain: |-
+    Hello world
+
+    Goodbye

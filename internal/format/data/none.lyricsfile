@@ -1,0 +1,10 @@
+version: "1.0"
+metadata:
+    title: Test Song
+    artist: Test Artist
+    album: Test Album
+    duration_ms: 180000
+plain: |-
+    Hello world
+
+    Goodbye

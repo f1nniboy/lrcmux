@@ -44,6 +44,9 @@ fmt:
 test:
     go test ./...
 
+coverage:
+    go test ./... -coverprofile=/tmp/lrcmux.out && go tool cover -func=/tmp/lrcmux.out
+
 deploy-api:
     fly deploy --local-only
 

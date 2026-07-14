@@ -101,8 +101,11 @@ func hasPlaceholder(lines []lyrics.Line) bool {
 func cleanLines(lines []lyrics.Line) []lyrics.Line {
 	out := lines[:0:len(lines)]
 	for _, l := range lines {
-		l.Text = uncensor(halfWidth(l.Text))
-		if l.StartMs == 0 || creditRE.MatchString(strings.TrimSpace(l.Text)) {
+		l.Text = strings.TrimSpace(uncensor(halfWidth(l.Text)))
+		if l.StartMs == 0 || creditRE.MatchString(l.Text) {
+			continue
+		}
+		if strings.HasPrefix(l.Text, "[") && strings.HasSuffix(l.Text, "]") {
 			continue
 		}
 		for j := range l.Words {

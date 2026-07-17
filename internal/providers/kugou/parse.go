@@ -20,12 +20,18 @@ func isCreditLine(text string) bool {
 }
 
 func stripMetadata(lines []lyrics.Line) []lyrics.Line {
-	if len(lines) == 0 {
-		return lines
+	// scan backwards for the last credit line,
+	// then cut out all lines before that
+	limit := min(30, len(lines))
+	for i := limit - 1; i >= 0; i-- {
+		if isCreditLine(lines[i].Text) {
+			return lines[i+1:]
+		}
 	}
-	lines = lines[1:]
-	for len(lines) > 0 && isCreditLine(lines[0].Text) {
-		lines = lines[1:]
+	// no credit lines, drop first line if it looks like a title separator
+	// TODO: can this really happen?
+	if len(lines) > 0 && strings.Contains(lines[0].Text, "-") {
+		return lines[1:]
 	}
 	return lines
 }

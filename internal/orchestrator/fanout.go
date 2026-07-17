@@ -74,7 +74,8 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 	o.log.Debug("fanout done", "collected", len(results), "of", len(active))
 
 	go func() {
-		bg := context.Background()
+		bg, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		ids := make([]string, len(results))
 
 		for i, r := range results {
@@ -89,7 +90,7 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 			}
 		}
 
-		o.breaker.ResetStreak(bg, ids)
+		o.breaker.ResetStreak(bg, append(ids, misses...))
 	}()
 
 	return results

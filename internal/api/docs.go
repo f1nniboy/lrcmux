@@ -37,7 +37,7 @@ type rateLimitDoc struct {
 	Limit  int
 }
 
-func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Limiter, hide bool) (string, error) {
+func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Limiter) (string, error) {
 	t, err := template.New("docs").Parse(tmpl)
 	if err != nil {
 		return "", err
@@ -47,15 +47,12 @@ func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Li
 		AppName:   meta.AppName,
 		AppDomain: meta.AppDomain,
 		Levels:    lyrics.Levels,
+		Providers: orch.Providers(),
 	}
 
 	for _, name := range format.All() {
 		enc, _ := format.Get(name)
 		d.Formats = append(d.Formats, formatEntry{Encoder: enc, Name: name})
-	}
-
-	if !hide {
-		d.Providers = orch.Providers()
 	}
 
 	if rate != nil {

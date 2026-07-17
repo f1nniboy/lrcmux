@@ -81,11 +81,7 @@ func (p *Provider) findCandidate(ctx context.Context, artist, title string, dura
 	params.Set("keyword", artist+" - "+title)
 	params.Set("hash", "")
 	params.Set("album_audio_id", "")
-	if durationMs > 0 {
-		params.Set("duration", strconv.FormatInt(durationMs, 10))
-	} else {
-		params.Set("duration", "")
-	}
+	params.Set("duration", strconv.FormatInt(durationMs, 10))
 
 	var sr struct {
 		Candidates []searchCandidate `json:"candidates"`
@@ -104,13 +100,9 @@ func bestCandidate(candidates []searchCandidate, durationMs int64) *searchCandid
 	best := &candidates[0]
 	for i := range candidates[1:] {
 		c := &candidates[i+1]
-		if durationMs > 0 {
-			bestDiff := abs64(best.Duration - durationMs)
-			cDiff := abs64(c.Duration - durationMs)
-			if cDiff < bestDiff || (cDiff == bestDiff && c.Score > best.Score) {
-				best = c
-			}
-		} else if c.Score > best.Score {
+		bestDiff := abs64(best.Duration - durationMs)
+		cDiff := abs64(c.Duration - durationMs)
+		if cDiff < bestDiff || (cDiff == bestDiff && c.Score > best.Score) {
 			best = c
 		}
 	}

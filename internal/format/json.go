@@ -12,10 +12,17 @@ type JSONMeta struct {
 	Level  string         `json:"level" doc:"Sync level of the returned lyrics" enum:"word,line,none"`
 }
 
+type JSONLine struct {
+	Text    string        `json:"text"`
+	StartMs *int64        `json:"start,omitempty"`
+	EndMs   *int64        `json:"end,omitempty"`
+	Words   []lyrics.Word `json:"words,omitempty"`
+}
+
 type JSONResponse struct {
-	Track lyrics.Track  `json:"track"`
-	Meta  JSONMeta      `json:"meta"`
-	Lines []lyrics.Line `json:"lines"`
+	Track lyrics.Track `json:"track"`
+	Meta  JSONMeta     `json:"meta"`
+	Lines []JSONLine   `json:"lines"`
 }
 
 type jsonEncoder struct{}
@@ -28,24 +35,24 @@ func (jsonEncoder) Desc() string                      { return "Default, structu
 func (jsonEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	out := JSONResponse{
 		Meta:  JSONMeta{Level: r.SyncLevel.String()},
-		Lines: r.Lines,
 		Track: r.Track,
 	}
 	if r.Source.ID != "" {
 		out.Meta.Source = &r.Source
 	}
 
-	lines := make([]lyrics.Line, 0, len(r.Lines))
+	lines := make([]JSONLine, 0, len(r.Lines))
 	for _, l := range r.Lines {
-		if r.SyncLevel != lyrics.SyncNone && l.Text == "" {
+		if l.Text == "" {
 			continue
 		}
-		line := lyrics.Line{Text: l.Text}
+		line := JSONLine{Text: l.Text}
 		if r.SyncLevel >= lyrics.SyncLine {
-			line.StartMs = l.StartMs
-			line.EndMs = l.EndMs
+			start, end := l.StartMs, l.EndMs
+			line.StartMs = &start
+			line.EndMs = &end
 		}
-		if r.SyncLevel >= lyrics.SyncWord && len(l.Words) > 0 {
+		if r.SyncLevel >= lyrics.SyncWord {
 			line.Words = make([]lyrics.Word, len(l.Words))
 			copy(line.Words, l.Words)
 		}

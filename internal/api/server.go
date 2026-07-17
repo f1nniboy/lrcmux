@@ -60,7 +60,7 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 		r.Use(requireCloudflare)
 	}
 
-	docs, err := renderDocs(docsMD, s.orch, s.rate, s.cfg.Provider.Hide)
+	docs, err := renderDocs(docsMD, s.orch, s.rate)
 	if err != nil {
 		s.log.Warn("docs render failed", "err", err)
 		docs = docsMD

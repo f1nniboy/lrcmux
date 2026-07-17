@@ -8,4 +8,4 @@ Fixes #X. <!-- insert issue number, if applicable -->
 
 <!-- If an item doesn't apply, just ~~cross it out~~. -->
 
-- [ ] Tests (not needed for network/provider code)
+- [ ] Tests (encouraged but not necessary, only for pure logic functions)

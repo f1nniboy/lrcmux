@@ -91,7 +91,10 @@ func parseYRCWords(s string) ([]lyrics.Word, string) {
 // detects the "lyrics yet to be released" filler text
 func hasPlaceholder(lines []lyrics.Line) bool {
 	for _, l := range lines {
-		if strings.Contains(l.Text, "yet to be released") {
+		// netease' placeholder text is formatted as "yet ", " ", "to ", ...
+		// so we have to first strip all whitespace, then join again
+		normalized := strings.Join(strings.Fields(l.Text), " ")
+		if strings.Contains(normalized, "yet to be released") {
 			return true
 		}
 	}

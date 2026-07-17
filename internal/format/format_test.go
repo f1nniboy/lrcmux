@@ -14,11 +14,6 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 )
 
-type testCase struct {
-	result *lyrics.Result
-	name   string
-}
-
 var track = lyrics.Track{
 	Artist:   "Test Artist",
 	Title:    "Test Song",
@@ -34,52 +29,23 @@ var track = lyrics.Track{
 
 var source = lyrics.Source{ID: "test", Name: "Test", URL: "https://example.com"}
 
-var cases = []testCase{
-	{
-		name: "word",
-		result: &lyrics.Result{
-			SyncLevel: lyrics.SyncWord,
-			Track:     track,
-			Source:    source,
-			Lines: []lyrics.Line{
-				{
-					StartMs: 1000, EndMs: 3000, Text: "Hello world",
-					Words: []lyrics.Word{
-						{StartMs: 1000, EndMs: 2000, Text: "Hello "},
-						{StartMs: 2000, EndMs: 3000, Text: "world"},
-					},
-				},
-				{StartMs: 3000, EndMs: 5000, Text: ""},
-				{
-					StartMs: 5000, EndMs: 7000, Text: "Goodbye",
-					Words: []lyrics.Word{
-						{StartMs: 5000, EndMs: 7000, Text: "Goodbye"},
-					},
-				},
+var result = &lyrics.Result{
+	SyncLevel: lyrics.SyncWord,
+	Track:     track,
+	Source:    source,
+	Lines: []lyrics.Line{
+		{
+			StartMs: 0, EndMs: 3000, Text: "Hello world",
+			Words: []lyrics.Word{
+				{StartMs: 0, EndMs: 2000, Text: "Hello "},
+				{StartMs: 2000, EndMs: 3000, Text: "world"},
 			},
 		},
-	},
-	{
-		name: "line",
-		result: &lyrics.Result{
-			SyncLevel: lyrics.SyncLine,
-			Track:     track,
-			Lines: []lyrics.Line{
-				{StartMs: 1000, EndMs: 3000, Text: "Hello world"},
-				{StartMs: 3000, EndMs: 5000, Text: ""},
+		{StartMs: 3000, EndMs: 5000, Text: ""},
+		{
+			StartMs: 5000, EndMs: 7000, Text: "Goodbye",
+			Words: []lyrics.Word{
 				{StartMs: 5000, EndMs: 7000, Text: "Goodbye"},
-			},
-		},
-	},
-	{
-		name: "none",
-		result: &lyrics.Result{
-			SyncLevel: lyrics.SyncNone,
-			Track:     track,
-			Lines: []lyrics.Line{
-				{Text: "Hello world"},
-				{Text: ""},
-				{Text: "Goodbye"},
 			},
 		},
 	},
@@ -90,16 +56,17 @@ var update = flag.Bool("update", false, "rewrite golden files")
 func TestEncoders(t *testing.T) {
 	for key, enc := range registry {
 		lo, hi := enc.Levels()
-		for _, c := range cases {
-			if c.result.SyncLevel < lo || c.result.SyncLevel > hi {
+		for _, level := range lyrics.Levels {
+			if level < lo || level > hi {
 				continue
 			}
-			t.Run(key+"/"+c.name, func(t *testing.T) {
+			level := level
+			t.Run(key+"/"+level.String(), func(t *testing.T) {
 				var buf bytes.Buffer
-				if err := enc.Encode(&buf, c.result); err != nil {
+				if err := enc.Encode(&buf, result.Downgrade(level)); err != nil {
 					t.Fatalf("encode: %v", err)
 				}
-				path := filepath.Join("test", c.name+"."+key) // NOT Extension(), intentional
+				path := filepath.Join("test", level.String()+"."+key)
 				if *update {
 					if err := os.MkdirAll("test", 0755); err != nil {
 						t.Fatalf("mkdir: %v", err)

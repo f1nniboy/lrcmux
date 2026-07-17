@@ -138,10 +138,6 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		s.metrics.CacheOps.WithLabelValues(cacheResult).Inc()
 	}
 
-	if s.cfg.Provider.Hide {
-		lyricsResp.Result.Source = lyrics.Source{}
-	}
-
 	var buf bytes.Buffer
 	if err := encoder.Encode(&buf, lyricsResp.Result); err != nil {
 		return nil, huma.Error500InternalServerError(err.Error())
@@ -153,9 +149,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		Body: func(ctx huma.Context) {
 			ctx.SetHeader("Content-Type", encoder.ContentType())
 			ctx.SetHeader("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
-			if !s.cfg.Provider.Hide {
-				ctx.SetHeader("X-Source", lyricsResp.Result.Source.ID)
-			}
+			ctx.SetHeader("X-Source", lyricsResp.Result.Source.ID)
 			ctx.SetHeader("X-Sync-Level", lyricsResp.Result.SyncLevel.String())
 			if lyricsResp.Cached {
 				ctx.SetHeader("X-Cache", "HIT")

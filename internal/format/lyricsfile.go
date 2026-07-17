@@ -36,8 +36,8 @@ type lfWord struct {
 type lfLine struct {
 	Text    string   `yaml:"text"`
 	Words   []lfWord `yaml:"words,omitempty"`
-	StartMs int64    `yaml:"start_ms,omitempty"`
-	EndMs   int64    `yaml:"end_ms,omitempty"`
+	StartMs int64    `yaml:"start_ms"`
+	EndMs   int64    `yaml:"end_ms"`
 }
 
 //nolint:govet // fieldalignment

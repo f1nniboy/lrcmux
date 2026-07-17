@@ -84,4 +84,25 @@ func TestWorthQuerying(t *testing.T) {
 			t.Errorf("expected [word line], got %v", providers.IDs(out))
 		}
 	})
+
+	t.Run("cache has censored line: keep word and line providers", func(t *testing.T) {
+		cached := []*lyrics.Result{result("cached", lyrics.SyncLine, "c**sored")}
+		out := worthQuerying(slices.Clone(all), cached, Request{Level: lyrics.SyncWord})
+		if len(out) != 2 {
+			t.Errorf("expected [word line], got %v", providers.IDs(out))
+		}
+		for _, p := range out {
+			if p.ID() == "none" {
+				t.Error("none should be excluded (below cached level)")
+			}
+		}
+	})
+
+	t.Run("cache has censored word: keep word provider", func(t *testing.T) {
+		cached := []*lyrics.Result{result("cached", lyrics.SyncWord, "c**sored")}
+		out := worthQuerying(slices.Clone(all), cached, Request{Level: lyrics.SyncWord})
+		if len(out) != 1 || out[0].ID() != "word" {
+			t.Errorf("expected [word], got %v", providers.IDs(out))
+		}
+	})
 }

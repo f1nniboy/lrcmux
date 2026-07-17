@@ -76,7 +76,7 @@ func (p *tokenPool) trySlot(ctx context.Context, idx int) (string, error) {
 	}
 	if p.cache != nil {
 		val, status, err := cache.Get[string](ctx, p.cache, p.cacheKey(idx))
-		if err == nil && status == cache.Found && val != "" {
+		if err == nil && status == cache.Hit && val != "" {
 			slot.token = val
 			return slot.token, nil
 		}

@@ -45,7 +45,7 @@ func (r *Resolver) Resolve(ctx context.Context, in ResolveInput) (lyrics.Track, 
 func (r *Resolver) resolveByISRC(ctx context.Context, isrc string) (lyrics.Track, error) {
 	key := metaKey(isrc)
 	switch track, status, _ := cache.Get[lyrics.Track](ctx, r.cache, key); status {
-	case cache.Found:
+	case cache.Hit:
 		r.log.Debug("isrc meta cache hit", "isrc", isrc)
 		return track, nil
 	case cache.KnownMiss:

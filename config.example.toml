@@ -42,8 +42,6 @@ window = '1h0m0s'
 [provider]
 # timeout for provider requests
 timeout = '5s'
-# hide source from responses and /stats endpoint
-hide = false
 
 [providers]
 [providers.genius]

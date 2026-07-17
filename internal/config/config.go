@@ -33,7 +33,6 @@ type Proxy struct {
 
 type ProviderOptions struct {
 	Timeout Duration `toml:"timeout" comment:"timeout for provider requests"`
-	Hide    bool     `toml:"hide" comment:"hide source from responses and /stats endpoint"`
 }
 
 type RateLimit struct {

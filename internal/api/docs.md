@@ -1,12 +1,11 @@
 **{{.AppName}}** is a lyrics aggregation API. It queries multiple providers, caches results, and returns the best available lyrics for a given track.
-{{if .Providers}}
 
 ## Providers
 
-| Provider | Notes |
-| -------- | ----- |
-{{range .Providers}}| {{if .URL}}**[{{.Name}}]({{.URL}})**{{else}}**{{.Name}}**{{end}} | {{.Desc}} |
-{{end}}{{end}}
+| Provider | ID | Notes |
+| -------- | -- | ----- |
+{{range .Providers}}| {{if .URL}}**[{{.Name}}]({{.URL}})**{{else}}**{{.Name}}**{{end}} | `{{.ID}}` | {{.Desc}} |
+{{end}}
 
 ## Sync levels
 

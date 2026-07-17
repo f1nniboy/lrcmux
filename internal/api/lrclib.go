@@ -28,11 +28,11 @@ type LrclibOutput struct {
 }
 
 type LrclibResponse struct {
+	SyncedLyrics *string `json:"syncedLyrics"`
 	TrackName    string  `json:"trackName"`
 	ArtistName   string  `json:"artistName"`
 	AlbumName    string  `json:"albumName"`
 	PlainLyrics  string  `json:"plainLyrics"`
-	SyncedLyrics string  `json:"syncedLyrics"`
 	ID           int     `json:"id"`
 	Duration     float64 `json:"duration"`
 	Instrumental bool    `json:"instrumental"`
@@ -75,9 +75,12 @@ func lrclibResponse(result *orchestrator.Response) LrclibResponse {
 	var plain bytes.Buffer
 	txtEnc.Encode(&plain, result.Result)
 
-	var synced bytes.Buffer
+	var syncedLyrics *string
 	if result.Result.SyncLevel >= lyrics.SyncLine {
+		var synced bytes.Buffer
 		lrcEnc.Encode(&synced, result.Result)
+		s := synced.String()
+		syncedLyrics = &s
 	}
 
 	track := result.Result.Track
@@ -87,7 +90,7 @@ func lrclibResponse(result *orchestrator.Response) LrclibResponse {
 		AlbumName:    track.Album,
 		Duration:     float64(track.Duration),
 		PlainLyrics:  plain.String(),
-		SyncedLyrics: synced.String(),
+		SyncedLyrics: syncedLyrics,
 	}
 }
 

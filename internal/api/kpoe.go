@@ -107,10 +107,7 @@ func (s *Server) handleKpoe(ctx context.Context, input *KpoeInput) (*KpoeOutput,
 		klines = append(klines, kl)
 	}
 
-	src := meta.AppDomain
-	if !s.cfg.Provider.Hide && result.Result.Source.ID != "" {
-		src = fmt.Sprintf("%s at %s", result.Result.Source.Name, meta.AppDomain)
-	}
+	src := fmt.Sprintf("%s at %s", result.Result.Source.Name, meta.AppDomain)
 
 	out := &KpoeOutput{Body: KpoeResponse{
 		KpoeTools: meta.AppName,

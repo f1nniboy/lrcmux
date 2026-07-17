@@ -153,8 +153,8 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 
 	cached, unknowns := o.getCacheAndProviders(ctx, q, req, active)
 
-	// in strict mode we must meet the level,
-	// otherwise we pick the best across levels
+	// in strict mode we must meet the level, otherwise we pick
+	// the best across levels
 	pickLevel := lyrics.SyncNone
 	if req.Strict {
 		pickLevel = req.Level
@@ -167,7 +167,6 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	if req.FetchMode == "cache" || len(unknowns) == 0 {
 		if picked := o.pick(cached, pickLevel); picked != nil {
 			o.log.Debug("serving from cache", "provider", picked.Source.ID, "sync", picked.SyncLevel.String())
-			o.recordOutcome("cache_hit")
 			return respond(picked, true), nil
 		}
 		return nil, ErrNotFound
@@ -235,15 +234,24 @@ func (o *Orchestrator) getCacheAndProviders(ctx context.Context, q lyrics.Query,
 // drops providers that can't improve on what's already cached
 // and, in strict mode, those that can't satisfy the requested level
 func worthQuerying(unknowns []providers.Provider, cached []*lyrics.Result, req Request) []providers.Provider {
-	var bestCachedLevel lyrics.SyncLevel
+	// rankResult prefers clean over level, so best captures both dimensions:
+	// a clean result at any level beats a censored result at a higher level
+	var best *lyrics.Result
 	for _, c := range cached {
-		if c.SyncLevel > bestCachedLevel {
-			bestCachedLevel = c.SyncLevel
+		if best == nil || rankResult(c, best) > 0 {
+			best = c
 		}
 	}
 	return slices.DeleteFunc(unknowns, func(p providers.Provider) bool {
-		if len(cached) > 0 && p.MaxLevel() <= bestCachedLevel {
-			return true
+		if best != nil {
+			// can't reach the level we already have
+			if p.MaxLevel() < best.SyncLevel {
+				return true
+			}
+			// same level and the cached result is already satisfying, nothing to gain
+			if p.MaxLevel() == best.SyncLevel && satisfies(best, best.SyncLevel) {
+				return true
+			}
 		}
 		return req.Strict && p.MaxLevel() < req.Level
 	})
@@ -261,7 +269,7 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, provs []p
 	}
 	for i, p := range provs {
 		switch statuses[i] {
-		case cache.Found:
+		case cache.Hit:
 			o.log.Debug("cache hit", "provider", p.ID(), "sync", results[i].SyncLevel.String())
 			hits = append(hits, &results[i])
 		case cache.KnownMiss:

@@ -138,7 +138,7 @@
   {:else if fetchState.status === "error"}
     <div class="flex-1 flex flex-col items-center justify-center gap-5">
       <div class="flex flex-col items-center gap-3">
-        <p class="text-2xl font-semibold text-ink">
+        <p class="text-2xl font-semibold text-ink text-center">
           {fetchState.code === 404
             ? "We couldn't find the lyrics for this song."
             : fetchState.code === 429

@@ -58,47 +58,34 @@ func (p *Provider) Init() {
 }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
-	for {
-		token, idx, err := p.pool.get(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		meta, err := p.fetchTrackMeta(ctx, q.Track.ISRC, token, idx)
-		if errors.Is(err, providers.ErrRateLimited) {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		if meta == nil {
-			return nil, lyrics.ErrNotFound
-		}
-
-		t := tierByLevel[meta.syncLevel]
-		lines, err := p.fetchTier(ctx, t, q.Track.ISRC, token, idx)
-		if errors.Is(err, providers.ErrRateLimited) {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		if len(lines) > 0 {
-			return &lyrics.Result{Lines: lines, SyncLevel: meta.syncLevel}, nil
-		}
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
+	meta, err := p.fetchTrackMeta(ctx, q.Track.ISRC)
+	if err != nil {
+		return nil, err
+	}
+	if meta == nil {
 		return nil, lyrics.ErrNotFound
 	}
+
+	t := tierByLevel[meta.syncLevel]
+	lines, err := p.fetchTier(ctx, t, q.Track.ISRC)
+	if err != nil {
+		return nil, err
+	}
+	if len(lines) > 0 {
+		return &lyrics.Result{Lines: lines, SyncLevel: meta.syncLevel}, nil
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return nil, lyrics.ErrNotFound
 }
 
 type trackMeta struct {
 	syncLevel lyrics.SyncLevel
 }
 
-func (p *Provider) fetchTrackMeta(ctx context.Context, isrc, token string, idx int) (*trackMeta, error) {
-	body, err := p.get(ctx, "track.get", url.Values{"track_isrc": {isrc}}, token, idx)
+func (p *Provider) fetchTrackMeta(ctx context.Context, isrc string) (*trackMeta, error) {
+	body, err := p.get(ctx, "track.get", url.Values{"track_isrc": {isrc}})
 	if err != nil {
 		return nil, err
 	}
@@ -122,15 +109,12 @@ func (p *Provider) fetchTrackMeta(ctx context.Context, isrc, token string, idx i
 	return nil, nil
 }
 
-func (p *Provider) fetchTier(ctx context.Context, t tier, isrc, token string, idx int) ([]lyrics.Line, error) {
+func (p *Provider) fetchTier(ctx context.Context, t tier, isrc string) ([]lyrics.Line, error) {
 	params := url.Values{"track_isrc": {isrc}}
 	maps.Copy(params, t.extra)
 
-	body, err := p.get(ctx, t.endpoint, params, token, idx)
+	body, err := p.get(ctx, t.endpoint, params)
 	if err != nil {
-		if errors.Is(err, providers.ErrRateLimited) {
-			return nil, err
-		}
 		if ctx.Err() == nil && !errors.Is(err, lyrics.ErrNotFound) {
 			p.Log.Debug("fetch failed", "tier", t.bodyKey, "isrc", isrc, "err", err)
 			return nil, err
@@ -148,18 +132,25 @@ func (p *Provider) fetchTier(ctx context.Context, t tier, isrc, token string, id
 	return t.parse(content), nil
 }
 
-func (p *Provider) get(ctx context.Context, endpoint string, extra url.Values, token string, idx int) (json.RawMessage, error) {
-	p.Log.Debug("using token", "slot", idx, "token", token[:8])
-	body, err := p.doRequest(ctx, endpoint, extra, token)
-	if err == nil {
-		return body, nil
-	}
-	if errors.Is(err, errTokenUnusable) {
+func (p *Provider) get(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
+	for range len(p.pool.slots) {
+		token, idx, err := p.pool.get(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		p.Log.Debug("using token", "slot", idx, "token", token[:8])
+		body, err := p.doRequest(ctx, endpoint, extra, token)
+		if err == nil {
+			return body, nil
+		}
+		if !errors.Is(err, errTokenUnusable) {
+			return nil, err
+		}
 		p.Log.Debug("token unusable, retiring", "slot", idx)
 		p.pool.retire(idx)
-		return nil, providers.ErrRateLimited
 	}
-	return nil, err
+	return nil, providers.ErrRateLimited
 }
 
 func (p *Provider) doRequest(ctx context.Context, endpoint string, extra url.Values, token string) (json.RawMessage, error) {

@@ -10,6 +10,9 @@ on:
       - "go.sum"
       - "frontend/src/**"
 
+permissions:
+  contents: read
+
 jobs:
   lint-backend:
     runs-on: ubuntu-latest

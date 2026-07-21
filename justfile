@@ -41,6 +41,15 @@ fix-frontend:
 fmt:
     treefmt
 
+update: update-backend update-frontend
+
+update-backend:
+    go get -u ./...
+    go mod tidy
+
+update-frontend:
+    cd frontend && pnpm update
+
 test:
     go test ./...
 

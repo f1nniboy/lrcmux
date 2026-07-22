@@ -127,6 +127,12 @@ func distScore(a, b string, n int) float64 {
 	return float64(max(0, n-levenshtein.ComputeDistance(a, b)))
 }
 
+// shared score for the title/artist/duration signals, so no
+// single one alone can outweigh an exact match in another
+const matchScore = 5
+
+const durationWindowSecs = 30
+
 func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
 	if len(tracks) == 1 {
 		return tracks[0]
@@ -142,20 +148,20 @@ func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
 		var s float64
 
 		// title
-		s += distScore(normalize.Title(t.Title), wantTitle, 5)
+		s += distScore(normalize.Title(t.Title), wantTitle, matchScore)
 
 		// artist
 		if normalize.ArtistMatch(t.Artist.Name, in.Artist) || normalize.ArtistMatch(in.Artist, t.Artist.Name) {
-			s += 5
+			s += matchScore
 		} else {
-			s += distScore(normalize.String(t.Artist.Name), wantArtist, 2)
+			s += distScore(normalize.String(t.Artist.Name), wantArtist, matchScore)
 		}
 
 		// duration
 		if in.Duration > 0 {
 			delta := math.Abs(float64(t.Duration - in.Duration))
-			if delta < 30 {
-				s += 10 - delta/3
+			if delta < durationWindowSecs {
+				s += matchScore * (1 - delta/durationWindowSecs)
 			}
 		}
 

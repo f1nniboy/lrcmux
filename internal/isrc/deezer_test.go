@@ -66,6 +66,17 @@ func TestPickBest(t *testing.T) {
 		}
 	})
 
+	t.Run("title match wins over duration match on wrong track", func(t *testing.T) {
+		tracks := []deezerTrack{
+			{ISRC: "right", Title: "Right Song", Artist: deezerArtist{Name: "Artist"}, Duration: 180},
+			{ISRC: "wrong", Title: "Wrong Song", Artist: deezerArtist{Name: "Artist"}, Duration: 120},
+		}
+		got := pickBest(tracks, ResolveInput{Title: "Right Song", Artist: "Artist", Duration: 120})
+		if got.ISRC != "right" {
+			t.Fatalf("got %q, want %q", got.ISRC, "right")
+		}
+	})
+
 	t.Run("album exact match breaks tie", func(t *testing.T) {
 		tracks := []deezerTrack{
 			{ISRC: "right", Title: "Song", Artist: deezerArtist{Name: "Artist"}, Album: deezerAlbum{Title: "Right Album"}},

@@ -49,7 +49,7 @@ var (
 	prodRE = regexp.MustCompile(`(?i)\s*[\[(]prod(?:uced)?\b[^\])]*[\])]|\s+[|]?\s*prod(?:uced)?\b.*$`)
 
 	// matches the artist–title separator in combined title strings
-	artistTitleSepRE = regexp.MustCompile(`\s[-–~]\s`)
+	artistTitleSepRE = regexp.MustCompile(`\s[-–—~]\s`)
 )
 
 func String(s string) string {

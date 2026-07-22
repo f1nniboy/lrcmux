@@ -64,7 +64,7 @@ func toTrack(raw deezerTrack) lyrics.Track {
 }
 
 func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (lyrics.Track, error) {
-	q := fmt.Sprintf(`artist:"%s" track:"%s"`, in.Artist, in.Title)
+	q := in.Artist + " " + in.Title
 	endpoint := baseURL + "/search?q=" + url.QueryEscape(q) + "&limit=10"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)

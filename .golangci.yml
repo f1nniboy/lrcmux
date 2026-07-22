@@ -77,3 +77,10 @@ linters:
       disable:
         # variable shadowing is checked by import-shadowing in revive already
         - shadow
+
+  exclusions:
+    rules:
+      # cmd/ tools print their result directly
+      - path: ^cmd/
+        linters:
+          - forbidigo

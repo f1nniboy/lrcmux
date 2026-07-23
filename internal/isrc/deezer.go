@@ -3,10 +3,13 @@ package isrc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
+	"sync"
 
 	"github.com/agnivade/levenshtein"
 
@@ -64,34 +67,70 @@ func toTrack(raw deezerTrack) lyrics.Track {
 }
 
 func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (lyrics.Track, error) {
-	q := in.Artist + " " + in.Title
+	queries := []string{
+		fmt.Sprintf(`artist:"%s" track:"%s"`, in.Artist, in.Title),
+		in.Artist + " " + in.Title,
+	}
+
+	results := make([][]deezerTrack, len(queries))
+	errs := make([]error, len(queries))
+
+	var wg sync.WaitGroup
+	for i, q := range queries {
+		wg.Go(func() { results[i], errs[i] = r.search(ctx, q) })
+	}
+	wg.Wait()
+
+	if !slices.Contains(errs, nil) {
+		return lyrics.Track{}, errors.Join(errs...)
+	}
+
+	merged := mergeTracks(results...)
+	if len(merged) == 0 {
+		return lyrics.Track{}, lyrics.ErrNotFound
+	}
+
+	return toTrack(pickBest(merged, in)), nil
+}
+
+func (r *Resolver) search(ctx context.Context, q string) ([]deezerTrack, error) {
 	endpoint := baseURL + "/search?q=" + url.QueryEscape(q) + "&limit=10"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return lyrics.Track{}, err
+		return nil, err
 	}
 
 	resp, err := r.client.Do(req)
 	if err != nil {
-		return lyrics.Track{}, fmt.Errorf("deezer request: %w", err)
+		return nil, fmt.Errorf("deezer request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return lyrics.Track{}, fmt.Errorf("deezer status %d", resp.StatusCode)
+		return nil, fmt.Errorf("deezer status %d", resp.StatusCode)
 	}
 
 	var dr deezerSearchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&dr); err != nil {
-		return lyrics.Track{}, fmt.Errorf("deezer decode: %w", err)
+		return nil, fmt.Errorf("deezer decode: %w", err)
 	}
+	return dr.Data, nil
+}
 
-	if len(dr.Data) == 0 {
-		return lyrics.Track{}, lyrics.ErrNotFound
+func mergeTracks(lists ...[]deezerTrack) []deezerTrack {
+	seen := make(map[int64]bool)
+	var out []deezerTrack
+	for _, list := range lists {
+		for _, t := range list {
+			if seen[t.ID] {
+				continue
+			}
+			seen[t.ID] = true
+			out = append(out, t)
+		}
 	}
-
-	return toTrack(pickBest(dr.Data, in)), nil
+	return out
 }
 
 func (r *Resolver) lookupMeta(ctx context.Context, isrc string) (lyrics.Track, error) {

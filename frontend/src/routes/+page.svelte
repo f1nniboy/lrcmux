@@ -13,7 +13,9 @@
     {
       id: "beets",
       name: "Beets",
-      link: "https://beets.io",
+      icon: "https://beets.readthedocs.io/en/stable/_static/beets_logo_nobg.png",
+      desc: "The media library management system for obsessive music geeks",
+      url: "https://beets.io",
       steps: [
         "Add <strong>lyrics</strong> to the <strong>plugins</strong> list in your configuration.",
         "Run <strong>beet lyrics</strong> to fetch synced lyrics for your library.",
@@ -22,7 +24,9 @@
     {
       id: "navidrome",
       name: "Navidrome",
-      link: "https://www.navidrome.org",
+      icon: "https://raw.githubusercontent.com/navidrome/navidrome/master/resources/logo-192x192.png",
+      desc: "Self-hosted music server",
+      url: "https://www.navidrome.org",
       steps: [
         'Install the <a href="https://github.com/J0R6IT0/navidrome-lyrics-plugin" target="_blank" rel="noopener" class="hover:text-ink underline">navidrome-lyrics-plugin</a> if you haven\'t already.',
         "Click your <strong>account icon</strong> in the top right and open <strong>Plugins</strong>.",
@@ -31,14 +35,23 @@
         "Click <strong>Save</strong>.",
       ],
     },
+    {
+      id: "chorus",
+      name: "Chorus",
+      icon: "https://raw.githubusercontent.com/f1nniboy/chorus/refs/heads/main/data/icons/hicolor/scalable/apps/space.f1nn.chorus.svg",
+      desc: "GTK4/Libadwaita app to view the lyrics for your currently playing music",
+      url: "https://github.com/f1nniboy/chorus",
+    },
   ];
 
   const compat: Guide[] = [
     {
       id: "youly",
       name: "YouLy+",
-      link: "https://github.com/ibratabian17/YouLyPlus",
-      url: "/compat/kpoe",
+      icon: "https://raw.githubusercontent.com/ibratabian17/YouLyPlus/refs/heads/main/icons/icon128.png",
+      desc: "Web extension to elevate your music experience with ultra-performant, word-by-word lyrics",
+      url: "https://github.com/ibratabian17/YouLyPlus",
+      compat: "/compat/kpoe",
       steps: [
         "Click the YouLy+ icon in your browser toolbar and open <strong>More Settings</strong>.",
         "Under <strong>Sources</strong>, remove all other providers and add <strong>Custom KPoe Server</strong>.",
@@ -48,8 +61,10 @@
     {
       id: "lrcget",
       name: "LRCGET",
-      link: "https://github.com/tranxuanthang/lrcget",
-      url: "/compat/lrclib",
+      icon: "https://raw.githubusercontent.com/tranxuanthang/lrcget/refs/heads/main/app-icon.png",
+      desc: "Utility for mass-downloading LRC synced lyrics for your offline music library",
+      url: "https://github.com/tranxuanthang/lrcget",
+      compat: "/compat/lrclib",
       steps: [
         "Open LRCGET and click the <strong>three dots</strong> menu, then open <strong>Settings</strong>.",
         "Under <strong>LRCLIB instance</strong>, replace the default URL with the endpoint URL above.",

@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.7.0](https://github.com/f1nniboy/lrcmux/compare/v1.6.0...v1.7.0) (2026-07-24)
+
+
+### Features
+
+* **api/docs:** add provider ID column to providers table ([31863ff](https://github.com/f1nniboy/lrcmux/commit/31863ff389bf4355878a5d11f110f44eb62cb616))
+* **isrc:** do multiple queries using both deezer's search operators and ([cb08fe6](https://github.com/f1nniboy/lrcmux/commit/cb08fe6d1eaaf1dfead18ca35062f1e1196347fe))
+
+
+### Bug fixes
+
+* **format/json:** don't leave out start timestamp for lines if it's 0 ([31863ff](https://github.com/f1nniboy/lrcmux/commit/31863ff389bf4355878a5d11f110f44eb62cb616))
+* **isrc:** don't rely on deezer's search operators ([6ce81e4](https://github.com/f1nniboy/lrcmux/commit/6ce81e42d14c2ae48bcd24a4f341294974558092))
+* **isrc:** duration shouldn't outweigh title+artist ([720a032](https://github.com/f1nniboy/lrcmux/commit/720a032b9dbff9f5a0b9d3ec6fb2ca2294db42c1))
+* **isrc:** require minimum score, title score must be above 0 ([cd97030](https://github.com/f1nniboy/lrcmux/commit/cd97030a81389b5f482b0c0c7b870ad6ec9c04a5))
+* **providers/kugou:** don't unconditionally strip first line ([4518534](https://github.com/f1nniboy/lrcmux/commit/4518534a763adc863470a47577f2a62eefe4f350))
+
+
+### Refactors
+
+* **api:** remove provider.hide option, always expose source ([31863ff](https://github.com/f1nniboy/lrcmux/commit/31863ff389bf4355878a5d11f110f44eb62cb616))
+* **cache:** rename NotFound/Found to Miss/Hit, extract decode ([31863ff](https://github.com/f1nniboy/lrcmux/commit/31863ff389bf4355878a5d11f110f44eb62cb616))
+* **frontend:** add icons, links and descriptions to app list ([e2faeaa](https://github.com/f1nniboy/lrcmux/commit/e2faeaab819a1f8e2670422a1fc7530c06b4b61c))
+* **frontend:** new landing page with trending grid and app guides ([d8b83a5](https://github.com/f1nniboy/lrcmux/commit/d8b83a5bae31416942427c1f1ec1a391abaf0bb8))
+* **providers/musixmatch:** scope rate-limit retry to get(), not ([1871632](https://github.com/f1nniboy/lrcmux/commit/1871632fb1e512ebb1524e26473ebf9e5fe33ab2))
+
 ## [1.6.0](https://github.com/f1nniboy/lrcmux/compare/v1.5.0...v1.6.0) (2026-07-14)
 
 

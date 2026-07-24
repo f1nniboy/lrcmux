@@ -90,7 +90,12 @@ func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (lyrics.Track, e
 		return lyrics.Track{}, lyrics.ErrNotFound
 	}
 
-	return toTrack(pickBest(merged, in)), nil
+	best, ok := pickBest(merged, in)
+	if !ok {
+		return lyrics.Track{}, lyrics.ErrNotFound
+	}
+
+	return toTrack(best), nil
 }
 
 func (r *Resolver) search(ctx context.Context, q string) ([]deezerTrack, error) {
@@ -172,22 +177,21 @@ const matchScore = 5
 
 const durationWindowSecs = 30
 
-func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
-	if len(tracks) == 1 {
-		return tracks[0]
-	}
-
+func pickBest(tracks []deezerTrack, in ResolveInput) (deezerTrack, bool) {
 	wantTitle := normalize.Title(in.Title)
 	wantArtist := normalize.String(in.Artist)
 
 	var best deezerTrack
-	bestScore := -1.0
+	var bestScore float64
 
 	for _, t := range tracks {
-		var s float64
-
 		// title
-		s += distScore(normalize.Title(t.Title), wantTitle, matchScore)
+		titleScore := distScore(normalize.Title(t.Title), wantTitle, matchScore)
+		if titleScore == 0 {
+			continue
+		}
+
+		s := titleScore
 
 		// artist
 		if normalize.ArtistMatch(t.Artist.Name, in.Artist) || normalize.ArtistMatch(in.Artist, t.Artist.Name) {
@@ -213,5 +217,6 @@ func pickBest(tracks []deezerTrack, in ResolveInput) deezerTrack {
 			best, bestScore = t, s
 		}
 	}
-	return best
+
+	return best, bestScore > 0
 }

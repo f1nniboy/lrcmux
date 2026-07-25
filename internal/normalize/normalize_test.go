@@ -49,6 +49,10 @@ func TestTitle(t *testing.T) {
 		{"Title [feat. Someone]", "title"},
 		{"Title ft. Someone", "title"},
 		{"Title feat. Someone Else", "title"},
+		{"Title (Instrumental)", "title"},
+		{"Title [Instrumental Remake]", "title"},
+		{"Title (Instrumental Version)", "title"},
+		{"Title (Karaoke)", "title"},
 		{"Title", "title"},
 	}
 	for _, c := range cases {

@@ -11,8 +11,12 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// shared pattern for feature markers
 const featRE = `(?:feat|ft)\.?`
+
+const (
+	openBrackets  = `\[(【`
+	closeBrackets = `\])】`
+)
 
 // only strip Latin combining diacritical marks,
 // not Japanese dakuten (important)
@@ -40,13 +44,16 @@ var (
 	collaborationRE = regexp.MustCompile(`(?i)\s*[&,×]\s*|\s+(?:` + featRE + `|and|und|et|con|with|vs\.?|x)\s+`)
 
 	// strips feature credits from song titles
-	titleFeatureRE = regexp.MustCompile(`(?i)\s*[(\[]` + featRE + `[^)\]]*[)\]]|\s+` + featRE + `\s+\S.*$`)
+	titleFeatureRE = regexp.MustCompile(`(?i)\s*[` + openBrackets + `]` + featRE + `[^` + closeBrackets + `]*[` + closeBrackets + `]|\s+` + featRE + `\s+\S.*$`)
 
 	// strips parenthetical/bracketed video and audio type markers from titles
-	videoSuffixRE = regexp.MustCompile(`(?i)\s*[\[(【][^\])】]*\b(?:video|v[ií]deo|videoclip|musikvideo|musik|clip|audio|lyric(?:s)?|letra|paroles|mv|hd|4k|remaster(?:ed)?|official|offiziell(?:es)?|oficial|ufficiale|officiel(?:le)?)\b[^\])】]*[\])】]`)
+	videoSuffixRE = regexp.MustCompile(`(?i)\s*[` + openBrackets + `][^` + closeBrackets + `]*\b(?:video|v[ií]deo|videoclip|musikvideo|musik|clip|audio|lyric(?:s)?|letra|paroles|mv|hd|4k|remaster(?:ed)?|official|offiziell(?:es)?|oficial|ufficiale|officiel(?:le)?)\b[^` + closeBrackets + `]*[` + closeBrackets + `]`)
 
 	// strips production credits from titles
-	prodRE = regexp.MustCompile(`(?i)\s*[\[(]prod(?:uced)?\b[^\])]*[\])]|\s+[|]?\s*prod(?:uced)?\b.*$`)
+	prodRE = regexp.MustCompile(`(?i)\s*[` + openBrackets + `]prod(?:uced)?\b[^` + closeBrackets + `]*[` + closeBrackets + `]|\s+[|]?\s*prod(?:uced)?\b.*$`)
+
+	// strips instrumental/karaoke version markers from titles
+	instrumentalRE = regexp.MustCompile(`(?i)\s*[` + openBrackets + `][^` + closeBrackets + `]*\b(?:instrumental|karaoke)\b[^` + closeBrackets + `]*[` + closeBrackets + `]`)
 
 	// matches the artist–title separator in combined title strings
 	artistTitleSepRE = regexp.MustCompile(`\s[-–—~]\s`)
@@ -54,7 +61,6 @@ var (
 
 func String(s string) string {
 	s = smartQuotes.Replace(s)
-	s = strings.TrimSpace(s)
 	t := transform.Chain(norm.NFKD, runes.Remove(runes.In(latinDiacritics)), norm.NFKC)
 	if out, _, err := transform.String(t, s); err == nil {
 		s = out
@@ -63,9 +69,15 @@ func String(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func Title(s string) string {
+func stripMarkers(s string) string {
 	s = videoSuffixRE.ReplaceAllString(s, "")
 	s = prodRE.ReplaceAllString(s, "")
+	s = instrumentalRE.ReplaceAllString(s, "")
+	return s
+}
+
+func Title(s string) string {
+	s = stripMarkers(s)
 	s = titleFeatureRE.ReplaceAllString(s, "")
 	return String(s)
 }
@@ -73,7 +85,7 @@ func Title(s string) string {
 func artist(s string) string {
 	s = String(s)
 	s, _ = strings.CutSuffix(s, " - topic")
-	return strings.TrimSpace(s)
+	return s
 }
 
 func splitArtists(s string) []string {
@@ -111,16 +123,13 @@ func Match(queryTitle, queryArtist, resultTitle, resultArtist string) bool {
 }
 
 func Query(inputArtist, inputTitle string) (cleanArtist, cleanTitle string) {
-	inputTitle = videoSuffixRE.ReplaceAllString(inputTitle, "")
-	inputTitle = prodRE.ReplaceAllString(inputTitle, "")
-	inputTitle = strings.TrimSpace(inputTitle)
+	inputTitle = stripMarkers(inputTitle)
 
 	// extract artist from title (e.g. YouTube videos)
 	if loc := artistTitleSepRE.FindStringIndex(inputTitle); loc != nil {
-		inputArtist = strings.TrimSpace(inputTitle[:loc[0]])
-		inputTitle = strings.TrimSpace(inputTitle[loc[1]:])
+		inputArtist = inputTitle[:loc[0]]
+		inputTitle = inputTitle[loc[1]:]
 	}
 
-	inputTitle = titleFeatureRE.ReplaceAllString(inputTitle, "")
-	return primaryArtist(inputArtist), String(inputTitle)
+	return primaryArtist(inputArtist), Title(inputTitle)
 }

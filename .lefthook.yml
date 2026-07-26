@@ -1,7 +1,7 @@
 pre-commit:
   commands:
     fmt:
-      run: TERM=dumb treefmt
+      run: TERM=dumb just fmt
       stage_fixed: true
     lint-backend:
       run: just lint-backend

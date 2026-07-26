@@ -1,6 +1,18 @@
-# lrcmux
+<p align="center">
+  <img src="frontend/static/logo.svg" alt="lrcmux logo" width="128">
+</p>
 
-A lyrics aggregator API. Fans out requests across multiple providers, picks the best result, and caches everything.
+<h1 align="center">lrcmux</h1>
+
+<p align="center">
+  A lyrics aggregator API
+  <br><br>
+  <a href="https://github.com/f1nniboy/lrcmux/releases"><img src="https://img.shields.io/github/v/release/f1nniboy/lrcmux" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/f1nniboy/lrcmux?color=blue" alt="License"></a>
+  <a href="https://matrix.to/#/#lrcmux:oss.zone"><img src="https://img.shields.io/matrix/lrcmux:oss.zone.svg?server_fqdn=matrix.oss.zone&fetchMode=summary&color=blue" alt="Matrix"></a>
+</p>
+
+Fans out requests across multiple providers, picks the best result, and caches everything.
 
 A public instance runs at **[lrcmux.dev](https://lrcmux.dev)**. The API docs are browsable at [lrcmux.dev/docs](https://lrcmux.dev/docs).
 

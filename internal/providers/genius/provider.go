@@ -156,14 +156,9 @@ func (p *Provider) scrape(ctx context.Context, pageURL string) ([]lyrics.Line, e
 		return nil, nil
 	}
 
-	text := raw.String()
-	if i := strings.Index(text, "["); i >= 0 {
-		text = text[i:]
-	}
-
 	// genius uses double <br> for section breaks, keep one blank per gap
 	var lines []lyrics.Line
-	for l := range strings.SplitSeq(text, "\n") {
+	for l := range strings.SplitSeq(raw.String(), "\n") {
 		t := strings.TrimSpace(l)
 		switch {
 		case strings.HasPrefix(t, "[") && strings.HasSuffix(t, "]"):

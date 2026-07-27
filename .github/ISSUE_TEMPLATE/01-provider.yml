@@ -18,7 +18,7 @@ body:
       multiple: true
       options:
         - Genius
-        - Kugou
+        - KuGou
         - LRCLIB
         - Musixmatch
         - NetEase

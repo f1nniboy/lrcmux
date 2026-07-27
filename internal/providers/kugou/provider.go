@@ -25,19 +25,20 @@ type Provider struct {
 }
 
 func (p *Provider) ID() string                 { return "kugou" }
-func (p *Provider) Name() string               { return "Kugou" }
+func (p *Provider) Name() string               { return "KuGou" }
 func (p *Provider) URL() string                { return "https://kugou.com" }
 func (p *Provider) Desc() string               { return "Word-level sync for most songs (AI?), censors profanity" }
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 
 type searchCandidate struct {
-	ID         string `json:"id"`
-	AccessKey  string `json:"accesskey"`
-	SongName   string `json:"song"`
-	SingerName string `json:"singer"`
-	Duration   int64  `json:"duration"`
-	Score      int64  `json:"score"`
-	KRCType    int    `json:"krctype"`
+	ID          string `json:"id"`
+	AccessKey   string `json:"accesskey"`
+	SongName    string `json:"song"`
+	SingerName  string `json:"singer"`
+	ProductFrom string `json:"product_from"`
+	Duration    int64  `json:"duration"`
+	Score       int64  `json:"score"`
+	KRCType     int    `json:"krctype"`
 }
 
 var reBrackets = regexp.MustCompile(`[\(\[（【][^\)\]）】]*[\)\]）】]`)
@@ -93,6 +94,14 @@ func (p *Provider) findCandidate(ctx context.Context, artist, title string, dura
 	}
 	matches := make([]searchCandidate, 0, len(sr.Candidates))
 	for _, c := range sr.Candidates {
+		// "ugc" entries are unverified user uploads, sometimes mistagged with
+		// a completely unrelated track's lyrics
+		//
+		// it seems like only a small part of the lyrics are sourced from "ugc",
+		// so this should be fine
+		if c.ProductFrom == "ugc" {
+			continue
+		}
 		if normalize.Match(title, artist, c.SongName, c.SingerName) {
 			matches = append(matches, c)
 		}

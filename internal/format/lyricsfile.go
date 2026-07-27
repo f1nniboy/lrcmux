@@ -92,3 +92,30 @@ func (lfEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 
 	return yaml.NewEncoder(w).Encode(doc)
 }
+
+// not in lyrics/parse.go, as we need access to the lfDoc struct here
+func ParseLyricsFile(data []byte) ([]lyrics.Line, lyrics.SyncLevel, error) {
+	var doc lfDoc
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return nil, lyrics.SyncNone, err
+	}
+
+	if len(doc.Lines) == 0 {
+		return lyrics.ParsePlain(doc.Plain), lyrics.SyncNone, nil
+	}
+
+	syncLevel := lyrics.SyncLine
+	lines := make([]lyrics.Line, len(doc.Lines))
+	for i, l := range doc.Lines {
+		lines[i] = lyrics.Line{Text: l.Text, StartMs: l.StartMs, EndMs: l.EndMs}
+		if len(l.Words) == 0 {
+			continue
+		}
+		syncLevel = lyrics.SyncWord
+		lines[i].Words = make([]lyrics.Word, len(l.Words))
+		for j, w := range l.Words {
+			lines[i].Words[j] = lyrics.Word{Text: w.Text, StartMs: w.StartMs, EndMs: w.EndMs}
+		}
+	}
+	return lines, syncLevel, nil
+}

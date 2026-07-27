@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/f1nniboy/lrcmux/internal/format"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
@@ -33,14 +34,7 @@ func (p *Provider) Init() {
 }
 
 type apiResult struct {
-	TrackName    string  `json:"trackName"`
-	ArtistName   string  `json:"artistName"`
-	AlbumName    string  `json:"albumName"`
-	PlainLyrics  string  `json:"plainLyrics"`
-	SyncedLyrics string  `json:"syncedLyrics"`
-	ID           int64   `json:"id"`
-	Duration     float64 `json:"duration"`
-	Instrumental bool    `json:"instrumental"`
+	LyricsFile string `json:"lyricsfile"`
 }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
@@ -55,7 +49,10 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 	if err := p.do(ctx, endpoint, &r); err != nil {
 		return nil, err
 	}
-	res := toResult(r)
+	res, err := toResult(r)
+	if err != nil {
+		return nil, err
+	}
 	if res == nil {
 		return nil, lyrics.ErrNotFound
 	}
@@ -85,16 +82,16 @@ func (p *Provider) do(ctx context.Context, endpoint string, out any) error {
 	return nil
 }
 
-func toResult(r apiResult) *lyrics.Result {
-	if r.SyncedLyrics == "" && r.PlainLyrics == "" {
-		return nil
+func toResult(r apiResult) (*lyrics.Result, error) {
+	if r.LyricsFile == "" {
+		return nil, nil
 	}
-	res := &lyrics.Result{}
-	if r.SyncedLyrics != "" {
-		res.Lines, res.SyncLevel = lyrics.ParseLRC(r.SyncedLyrics)
-	} else {
-		res.Lines = lyrics.ParsePlain(r.PlainLyrics)
-		res.SyncLevel = lyrics.SyncNone
+	lines, syncLevel, err := format.ParseLyricsFile([]byte(r.LyricsFile))
+	if err != nil {
+		return nil, fmt.Errorf("parse: %w", err)
 	}
-	return res
+	if len(lines) == 0 {
+		return nil, nil
+	}
+	return &lyrics.Result{Lines: lines, SyncLevel: syncLevel}, nil
 }

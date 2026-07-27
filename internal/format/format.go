@@ -12,9 +12,10 @@ type Encoder interface {
 	Encode(w io.Writer, r *lyrics.Result) error
 	ContentType() string
 	Extension() string
+	Desc() string
 	// specifies which range of sync levels this encoder can output
 	Levels() (lo, hi lyrics.SyncLevel)
-	Desc() string
+	SupportsInstrumental() bool
 }
 
 var registry = map[string]Encoder{

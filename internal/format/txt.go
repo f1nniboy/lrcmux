@@ -14,6 +14,7 @@ func (txtEncoder) Levels() (lo, hi lyrics.SyncLevel) { return lyrics.SyncNone, l
 func (txtEncoder) ContentType() string               { return "text/plain; charset=utf-8" }
 func (txtEncoder) Extension() string                 { return "txt" }
 func (txtEncoder) Desc() string                      { return "Plain unsynced text" }
+func (txtEncoder) SupportsInstrumental() bool        { return false }
 
 func (txtEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	bw := bufio.NewWriter(w)

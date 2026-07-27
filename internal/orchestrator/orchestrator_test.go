@@ -71,6 +71,14 @@ func TestWorthQuerying(t *testing.T) {
 		}
 	})
 
+	t.Run("cache has instrumental: drop all providers", func(t *testing.T) {
+		cached := []*lyrics.Result{{Source: lyrics.Source{ID: "cached"}, Instrumental: true}}
+		out := worthQuerying(slices.Clone(all), cached, Request{Level: lyrics.SyncWord})
+		if len(out) != 0 {
+			t.Errorf("expected empty, got %v", providers.IDs(out))
+		}
+	})
+
 	t.Run("strict word: drop below-word providers", func(t *testing.T) {
 		out := worthQuerying(slices.Clone(all), nil, Request{Level: lyrics.SyncWord, Strict: true})
 		if len(out) != 1 || out[0].ID() != "word" {

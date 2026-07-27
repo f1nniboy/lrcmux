@@ -24,7 +24,7 @@ func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *l
 
 // reports whether a result is good enough to stop the fanout early
 func satisfies(r *lyrics.Result, level lyrics.SyncLevel) bool {
-	return r.SyncLevel >= level && cleanScore(r) == 1
+	return r.Instrumental || (r.SyncLevel >= level && cleanScore(r) == 1)
 }
 
 func rankResult(a, b *lyrics.Result) int {

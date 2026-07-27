@@ -86,12 +86,12 @@ func toResult(r apiResult) (*lyrics.Result, error) {
 	if r.LyricsFile == "" {
 		return nil, nil
 	}
-	lines, syncLevel, err := format.ParseLyricsFile([]byte(r.LyricsFile))
+	res, err := format.ParseLyricsFile([]byte(r.LyricsFile))
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
-	if len(lines) == 0 {
+	if !res.Instrumental && len(res.Lines) == 0 {
 		return nil, nil
 	}
-	return &lyrics.Result{Lines: lines, SyncLevel: syncLevel}, nil
+	return res, nil
 }

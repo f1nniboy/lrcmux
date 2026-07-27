@@ -242,6 +242,9 @@ func worthQuerying(unknowns []providers.Provider, cached []*lyrics.Result, req R
 			best = c
 		}
 	}
+	if best != nil && best.Instrumental {
+		return nil
+	}
 	return slices.DeleteFunc(unknowns, func(p providers.Provider) bool {
 		if best != nil {
 			// can't reach the level we already have
@@ -283,6 +286,9 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, provs []p
 }
 
 func (o *Orchestrator) ttlFor(r *lyrics.Result) time.Duration {
+	if r.Instrumental {
+		return 0
+	}
 	switch r.SyncLevel {
 	case lyrics.SyncWord:
 		return o.opts.TTL.Word.Duration

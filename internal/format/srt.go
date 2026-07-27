@@ -14,6 +14,7 @@ func (srtEncoder) Levels() (lo, hi lyrics.SyncLevel) { return lyrics.SyncLine, l
 func (srtEncoder) ContentType() string               { return "text/plain; charset=utf-8" }
 func (srtEncoder) Extension() string                 { return "srt" }
 func (srtEncoder) Desc() string                      { return "Subtitles for video editors and media players" }
+func (srtEncoder) SupportsInstrumental() bool        { return false }
 
 func (srtEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	bw := bufio.NewWriter(w)

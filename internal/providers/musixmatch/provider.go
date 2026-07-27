@@ -65,6 +65,9 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 	if meta == nil {
 		return nil, lyrics.ErrNotFound
 	}
+	if meta.instrumental {
+		return &lyrics.Result{Instrumental: true}, nil
+	}
 
 	t := tierByLevel[meta.syncLevel]
 	lines, err := p.fetchTier(ctx, t, q.Track.ISRC)
@@ -81,7 +84,8 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 }
 
 type trackMeta struct {
-	syncLevel lyrics.SyncLevel
+	syncLevel    lyrics.SyncLevel
+	instrumental bool
 }
 
 func (p *Provider) fetchTrackMeta(ctx context.Context, isrc string) (*trackMeta, error) {
@@ -94,6 +98,7 @@ func (p *Provider) fetchTrackMeta(ctx context.Context, isrc string) (*trackMeta,
 			HasRichsync  int `json:"has_richsync"`
 			HasSubtitles int `json:"has_subtitles"`
 			HasLyrics    int `json:"has_lyrics"`
+			Instrumental int `json:"instrumental"`
 		} `json:"track"`
 	}
 	json.Unmarshal(body, &resp)
@@ -105,6 +110,8 @@ func (p *Provider) fetchTrackMeta(ctx context.Context, isrc string) (*trackMeta,
 		return &trackMeta{syncLevel: lyrics.SyncLine}, nil
 	case track.HasLyrics == 1:
 		return &trackMeta{syncLevel: lyrics.SyncNone}, nil
+	case track.Instrumental == 1:
+		return &trackMeta{instrumental: true}, nil
 	}
 	return nil, nil
 }

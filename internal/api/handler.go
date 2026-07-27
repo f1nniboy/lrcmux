@@ -20,6 +20,8 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
 )
 
+var errInstrumental = errors.New("track is instrumental but this format can't represent that")
+
 type GetLyricsInput struct {
 	Artist   string `query:"artist" doc:"Artist name" example:"Rick Astley"`
 	Title    string `query:"title" doc:"Song title" example:"Never Gonna Give You Up"`
@@ -126,6 +128,10 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		return nil, s.mapError(err)
 	}
 
+	if lyricsResp.Result.Instrumental && !encoder.SupportsInstrumental() {
+		return nil, s.mapError(errInstrumental)
+	}
+
 	if lyricsResp.Result.SyncLevel < minLevel {
 		return nil, huma.Error400BadRequest(fmt.Sprintf("format %q requires %s-synced lyrics", input.Format, minLevel.String()))
 	}
@@ -212,7 +218,7 @@ func (s *Server) mapError(err error) error {
 		return huma.Error400BadRequest(err.Error())
 	case errors.Is(err, orchestrator.ErrNoProviders):
 		return huma.Error503ServiceUnavailable(err.Error())
-	case errors.Is(err, orchestrator.ErrNotFound):
+	case errors.Is(err, orchestrator.ErrNotFound), errors.Is(err, errInstrumental):
 		e := huma.Error404NotFound(err.Error())
 		if s.cfg.Cache.TTL.Miss.Duration > 0 {
 			return huma.ErrorWithHeaders(e, http.Header{"Cache-Control": {fmt.Sprintf("public, max-age=%d", int(s.cfg.Cache.TTL.Miss.Duration.Seconds()))}})

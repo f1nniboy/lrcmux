@@ -14,6 +14,7 @@ func (vttEncoder) Levels() (lo, hi lyrics.SyncLevel) { return lyrics.SyncLine, l
 func (vttEncoder) ContentType() string               { return "text/vtt; charset=utf-8" }
 func (vttEncoder) Extension() string                 { return "vtt" }
 func (vttEncoder) Desc() string                      { return "WebVTT for browser-based players" }
+func (vttEncoder) SupportsInstrumental() bool        { return false }
 
 func (vttEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	bw := bufio.NewWriter(w)

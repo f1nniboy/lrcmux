@@ -31,9 +31,12 @@ func (p *Provider) Desc() string               { return "Best song coverage, but
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncNone }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
-	pageURL, err := p.findURL(ctx, q)
+	pageURL, instrumental, err := p.findURL(ctx, q)
 	if err != nil {
 		return nil, err
+	}
+	if instrumental {
+		return &lyrics.Result{Instrumental: true}, nil
 	}
 
 	lines, err := p.scrape(ctx, pageURL)
@@ -53,20 +56,21 @@ type searchResponse struct {
 			Hits []struct {
 				Type   string `json:"type"`
 				Result struct {
-					Title       string `json:"title"`
-					URL         string `json:"url"`
-					ArtistNames string `json:"artist_names"`
+					Title        string `json:"title"`
+					URL          string `json:"url"`
+					ArtistNames  string `json:"artist_names"`
+					Instrumental bool   `json:"instrumental"`
 				} `json:"result"`
 			} `json:"hits"`
 		} `json:"sections"`
 	} `json:"response"`
 }
 
-func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (string, error) {
+func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (pageURL string, instrumental bool, err error) {
 	endpoint := searchURL + "?per_page=5&q=" + url.QueryEscape(q.Track.Artist+" "+q.Track.Title)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/json, text/plain, */*")
@@ -79,21 +83,21 @@ func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (string, error) 
 
 	resp, err := p.HTTP.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("search: %w", err)
+		return "", false, fmt.Errorf("search: %w", err)
 	}
 	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusOK:
 	case http.StatusForbidden, http.StatusTooManyRequests:
-		return "", providers.ErrRateLimited
+		return "", false, providers.ErrRateLimited
 	default:
-		return "", fmt.Errorf("search status %d", resp.StatusCode)
+		return "", false, fmt.Errorf("search status %d", resp.StatusCode)
 	}
 
 	var sr searchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
-		return "", fmt.Errorf("search decode: %w", err)
+		return "", false, fmt.Errorf("search decode: %w", err)
 	}
 
 	for _, section := range sr.Response.Sections {
@@ -103,11 +107,11 @@ func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (string, error) 
 			}
 			r := hit.Result
 			if normalize.Match(q.Track.Title, q.Track.Artist, r.Title, r.ArtistNames) {
-				return r.URL, nil
+				return r.URL, r.Instrumental, nil
 			}
 		}
 	}
-	return "", lyrics.ErrNotFound
+	return "", false, lyrics.ErrNotFound
 }
 
 func (p *Provider) scrape(ctx context.Context, pageURL string) ([]lyrics.Line, error) {

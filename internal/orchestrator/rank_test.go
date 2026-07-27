@@ -126,4 +126,11 @@ func TestSatisfies(t *testing.T) {
 			t.Error("line result should not satisfy word target")
 		}
 	})
+
+	t.Run("instrumental satisfies any target, cancels the fanout", func(t *testing.T) {
+		r := &lyrics.Result{Source: lyrics.Source{ID: "a"}, Instrumental: true}
+		if !satisfies(r, lyrics.SyncWord) {
+			t.Error("instrumental result should satisfy even a word target")
+		}
+	})
 }

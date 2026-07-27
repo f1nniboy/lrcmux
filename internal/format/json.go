@@ -8,8 +8,9 @@ import (
 )
 
 type JSONMeta struct {
-	Source *lyrics.Source `json:"source,omitempty" doc:"Provider that returned the result"`
-	Level  string         `json:"level" doc:"Sync level of the returned lyrics" enum:"word,line,none"`
+	Source       *lyrics.Source `json:"source,omitempty" doc:"Provider that returned the result"`
+	Level        string         `json:"level" doc:"Sync level of the returned lyrics" enum:"word,line,none"`
+	Instrumental bool           `json:"instrumental,omitempty" doc:"Whether the track has no lyrics"`
 }
 
 type JSONLine struct {
@@ -31,11 +32,12 @@ func (jsonEncoder) Levels() (lo, hi lyrics.SyncLevel) { return lyrics.SyncNone, 
 func (jsonEncoder) ContentType() string               { return "application/json; charset=utf-8" }
 func (jsonEncoder) Extension() string                 { return "json" }
 func (jsonEncoder) Desc() string                      { return "Default, structured lines and metadata" }
+func (jsonEncoder) SupportsInstrumental() bool        { return true }
 
 func (jsonEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	out := JSONResponse{
-		Meta:  JSONMeta{Level: r.SyncLevel.String()},
 		Track: r.Track,
+		Meta:  JSONMeta{Level: r.SyncLevel.String(), Instrumental: r.Instrumental},
 	}
 	if r.Source.ID != "" {
 		out.Meta.Source = &r.Source

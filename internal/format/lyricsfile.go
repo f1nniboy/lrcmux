@@ -16,15 +16,17 @@ type lfEncoder struct{}
 func (lfEncoder) Levels() (lo, hi lyrics.SyncLevel) {
 	return lyrics.SyncNone, lyrics.SyncWord
 }
-func (lfEncoder) ContentType() string { return "text/yaml; charset=utf-8" }
-func (lfEncoder) Extension() string   { return "yaml" }
-func (lfEncoder) Desc() string        { return "Used by LRCLIB/LRCGET" }
+func (lfEncoder) ContentType() string        { return "text/yaml; charset=utf-8" }
+func (lfEncoder) Extension() string          { return "yaml" }
+func (lfEncoder) Desc() string               { return "Used by LRCLIB/LRCGET" }
+func (lfEncoder) SupportsInstrumental() bool { return true }
 
 type lfMeta struct {
-	Title      string `yaml:"title"`
-	Artist     string `yaml:"artist"`
-	Album      string `yaml:"album,omitempty"`
-	DurationMs int64  `yaml:"duration_ms,omitempty"`
+	Title        string `yaml:"title"`
+	Artist       string `yaml:"artist"`
+	Album        string `yaml:"album,omitempty"`
+	DurationMs   int64  `yaml:"duration_ms,omitempty"`
+	Instrumental bool   `yaml:"instrumental,omitempty"`
 }
 
 type lfWord struct {
@@ -37,7 +39,7 @@ type lfLine struct {
 	Text    string   `yaml:"text"`
 	Words   []lfWord `yaml:"words,omitempty"`
 	StartMs int64    `yaml:"start_ms"`
-	EndMs   int64    `yaml:"end_ms"`
+	EndMs   int64    `yaml:"end_ms,omitempty"`
 }
 
 //nolint:govet // fieldalignment
@@ -52,10 +54,11 @@ func (lfEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	doc := lfDoc{
 		Version: "1.0",
 		Metadata: lfMeta{
-			Title:      r.Track.Title,
-			Artist:     r.Track.Artist,
-			Album:      r.Track.Album,
-			DurationMs: r.Track.Duration * 1000,
+			Title:        r.Track.Title,
+			Artist:       r.Track.Artist,
+			Album:        r.Track.Album,
+			DurationMs:   r.Track.Duration * 1000,
+			Instrumental: r.Instrumental,
 		},
 	}
 
@@ -94,14 +97,17 @@ func (lfEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 }
 
 // not in lyrics/parse.go, as we need access to the lfDoc struct here
-func ParseLyricsFile(data []byte) ([]lyrics.Line, lyrics.SyncLevel, error) {
+func ParseLyricsFile(data []byte) (*lyrics.Result, error) {
 	var doc lfDoc
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, lyrics.SyncNone, err
+		return nil, err
+	}
+	if doc.Metadata.Instrumental {
+		return &lyrics.Result{Instrumental: true}, nil
 	}
 
 	if len(doc.Lines) == 0 {
-		return lyrics.ParsePlain(doc.Plain), lyrics.SyncNone, nil
+		return &lyrics.Result{Lines: lyrics.ParsePlain(doc.Plain)}, nil
 	}
 
 	syncLevel := lyrics.SyncLine
@@ -117,5 +123,5 @@ func ParseLyricsFile(data []byte) ([]lyrics.Line, lyrics.SyncLevel, error) {
 			lines[i].Words[j] = lyrics.Word{Text: w.Text, StartMs: w.StartMs, EndMs: w.EndMs}
 		}
 	}
-	return lines, syncLevel, nil
+	return &lyrics.Result{Lines: lines, SyncLevel: syncLevel}, nil
 }

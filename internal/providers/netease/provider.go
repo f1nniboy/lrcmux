@@ -62,7 +62,8 @@ type lyricsResult struct {
 	Yrc struct {
 		Lyric string `json:"lyric"`
 	} `json:"yrc"`
-	Code int `json:"code"`
+	Code      int  `json:"code"`
+	PureMusic bool `json:"pureMusic"`
 }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
@@ -107,6 +108,9 @@ func (p *Provider) fetchLyrics(ctx context.Context, id int64) (*lyrics.Result, e
 		return nil, err
 	}
 
+	if lr.PureMusic {
+		return &lyrics.Result{Instrumental: true}, nil
+	}
 	if lr.Yrc.Lyric != "" {
 		if r := buildResult(parseYRC(lr.Yrc.Lyric), lyrics.SyncWord); r != nil {
 			return r, nil

@@ -92,10 +92,11 @@ type Source struct {
 }
 
 type Result struct {
-	Track     Track
-	Source    Source
-	Lines     []Line
-	SyncLevel SyncLevel
+	Track        Track
+	Source       Source
+	Lines        []Line
+	SyncLevel    SyncLevel
+	Instrumental bool
 }
 
 func (r *Result) Downgrade(target SyncLevel) *Result {

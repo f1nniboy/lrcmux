@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
+	"github.com/f1nniboy/lrcmux/internal/normalize"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
@@ -90,10 +91,16 @@ func (p *Provider) findCandidate(ctx context.Context, artist, title string, dura
 	if err := p.do(ctx, searchURL+"?"+params.Encode(), &sr); err != nil {
 		return nil, err
 	}
-	if len(sr.Candidates) == 0 {
+	matches := make([]searchCandidate, 0, len(sr.Candidates))
+	for _, c := range sr.Candidates {
+		if normalize.Match(title, artist, c.SongName, c.SingerName) {
+			matches = append(matches, c)
+		}
+	}
+	if len(matches) == 0 {
 		return nil, nil
 	}
-	return bestCandidate(sr.Candidates, durationMs), nil
+	return bestCandidate(matches, durationMs), nil
 }
 
 func bestCandidate(candidates []searchCandidate, durationMs int64) *searchCandidate {

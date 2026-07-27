@@ -102,7 +102,13 @@
         <div
           class="border border-rule rounded-md bg-paper-2 p-5 text-ink text-base leading-9 whitespace-pre-wrap"
         >
-          {lyrics.lines.map((l) => l.text).join("\n")}
+          {#if lyrics.meta.instrumental}
+            <span class="block text-center text-muted">
+              This track is instrumental.
+            </span>
+          {:else}
+            {lyrics.lines.map((l) => l.text).join("\n")}
+          {/if}
         </div>
         {#if lyrics.meta.source}
           <p class="mt-3 text-xs text-muted text-center">

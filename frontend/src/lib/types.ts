@@ -22,6 +22,7 @@ export interface LyricsSource {
 export interface LyricsMeta {
   source?: LyricsSource;
   level: SyncLevel;
+  instrumental?: boolean;
 }
 
 export interface LyricsResult {

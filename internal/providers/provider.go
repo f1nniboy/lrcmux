@@ -2,7 +2,6 @@ package providers
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 
@@ -20,8 +19,6 @@ type Provider interface {
 	SetDeps(*http.Client, cache.Cache, *slog.Logger)
 	Init()
 }
-
-var ErrRateLimited = errors.New("provider rate limited")
 
 func Source(p Provider) lyrics.Source {
 	return lyrics.Source{ID: p.ID(), Name: p.Name(), URL: p.URL()}

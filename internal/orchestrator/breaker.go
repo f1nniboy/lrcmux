@@ -86,13 +86,17 @@ func (b *Breaker) ResetStreak(ctx context.Context, ids []string) {
 	b.cache.Delete(ctx, keys...)
 }
 
-func (b *Breaker) Record(provider, outcome string) {
-	switch outcome {
-	case "ok", "not_found", "canceled":
+func (b *Breaker) Record(provider, outcome string, retryAfter time.Duration) {
+	ctx := context.Background()
+
+	switch {
+	case outcome == "ok" || outcome == "not_found" || outcome == "canceled":
 		// caller handles streak reset via ResetStreak
 
+	case outcome == "rate_limited" && retryAfter > 0:
+		b.open(ctx, provider, outcome, retryAfter)
+
 	default:
-		ctx := context.Background()
 		streakKey := "cb:" + provider + ":streak"
 		n, err := b.cache.Incr(ctx, streakKey, breakerTTL)
 		if err != nil {
@@ -100,9 +104,13 @@ func (b *Breaker) Record(provider, outcome string) {
 			return
 		}
 		if n >= breakerThreshold {
-			cache.Set(ctx, b.cache, "cb:"+provider, breakerState{Reason: outcome}, breakerTTL)
-			b.cache.Delete(ctx, streakKey)
-			b.log.Debug("circuit opened", "provider", provider, "streak", n, "reason", outcome)
+			b.open(ctx, provider, outcome, breakerTTL)
 		}
 	}
+}
+
+func (b *Breaker) open(ctx context.Context, provider, reason string, ttl time.Duration) {
+	cache.Set(ctx, b.cache, "cb:"+provider, breakerState{Reason: reason}, ttl)
+	b.cache.Delete(ctx, "cb:"+provider+":streak")
+	b.log.Debug("circuit opened", "provider", provider, "reason", reason, "ttl", ttl)
 }

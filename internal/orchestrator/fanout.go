@@ -56,7 +56,11 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 			misses = append(misses, out.source.ID)
 		}
 		outcome := o.logOutcome(out, q)
-		o.breaker.Record(out.source.ID, outcome)
+		var retryAfter time.Duration
+		if rl, ok := errors.AsType[*providers.RateLimitedError](out.err); ok {
+			retryAfter = rl.RetryAfter
+		}
+		o.breaker.Record(out.source.ID, outcome, retryAfter)
 	}
 
 	for out := range ch {

@@ -73,6 +73,8 @@ func (p *Provider) do(ctx context.Context, endpoint string, out any) error {
 	case http.StatusOK:
 	case http.StatusNotFound:
 		return lyrics.ErrNotFound
+	case http.StatusTooManyRequests:
+		return providers.RateLimitedFrom(resp)
 	default:
 		return fmt.Errorf("status %d", resp.StatusCode)
 	}

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.8.0](https://github.com/f1nniboy/lrcmux/compare/v1.7.0...v1.8.0) (2026-07-29)
+
+
+### Features
+
+* **frontend:** show notice for instrumentals instead of blank box ([a17c821](https://github.com/f1nniboy/lrcmux/commit/a17c8217813a2a05d9120ee7673bdbbc0ae9a03f))
+* **orchestrator:** open the breaker immediately on a rate limit with a ([5c24a0e](https://github.com/f1nniboy/lrcmux/commit/5c24a0e4dd96463dd31b816091ec466c0b2306ec))
+* **providers:** respect Retry-After on provider ratelimit ([5c24a0e](https://github.com/f1nniboy/lrcmux/commit/5c24a0e4dd96463dd31b816091ec466c0b2306ec))
+
+
+### Bug fixes
+
+* **providers/kugou:** fix name capitalization ([c1a304c](https://github.com/f1nniboy/lrcmux/commit/c1a304cf8cd92af60262e90c2d47192cce0b9598))
+
 ## [1.7.0](https://github.com/f1nniboy/lrcmux/compare/v1.6.0...v1.7.0) (2026-07-27)
 
 

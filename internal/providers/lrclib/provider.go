@@ -14,6 +14,21 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
+type apiResult struct {
+	Lyricsfile string `json:"lyricsfile"`
+}
+
+func (r apiResult) toResult() (*lyrics.Result, error) {
+	if r.Lyricsfile == "" {
+		return nil, nil
+	}
+	res, err := format.ParseLyricsfile([]byte(r.Lyricsfile))
+	if err != nil {
+		return nil, fmt.Errorf("parse: %w", err)
+	}
+	return res, nil
+}
+
 //nolint:govet // fieldalignment
 type Provider struct {
 	providers.Common
@@ -33,10 +48,6 @@ func (p *Provider) Init() {
 	p.BaseURL = strings.TrimRight(p.BaseURL, "/")
 }
 
-type apiResult struct {
-	Lyricsfile string `json:"lyricsfile"`
-}
-
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
 	params := url.Values{}
 	params.Set("artist_name", q.Track.Artist)
@@ -49,7 +60,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 	if err := p.do(ctx, endpoint, &r); err != nil {
 		return nil, err
 	}
-	res, err := toResult(r)
+	res, err := r.toResult()
 	if err != nil {
 		return nil, err
 	}
@@ -82,15 +93,4 @@ func (p *Provider) do(ctx context.Context, endpoint string, out any) error {
 		return fmt.Errorf("decode: %w", err)
 	}
 	return nil
-}
-
-func toResult(r apiResult) (*lyrics.Result, error) {
-	if r.Lyricsfile == "" {
-		return nil, nil
-	}
-	res, err := format.ParseLyricsfile([]byte(r.Lyricsfile))
-	if err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
-	}
-	return res, nil
 }

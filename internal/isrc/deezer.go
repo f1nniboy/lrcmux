@@ -32,6 +32,21 @@ type deezerTrack struct {
 	ExplicitLyrics bool         `json:"explicit_lyrics"`
 }
 
+func (raw deezerTrack) toTrack() lyrics.Track {
+	return lyrics.Track{
+		ISRC:     raw.ISRC,
+		Title:    raw.Title,
+		Duration: raw.Duration,
+		Artist:   raw.Artist.Name,
+		Album:    raw.Album.Title,
+		Cover: lyrics.TrackCover{
+			Small:  raw.Album.CoverSmall,
+			Medium: raw.Album.CoverMedium,
+			Big:    raw.Album.CoverBig,
+		},
+	}
+}
+
 type deezerSearchResponse struct {
 	Data []deezerTrack `json:"data"`
 }
@@ -49,21 +64,6 @@ type deezerAlbum struct {
 	CoverMedium string `json:"cover_medium,omitempty"`
 	CoverBig    string `json:"cover_big,omitempty"`
 	ID          int64  `json:"id"`
-}
-
-func toTrack(raw deezerTrack) lyrics.Track {
-	return lyrics.Track{
-		ISRC:     raw.ISRC,
-		Title:    raw.Title,
-		Duration: raw.Duration,
-		Artist:   raw.Artist.Name,
-		Album:    raw.Album.Title,
-		Cover: lyrics.TrackCover{
-			Small:  raw.Album.CoverSmall,
-			Medium: raw.Album.CoverMedium,
-			Big:    raw.Album.CoverBig,
-		},
-	}
 }
 
 func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (lyrics.Track, error) {
@@ -95,7 +95,7 @@ func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (lyrics.Track, e
 		return lyrics.Track{}, lyrics.ErrNotFound
 	}
 
-	return toTrack(best), nil
+	return best.toTrack(), nil
 }
 
 func (r *Resolver) search(ctx context.Context, q string) ([]deezerTrack, error) {
@@ -164,7 +164,7 @@ func (r *Resolver) lookupMeta(ctx context.Context, isrc string) (lyrics.Track, e
 		return lyrics.Track{}, fmt.Errorf("deezer decode: %w", err)
 	}
 
-	return toTrack(dt), nil
+	return dt.toTrack(), nil
 }
 
 func distScore(a, b string, n int) float64 {

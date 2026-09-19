@@ -27,6 +27,10 @@ type providerOutcome struct {
 }
 
 func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, q lyrics.Query, level lyrics.SyncLevel) []*lyrics.Result {
+	// a fallback tier can't reach the requested level, so clamp to what this
+	// set can produce or the early cancel below would never fire
+	level = min(level, maxLevel(active))
+
 	fanCtx, cancel := context.WithTimeout(ctx, o.opts.Timeout)
 	defer cancel()
 

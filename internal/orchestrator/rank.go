@@ -24,24 +24,22 @@ func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *l
 
 // reports whether a result is good enough to stop the fanout early
 func satisfies(r *lyrics.Result, level lyrics.SyncLevel) bool {
-	return r.Instrumental || (r.SyncLevel >= level && cleanScore(r) == 1)
+	return r.Instrumental || (r.SyncLevel >= level && censored(r) == 0)
 }
 
 func rankResult(a, b *lyrics.Result) int {
-	// ranked by weight, e.g. uncensored will beat even sync level
 	return cmp.Or(
-		cmp.Compare(cleanScore(a), cleanScore(b)),
+		cmp.Compare(censored(b), censored(a)),
 		cmp.Compare(a.SyncLevel, b.SyncLevel),
 		cmp.Compare(len(a.Lines), len(b.Lines)),
 		cmp.Compare(b.Source.ID, a.Source.ID), // tiebreaker
 	)
 }
 
-func cleanScore(r *lyrics.Result) int {
+func censored(r *lyrics.Result) int {
+	n := 0
 	for _, l := range r.Lines {
-		if strings.Contains(l.Text, "*") {
-			return 0
-		}
+		n += strings.Count(l.Text, "*")
 	}
-	return 1
+	return n
 }

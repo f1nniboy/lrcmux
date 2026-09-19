@@ -109,6 +109,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	if err != nil {
 		return nil, err
 	}
+	// strict never falls back, so providers below the level are useless
+	if req.Strict {
+		active = slices.DeleteFunc(slices.Clone(active), func(p providers.Provider) bool {
+			return p.MaxLevel() < req.Level
+		})
+	}
 
 	track, err := o.resolver.Resolve(ctx, isrc.ResolveInput{
 		Artist:   req.Artist,
@@ -176,6 +182,9 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	}
 
 	key := q.Track.ISRC + ":" + req.Level.String()
+	if req.Strict {
+		key += ":strict"
+	}
 	if len(req.Sources) > 0 {
 		// order of sources shouldn't matter
 		sorted := slices.Clone(req.Sources)
@@ -186,18 +195,15 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	v, err, _ := o.sf.Do(key, func() (any, error) {
 		o.recordOutcome("fanout")
 
-		// seed with cached so pick considers them alongside fresh results for
-		// each tier, skipped in strict since it will never fall back
-		var results []*lyrics.Result
-		if !req.Strict {
-			results = append(results, cached...)
-		}
+		// seed with cached so pick weighs them against fresh results each tier
+		results := slices.Clone(cached)
 
-		for i, tier := range buildTiers(unknowns, req.Level) {
+		tiers := buildTiers(unknowns, req.Level)
+		for i, tier := range tiers {
 			o.log.Debug("fanout tier", "tier", i, "providers", providers.IDs(tier), "target_level", req.Level.String())
 			results = append(results, o.fanOut(ctx, tier, q, req.Level)...)
 
-			if picked := o.pick(results, pickLevel); picked != nil {
+			if picked := o.pick(results, pickLevel); picked != nil && (satisfies(picked, pickLevel) || i == len(tiers)-1) {
 				o.log.Debug("tier satisfied", "tier", i, "provider", picked.Source.ID, "level", picked.SyncLevel.String())
 				return respond(picked, slices.Contains(cached, picked)), nil
 			}
@@ -225,12 +231,11 @@ func (o *Orchestrator) getCacheAndProviders(ctx context.Context, q lyrics.Query,
 	}
 
 	unknowns = o.breaker.Filter(ctx, unknowns)
-	return cached, worthQuerying(unknowns, cached, req)
+	return cached, worthQuerying(unknowns, cached)
 }
 
 // drops providers that can't improve on what's already cached
-// and, in strict mode, those that can't satisfy the requested level
-func worthQuerying(unknowns []providers.Provider, cached []*lyrics.Result, req Request) []providers.Provider {
+func worthQuerying(unknowns []providers.Provider, cached []*lyrics.Result) []providers.Provider {
 	// rankResult prefers clean over level, so best captures both dimensions:
 	// a clean result at any level beats a censored result at a higher level
 	var best *lyrics.Result
@@ -243,17 +248,9 @@ func worthQuerying(unknowns []providers.Provider, cached []*lyrics.Result, req R
 		return nil
 	}
 	return slices.DeleteFunc(unknowns, func(p providers.Provider) bool {
-		if best != nil {
-			// can't reach the level we already have
-			if p.MaxLevel() < best.SyncLevel {
-				return true
-			}
-			// same level and the cached result is already satisfying, nothing to gain
-			if p.MaxLevel() == best.SyncLevel && satisfies(best, best.SyncLevel) {
-				return true
-			}
-		}
-		return req.Strict && p.MaxLevel() < req.Level
+		// once the cached result is satisfying, only a higher sync level can
+		// improve on it
+		return best != nil && satisfies(best, best.SyncLevel) && p.MaxLevel() <= best.SyncLevel
 	})
 }
 

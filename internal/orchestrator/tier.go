@@ -5,6 +5,15 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
+// highest sync level any provider in the set can produce
+func maxLevel(provs []providers.Provider) lyrics.SyncLevel {
+	var top lyrics.SyncLevel
+	for _, p := range provs {
+		top = max(top, p.MaxLevel())
+	}
+	return top
+}
+
 func buildTiers(provs []providers.Provider, level lyrics.SyncLevel) [][]providers.Provider {
 	// group providers by their maximum sync levels
 	byLevel := make(map[lyrics.SyncLevel][]providers.Provider)

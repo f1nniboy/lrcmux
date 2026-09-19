@@ -54,6 +54,14 @@ func TestRankResult(t *testing.T) {
 		}
 	})
 
+	t.Run("less censored line beats more censored word", func(t *testing.T) {
+		a := result("light", lyrics.SyncLine, "a*a")
+		b := result("heavy", lyrics.SyncWord, "a*a b*b c*c")
+		if rankResult(a, b) <= 0 {
+			t.Error("fewer masked chars should outrank a higher sync level")
+		}
+	})
+
 	t.Run("otherwise equal: alphabetical source ID wins", func(t *testing.T) {
 		a := result("aaa", lyrics.SyncLine, "x", "y")
 		b := result("zzz", lyrics.SyncLine, "x", "y")

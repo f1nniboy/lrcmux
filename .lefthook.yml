@@ -5,7 +5,13 @@ pre-commit:
       stage_fixed: true
     lint-backend:
       run: just lint-backend
-      glob: "**/*.go"
+      glob:
+        - "**/*.go"
+        - "go.mod"
+        - "go.sum"
     lint-frontend:
       run: just lint-frontend
-      glob: "frontend/src/**/*.{ts,svelte}"
+      glob:
+        - "frontend/src/**/*.{ts,svelte}"
+        - "frontend/package.json"
+        - "frontend/pnpm-lock.yaml"

@@ -165,7 +165,9 @@
       {#if fetchState.code === 404}
         <a
           class="inline-flex items-center gap-2 bg-ink text-paper px-3 py-2 rounded-md font-medium hover:bg-cue transition-colors"
-          href={`https://github.com/f1nniboy/lrcmux/issues/new?template=04-new-provider.yml&example=${encodeURIComponent(`${data.artist} - ${data.title}`)}`}
+          href="https://github.com/f1nniboy/lrcmux/issues/new?template=04-new-provider.yml&example={encodeURIComponent(
+            `${data.artist} - ${data.title}`,
+          )}"
           rel="noopener noreferrer"
           target="_blank"
         >

@@ -21,23 +21,23 @@
     "@eslint/js": "^10.0.1",
     "@sveltejs/adapter-cloudflare": "^7.2.9",
     "@sveltejs/adapter-node": "^5.5.7",
-    "@sveltejs/kit": "^2.70.2",
+    "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^5.1.1",
     "@tailwindcss/vite": "^4.3.3",
-    "eslint": "^10.8.1",
+    "eslint": "^10.10.0",
     "eslint-plugin-svelte": "^3.23.0",
-    "globals": "^17.11.0",
-    "prettier": "^3.9.6",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.7",
     "prettier-plugin-svelte": "^4.1.1",
-    "svelte": "^5.56.9",
+    "svelte": "^5.57.0",
     "svelte-check": "^4.7.6",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.67.0",
+    "typescript-eslint": "^8.70.0",
     "vite": "^6.4.3"
   },
   "dependencies": {
-    "@scalar/sveltekit": "^0.3.14",
-    "marked": "^18.0.9"
+    "@scalar/sveltekit": "^0.3.19",
+    "marked": "^18.0.13"
   }
 }

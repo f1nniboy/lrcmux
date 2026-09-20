@@ -218,5 +218,7 @@ func pickBest(tracks []deezerTrack, in ResolveInput) (deezerTrack, bool) {
 		}
 	}
 
-	return best, bestScore > 0
+	// we want at least 2 signals to match, so e.g. a lone fuzzy title match
+	// doesn't count as a match
+	return best, bestScore > matchScore
 }

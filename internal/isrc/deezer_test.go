@@ -115,6 +115,23 @@ func TestPickBest(t *testing.T) {
 			in:   ResolveInput{Title: "Song", Artist: "Artist"},
 			want: "right",
 		},
+		{
+			// a short title only 2 edits away scores 3, and with no artist
+			// agreement that used to be accepted as a match
+			name: "fuzzy title alone with unrelated artist is not a match",
+			tracks: []deezerTrack{
+				{ISRC: "wrong", Title: "Songxx", Artist: deezerArtist{Name: "Somebody Else"}}, // distance 2
+			},
+			in: ResolveInput{Title: "Song", Artist: "Artist"},
+		},
+		{
+			name: "fuzzy title still matches when the artist agrees",
+			tracks: []deezerTrack{
+				{ISRC: "right", Title: "Songxx", Artist: deezerArtist{Name: "Artist"}}, // distance 2
+			},
+			in:   ResolveInput{Title: "Song", Artist: "Artist"},
+			want: "right",
+		},
 	}
 
 	for _, tc := range tests {

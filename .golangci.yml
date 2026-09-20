@@ -62,7 +62,7 @@ linters:
         # interface method impls don't reference receiver by design
         - name: unused-receiver
           disabled: true
-        # singleflight closures assert known types; suppressed inline at the two call sites
+        # singleflight closures assert known types, suppressed inline at the two call sites
         - name: unchecked-type-assertion
           disabled: true
         # go-toml uses a non-standard "commented" tag option that revive doesn't know about

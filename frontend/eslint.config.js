@@ -21,12 +21,12 @@ export default [
       parserOptions: { parser: tseslint.parser },
     },
     rules: {
-      // no-navigation-without-resolve already enforces this; linter can't statically
+      // no-navigation-without-resolve already enforces this, linter can't statically
       // see that resolve() prefixes with base so both rules can't be satisfied at once
       "svelte/no-navigation-without-base": "off",
       // tailwind classes are generated at build time, not statically analysable
       "svelte/no-unused-class-name": "off",
-      // ID selectors in component CSS are wrong (too specific); rule is misguided
+      // ID selectors in component CSS are wrong (too specific), rule is misguided
       "svelte/consistent-selector-style": "off",
       // Spinner uses style directives for dynamic prop-driven dimensions
       "svelte/no-inline-styles": "off",

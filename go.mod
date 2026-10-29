@@ -4,7 +4,6 @@ go 1.26.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.13.0
-	github.com/agnivade/levenshtein v1.2.1
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/getsentry/sentry-go v0.49.0
 	github.com/go-chi/chi/v5 v5.3.2

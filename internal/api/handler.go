@@ -15,7 +15,6 @@ import (
 
 	"github.com/f1nniboy/lrcmux/internal/format"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
-	"github.com/f1nniboy/lrcmux/internal/normalize"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
 )
@@ -182,7 +181,6 @@ func (s *Server) fetch(ctx context.Context, req orchestrator.Request) (*orchestr
 		}
 	}
 
-	req.Artist, req.Title = normalize.Query(req.Artist, req.Title)
 	return s.orch.Get(ctx, req)
 }
 

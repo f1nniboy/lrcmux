@@ -15,6 +15,7 @@ func TestString(t *testing.T) {
 		{"'smart' “quotes”", "'smart' \"quotes\""},
 		{"collapse   whitespace", "collapse whitespace"},
 		{"UPPER", "upper"},
+		{"Straße", "strasse"},
 	}
 	for _, c := range cases {
 		if got := String(c.in); got != c.want {
@@ -45,6 +46,7 @@ func TestTitle(t *testing.T) {
 	}{
 		{"Song Title", "song title"},
 		{"Title (feat. Someone)", "title"},
+		{"Title（feat. Someone）", "title"},
 		{"Title (ft. Someone)", "title"},
 		{"Title [feat. Someone]", "title"},
 		{"Title ft. Someone", "title"},
@@ -69,19 +71,19 @@ func TestQuery(t *testing.T) {
 		{"Artist", "Title", "artist", "title"},
 		{"Artist - Topic", "Title", "artist", "title"},
 		{"Artist feat. Someone", "Title", "artist", "title"},
-		{"Uploader", "Artist - Title", "artist", "title"},
-		{"Uploader", "Artist – Title", "artist", "title"},
-		{"Uploader", "Artist ~ Title", "artist", "title"},
-		{"Uploader", "Artist - Song ft. Other", "artist", "song"},
-		{"Artist", "Artist - Title", "artist", "title"},
-		{"Uploader", "Artist - Song ft. Other (Official Video)", "artist", "song"},
-		{"Artist", "Artist - Title (Offizielles Musikvideo)", "artist", "title"},
+		{"Uploader", "Artist - Title", "uploader", "artist - title"},
+		{"Uploader", "Artist – Title", "uploader", "artist – title"},
+		{"Uploader", "Artist ~ Title", "uploader", "artist ~ title"},
+		{"Uploader", "Artist - Song ft. Other", "uploader", "artist - song"},
+		{"Artist", "Artist - Title", "artist", "artist - title"},
+		{"Uploader", "Artist - Song ft. Other (Official Video)", "uploader", "artist - song"},
+		{"Artist", "Artist - Title (Offizielles Musikvideo)", "artist", "artist - title"},
 		{"", "Title (Official Video)", "", "title"},
-		{"Artist", "Artist - Title (prod by Someone)", "artist", "title"},
+		{"Artist", "Artist - Title (prod by Someone)", "artist", "artist - title"},
 		{"", "Title (prod. Producer)", "", "title"},
 		{"", "Title (produced by Producer)", "", "title"},
-		{"Uploader", "Artist - Title (OFFICIAL VIDEO) prod. by Producer", "artist", "title"},
-		{"Uploader", "Artist - Title (OFFICIAL VIDEO) | prod. Producer", "artist", "title"},
+		{"Uploader", "Artist - Title (OFFICIAL VIDEO) prod. by Producer", "uploader", "artist - title"},
+		{"Uploader", "Artist - Title (OFFICIAL VIDEO) | prod. Producer", "uploader", "artist - title"},
 		{"Artist", "Title 【MV】", "artist", "title"},
 		{"Artist", "Title 【Official MV】", "artist", "title"},
 	}
@@ -160,6 +162,56 @@ func TestMatch(t *testing.T) {
 	}
 }
 
+func TestSplitArtistTitle(t *testing.T) {
+	cases := []struct {
+		in, artist, title string
+		ok                bool
+	}{
+		{"artist - title", "artist", "title", true},
+		{"artist – title", "artist", "title", true},
+		{"artist - title - more", "artist", "title - more", true},
+		{"artist-title", "", "", false},
+		{"artist  -  title", "artist", "title", true},
+		{" - title", "", "", false},
+		{"artist - ", "", "", false},
+		{"title", "", "", false},
+	}
+	for _, c := range cases {
+		artist, title, ok := SplitArtistTitle(c.in)
+		if artist != c.artist || title != c.title || ok != c.ok {
+			t.Errorf("SplitArtistTitle(%q) = (%q, %q, %v), want (%q, %q, %v)", c.in, artist, title, ok, c.artist, c.title, c.ok)
+		}
+	}
+}
+
+func TestInstrumental(t *testing.T) {
+	for in, want := range map[string]bool{
+		"Title":                   false,
+		"Title (Instrumental)":    true,
+		"Title [Karaoke Version]": true,
+		"Instrumental":            false,
+	} {
+		if got := Instrumental(in); got != want {
+			t.Errorf("Instrumental(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestCoreTitle(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"Title", "title"},
+		{"Title (From Something)", "title"},
+		{"Title [Something] (Another)", "title"},
+		{"Title（Something）", "title"},
+		{"(Something)", ""},
+	}
+	for _, c := range cases {
+		if got := CoreTitle(c.in); got != c.want {
+			t.Errorf("CoreTitle(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
 func TestArtistMatch(t *testing.T) {
 	cases := []struct {
 		sourceArtist, inputArtist string
@@ -179,6 +231,12 @@ func TestArtistMatch(t *testing.T) {
 		{"Artist (DEU)", "Artist", true},
 		{"Artist [UK]", "Artist", true},
 		{"Artist (feat. Someone)", "Someone", true},
+		{"(Artist)", "(Artist)", true},
+		{"Artist （DEU）", "Artist", true},
+		{"The Artist", "Artist", true},
+		{"Artist", "The Artist", true},
+		{"Theartist", "Artist", false},
+		{"Artist(DEU)", "Artist", true},
 	}
 	for _, c := range cases {
 		if got := ArtistMatch(c.sourceArtist, c.inputArtist); got != c.want {

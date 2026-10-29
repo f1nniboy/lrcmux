@@ -5,16 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"slices"
 	"sync"
 
-	"github.com/agnivade/levenshtein"
-
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
-	"github.com/f1nniboy/lrcmux/internal/normalize"
 )
 
 const baseURL = "https://api.deezer.com"
@@ -47,10 +43,6 @@ func (raw deezerTrack) toTrack() lyrics.Track {
 	}
 }
 
-type deezerSearchResponse struct {
-	Data []deezerTrack `json:"data"`
-}
-
 type deezerArtist struct {
 	Name          string `json:"name"`
 	PictureSmall  string `json:"picture_small,omitempty"`
@@ -66,61 +58,129 @@ type deezerAlbum struct {
 	ID          int64  `json:"id"`
 }
 
-func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (lyrics.Track, error) {
-	queries := []string{
-		fmt.Sprintf(`artist:"%s" track:"%s"`, in.Artist, in.Title),
-		in.Artist + " " + in.Title,
+// deezer answers errors with http 200 and an error object
+type deezerEnvelope struct {
+	Error *deezerError `json:"error"`
+}
+
+func (e deezerEnvelope) apiErr() *deezerError { return e.Error }
+
+type deezerError struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+	Code    int    `json:"code"`
+}
+
+// deezer's code for a lookup that matched nothing
+const codeNoData = 800
+
+func (e *deezerError) err() error {
+	if e.Code == codeNoData {
+		return lyrics.ErrNotFound
+	}
+	return fmt.Errorf("deezer %s %d: %s", e.Type, e.Code, e.Message)
+}
+
+// complete is false once a request failed, since its results could have held a
+// better match, so the track is served but not cached
+func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (track lyrics.Track, complete bool, err error) {
+	reads := readings(in)
+
+	// deezer's artist: filter returns nothing even for exact matches, so pair a
+	// title-only filter (finds originals buried under remixes) with free text
+	// (finds generic titles that drown in a title-only search)
+	var queries []string
+	for _, rd := range reads {
+		for _, q := range []string{fmt.Sprintf(`track:"%s"`, rd.Title), rd.Artist + " " + rd.Title} {
+			if !slices.Contains(queries, q) {
+				queries = append(queries, q)
+			}
+		}
 	}
 
 	results := make([][]deezerTrack, len(queries))
 	errs := make([]error, len(queries))
-
 	var wg sync.WaitGroup
 	for i, q := range queries {
 		wg.Go(func() { results[i], errs[i] = r.search(ctx, q) })
 	}
 	wg.Wait()
+	tracks := mergeTracks(results...)
 
-	if !slices.Contains(errs, nil) {
-		return lyrics.Track{}, errors.Join(errs...)
+	var best candidate
+	found := false
+	consider := func(reading int, c candidate, ok bool) {
+		c.reading = reading
+		if ok && (!found || c.beats(best)) {
+			best, found = c, true
+		}
+	}
+	for i, rd := range reads {
+		c, ok := pickBest(tracks, rd, 0)
+		consider(i, c, ok)
+	}
+	if !found {
+		// an artist named by an alias or in another script ("米津玄師" for
+		// "Kenshi Yonezu") fails the comparison, so ask deezer who it is
+		ids := map[string]int64{}
+		for i, rd := range reads {
+			if !titleMatches(tracks, rd.Title) {
+				continue
+			}
+			id, asked := ids[rd.Artist]
+			if !asked {
+				var err error
+				if id, err = r.artistID(ctx, rd.Artist); err != nil {
+					errs = append(errs, err)
+				}
+				ids[rd.Artist] = id
+			}
+			if id != 0 {
+				c, ok := pickBest(tracks, rd, id)
+				consider(i, c, ok)
+			}
+		}
 	}
 
-	merged := mergeTracks(results...)
-	if len(merged) == 0 {
-		return lyrics.Track{}, lyrics.ErrNotFound
+	var failed error
+	for _, err := range errs {
+		if err != nil && !errors.Is(err, lyrics.ErrNotFound) {
+			failed = err
+			break
+		}
 	}
-
-	best, ok := pickBest(merged, in)
-	if !ok {
-		return lyrics.Track{}, lyrics.ErrNotFound
+	if !found {
+		if failed != nil {
+			return lyrics.Track{}, false, failed
+		}
+		return lyrics.Track{}, true, lyrics.ErrNotFound
 	}
+	return best.track.toTrack(), failed == nil, nil
+}
 
-	return best.toTrack(), nil
+func (r *Resolver) artistID(ctx context.Context, name string) (int64, error) {
+	var res struct {
+		deezerEnvelope
+		Data []deezerArtist `json:"data"`
+	}
+	if err := r.get(ctx, "/search/artist?q="+url.QueryEscape(name)+"&limit=1", &res); err != nil {
+		return 0, err
+	}
+	if len(res.Data) == 0 {
+		return 0, nil
+	}
+	return res.Data[0].ID, nil
 }
 
 func (r *Resolver) search(ctx context.Context, q string) ([]deezerTrack, error) {
-	endpoint := baseURL + "/search?q=" + url.QueryEscape(q) + "&limit=10"
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
+	var res struct {
+		deezerEnvelope
+		Data []deezerTrack `json:"data"`
+	}
+	if err := r.get(ctx, "/search?q="+url.QueryEscape(q)+"&limit=10", &res); err != nil {
 		return nil, err
 	}
-
-	resp, err := r.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("deezer request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("deezer status %d", resp.StatusCode)
-	}
-
-	var dr deezerSearchResponse
-	if err := json.NewDecoder(resp.Body).Decode(&dr); err != nil {
-		return nil, fmt.Errorf("deezer decode: %w", err)
-	}
-	return dr.Data, nil
+	return res.Data, nil
 }
 
 func mergeTracks(lists ...[]deezerTrack) []deezerTrack {
@@ -139,86 +199,35 @@ func mergeTracks(lists ...[]deezerTrack) []deezerTrack {
 }
 
 func (r *Resolver) lookupMeta(ctx context.Context, isrc string) (lyrics.Track, error) {
-	endpoint := "https://api.deezer.com/track/isrc:" + isrc
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
+	var res struct {
+		deezerEnvelope
+		deezerTrack
+	}
+	if err := r.get(ctx, "/track/isrc:"+isrc, &res); err != nil {
 		return lyrics.Track{}, err
 	}
+	return res.toTrack(), nil
+}
 
+func (r *Resolver) get(ctx context.Context, path string, out interface{ apiErr() *deezerError }) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
+	if err != nil {
+		return err
+	}
 	resp, err := r.client.Do(req)
 	if err != nil {
-		return lyrics.Track{}, fmt.Errorf("deezer request: %w", err)
+		return fmt.Errorf("deezer request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return lyrics.Track{}, lyrics.ErrNotFound
-	}
 	if resp.StatusCode != http.StatusOK {
-		return lyrics.Track{}, fmt.Errorf("deezer status %d", resp.StatusCode)
+		return fmt.Errorf("deezer status %d", resp.StatusCode)
 	}
-
-	var dt deezerTrack
-	if err := json.NewDecoder(resp.Body).Decode(&dt); err != nil {
-		return lyrics.Track{}, fmt.Errorf("deezer decode: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("deezer decode: %w", err)
 	}
-
-	return dt.toTrack(), nil
-}
-
-func distScore(a, b string, n int) float64 {
-	return float64(max(0, n-levenshtein.ComputeDistance(a, b)))
-}
-
-// shared score for the title/artist/duration signals, so no
-// single one alone can outweigh an exact match in another
-const matchScore = 5
-
-const durationWindowSecs = 30
-
-func pickBest(tracks []deezerTrack, in ResolveInput) (deezerTrack, bool) {
-	wantTitle := normalize.Title(in.Title)
-	wantArtist := normalize.String(in.Artist)
-
-	var best deezerTrack
-	var bestScore float64
-
-	for _, t := range tracks {
-		// title
-		titleScore := distScore(normalize.Title(t.Title), wantTitle, matchScore)
-		if titleScore == 0 {
-			continue
-		}
-
-		s := titleScore
-
-		// artist
-		if normalize.ArtistMatch(t.Artist.Name, in.Artist) || normalize.ArtistMatch(in.Artist, t.Artist.Name) {
-			s += matchScore
-		} else {
-			s += distScore(normalize.String(t.Artist.Name), wantArtist, matchScore)
-		}
-
-		// duration
-		if in.Duration > 0 {
-			delta := math.Abs(float64(t.Duration - in.Duration))
-			if delta < durationWindowSecs {
-				s += matchScore * (1 - delta/durationWindowSecs)
-			}
-		}
-
-		// album
-		if in.Album != "" {
-			s += distScore(normalize.String(t.Album.Title), normalize.String(in.Album), 2)
-		}
-
-		if s > bestScore {
-			best, bestScore = t, s
-		}
+	if e := out.apiErr(); e != nil {
+		return e.err()
 	}
-
-	// we want at least 2 signals to match, so e.g. a lone fuzzy title match
-	// doesn't count as a match
-	return best, bestScore > matchScore
+	return nil
 }

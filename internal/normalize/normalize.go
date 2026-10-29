@@ -14,8 +14,8 @@ import (
 const featRE = `(?:feat|ft)\.?`
 
 const (
-	openBrackets  = `\[(【`
-	closeBrackets = `\])】`
+	openBrackets  = `\[(【（`
+	closeBrackets = `\])】）`
 )
 
 // only strip Latin combining diacritical marks,
@@ -25,11 +25,13 @@ var latinDiacritics = &unicode.RangeTable{
 	R16: []unicode.Range16{{Lo: 0x0300, Hi: 0x036F, Stride: 1}},
 }
 
-var smartQuotes = strings.NewReplacer(
+// characters that catalogs spell differently for the same text
+var folds = strings.NewReplacer(
 	"‘", "'",
 	"’", "'",
 	"“", "\"",
 	"”", "\"",
+	"ß", "ss",
 )
 
 var artistBrackets = strings.NewReplacer(
@@ -37,6 +39,8 @@ var artistBrackets = strings.NewReplacer(
 	")", "",
 	"[", "",
 	"]", "",
+	"（", "",
+	"）", "",
 )
 
 var (
@@ -46,7 +50,7 @@ var (
 	// strips a single-token bracket suffix like "(DEU)" or "[UK]" that genius
 	// appends to tell apart artists sharing a name, while multi-word groups
 	// such as "(feat. X)" are left for collaborationRE to split
-	disambigRE = regexp.MustCompile(`\s*[` + openBrackets + `][^\s` + openBrackets + closeBrackets + `]+[` + closeBrackets + `]`)
+	disambigRE = regexp.MustCompile(`(\S)\s*[` + openBrackets + `][^\s` + openBrackets + closeBrackets + `]+[` + closeBrackets + `]$`)
 
 	// strips feature credits from song titles
 	titleFeatureRE = regexp.MustCompile(`(?i)\s*[` + openBrackets + `]` + featRE + `[^` + closeBrackets + `]*[` + closeBrackets + `]|\s+` + featRE + `\s+\S.*$`)
@@ -57,15 +61,18 @@ var (
 	// strips production credits from titles
 	prodRE = regexp.MustCompile(`(?i)\s*[` + openBrackets + `]prod(?:uced)?\b[^` + closeBrackets + `]*[` + closeBrackets + `]|\s+[|]?\s*prod(?:uced)?\b.*$`)
 
-	// strips instrumental/karaoke version markers from titles
+	// marks instrumental/karaoke versions, stripped from titles
 	instrumentalRE = regexp.MustCompile(`(?i)\s*[` + openBrackets + `][^` + closeBrackets + `]*\b(?:instrumental|karaoke)\b[^` + closeBrackets + `]*[` + closeBrackets + `]`)
 
 	// matches the artist–title separator in combined title strings
 	artistTitleSepRE = regexp.MustCompile(`\s[-–—~]\s`)
+
+	// matches every bracketed group, for comparing titles without them
+	bracketGroupRE = regexp.MustCompile(`\s*[` + openBrackets + `][^` + closeBrackets + `]*[` + closeBrackets + `]`)
 )
 
 func String(s string) string {
-	s = smartQuotes.Replace(s)
+	s = folds.Replace(s)
 	t := transform.Chain(norm.NFKD, runes.Remove(runes.In(latinDiacritics)), norm.NFKC)
 	if out, _, err := transform.String(t, s); err == nil {
 		s = out
@@ -87,6 +94,17 @@ func Title(s string) string {
 	return String(s)
 }
 
+// reports whether a title marks an instrumental or karaoke version
+func Instrumental(s string) bool {
+	return instrumentalRE.MatchString(s)
+}
+
+// the title without any bracketed group, for matching a title against a
+// version of itself decorated on one side only
+func CoreTitle(s string) string {
+	return String(bracketGroupRE.ReplaceAllString(Title(s), ""))
+}
+
 func artist(s string) string {
 	s = String(s)
 	s, _ = strings.CutSuffix(s, " - topic")
@@ -94,7 +112,7 @@ func artist(s string) string {
 }
 
 func splitArtists(s string) []string {
-	s = disambigRE.ReplaceAllString(s, "")
+	s = disambigRE.ReplaceAllString(s, "$1")
 	s = artistBrackets.Replace(s)
 	parts := collaborationRE.Split(s, -1)
 
@@ -117,11 +135,16 @@ func primaryArtist(s string) string {
 func ArtistMatch(a, b string) bool {
 	as := splitArtists(a)
 	for _, want := range splitArtists(b) {
-		if slices.Contains(as, want) {
+		if slices.ContainsFunc(as, func(have string) bool { return withoutArticle(have) == withoutArticle(want) }) {
 			return true
 		}
 	}
 	return false
+}
+
+// "the weeknd" and "weeknd" name the same artist
+func withoutArticle(s string) string {
+	return strings.TrimPrefix(s, "the ")
 }
 
 func Match(queryTitle, queryArtist, resultTitle, resultArtist string) bool {
@@ -129,13 +152,18 @@ func Match(queryTitle, queryArtist, resultTitle, resultArtist string) bool {
 }
 
 func Query(inputArtist, inputTitle string) (cleanArtist, cleanTitle string) {
-	inputTitle = stripMarkers(inputTitle)
-
-	// extract artist from title (e.g. YouTube videos)
-	if loc := artistTitleSepRE.FindStringIndex(inputTitle); loc != nil {
-		inputArtist = inputTitle[:loc[0]]
-		inputTitle = inputTitle[loc[1]:]
-	}
-
 	return primaryArtist(inputArtist), Title(inputTitle)
+}
+
+// splits "artist - title", the way youtube uploads name their videos
+func SplitArtistTitle(s string) (artist, title string, ok bool) {
+	loc := artistTitleSepRE.FindStringIndex(s)
+	if loc == nil {
+		return "", "", false
+	}
+	artist, title = strings.TrimSpace(s[:loc[0]]), strings.TrimSpace(s[loc[1]:])
+	if artist == "" || title == "" {
+		return "", "", false
+	}
+	return artist, title, true
 }

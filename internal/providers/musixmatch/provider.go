@@ -5,173 +5,98 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"maps"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
-// mostly borrowed from https://github.com/OrfiDev/orpheusdl-musixmatch
+// based on https://github.com/omkarcloud/musixmatch-scraper
 
+// only plain lyrics are served anonymously, track.subtitle.get and
+// track.richsync.get answer 403 without a paid plan, and the desktop api
+// (apic-desktop) hands out all-zero tokens instead
 const (
-	baseURL   = "https://apic-desktop.musixmatch.com/ws/1.1/"
-	appID     = "web-desktop-app-v1.0"
-	userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Musixmatch/0.19.4 Chrome/58.0.3029.110 Electron/1.7.6 Safari/537.36"
+	siteURL = "https://www.musixmatch.com"
+	apiURL  = siteURL + "/ws/1.1/"
+	appID   = "community-app-v1.0"
 )
 
-type tier struct {
-	extra        url.Values
-	parse        func(string) []lyrics.Line
-	endpoint     string
-	bodyKey      string
-	contentField string
-}
-
-var tierByLevel = map[lyrics.SyncLevel]tier{
-	lyrics.SyncWord: {endpoint: "track.richsync.get", bodyKey: "richsync", contentField: "richsync_body", parse: parseRichsync},
-	lyrics.SyncLine: {endpoint: "track.subtitle.get", bodyKey: "subtitle", contentField: "subtitle_body", parse: parseSubtitles, extra: url.Values{"subtitle_format": {"mxm"}}},
-	lyrics.SyncNone: {endpoint: "track.lyrics.get", bodyKey: "lyrics", contentField: "lyrics_body", parse: lyrics.ParsePlain},
-}
+var errBadSignature = errors.New("invalid signature")
 
 //nolint:govet // fieldalignment
 type Provider struct {
 	providers.Common
-	PoolSize int `toml:"pool_size,commented,omitempty" comment:"how many tokens to use in rotation"`
 
-	pool *tokenPool
+	signer *signer
 }
 
 func (p *Provider) ID() string                 { return "musixmatch" }
 func (p *Provider) Name() string               { return "Musixmatch" }
-func (p *Provider) URL() string                { return "https://www.musixmatch.com" }
-func (p *Provider) Desc() string               { return "Extensive library and good word-level sync coverage" }
-func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
+func (p *Provider) URL() string                { return siteURL }
+func (p *Provider) Desc() string               { return "Extensive library, but only plain text lyrics" }
+func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncNone }
 
 func (p *Provider) Init() {
-	if p.PoolSize <= 0 {
-		p.PoolSize = 1
-	}
-	p.pool = newTokenPool(p.PoolSize, p.HTTP, p.Cache, p.Log)
+	p.signer = &signer{client: p.HTTP}
 }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
-	meta, err := p.fetchTrackMeta(ctx, q.Track.ISRC)
+	body, err := p.get(ctx, "track.lyrics.get", url.Values{"track_isrc": {q.Track.ISRC}})
 	if err != nil {
 		return nil, err
 	}
-	if meta == nil {
-		return nil, lyrics.ErrNotFound
+
+	var resp struct {
+		Lyrics struct {
+			Body         string `json:"lyrics_body"`
+			Instrumental int    `json:"instrumental"`
+		} `json:"lyrics"`
 	}
-	if meta.instrumental {
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	if resp.Lyrics.Instrumental == 1 {
 		return &lyrics.Result{Instrumental: true}, nil
 	}
-
-	t := tierByLevel[meta.syncLevel]
-	lines, err := p.fetchTier(ctx, t, q.Track.ISRC)
-	if err != nil {
-		return nil, err
+	lines := lyrics.ParsePlain(resp.Lyrics.Body)
+	if len(lines) == 0 {
+		return nil, lyrics.ErrNotFound
 	}
-	if len(lines) > 0 {
-		return &lyrics.Result{Lines: lines, SyncLevel: meta.syncLevel}, nil
-	}
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-	return nil, lyrics.ErrNotFound
+	return &lyrics.Result{Lines: lines, SyncLevel: lyrics.SyncNone}, nil
 }
 
-type trackMeta struct {
-	syncLevel    lyrics.SyncLevel
-	instrumental bool
-}
-
-func (p *Provider) fetchTrackMeta(ctx context.Context, isrc string) (*trackMeta, error) {
-	body, err := p.get(ctx, "track.get", url.Values{"track_isrc": {isrc}})
-	if err != nil {
-		return nil, err
-	}
-	var resp struct {
-		Track struct {
-			HasRichsync  int `json:"has_richsync"`
-			HasSubtitles int `json:"has_subtitles"`
-			HasLyrics    int `json:"has_lyrics"`
-			Instrumental int `json:"instrumental"`
-		} `json:"track"`
-	}
-	json.Unmarshal(body, &resp)
-	track := resp.Track
-	switch {
-	case track.HasRichsync == 1:
-		return &trackMeta{syncLevel: lyrics.SyncWord}, nil
-	case track.HasSubtitles == 1:
-		return &trackMeta{syncLevel: lyrics.SyncLine}, nil
-	case track.HasLyrics == 1:
-		return &trackMeta{syncLevel: lyrics.SyncNone}, nil
-	case track.Instrumental == 1:
-		return &trackMeta{instrumental: true}, nil
-	}
-	return nil, nil
-}
-
-func (p *Provider) fetchTier(ctx context.Context, t tier, isrc string) ([]lyrics.Line, error) {
-	params := url.Values{"track_isrc": {isrc}}
-	maps.Copy(params, t.extra)
-
-	body, err := p.get(ctx, t.endpoint, params)
-	if err != nil {
-		if ctx.Err() == nil && !errors.Is(err, lyrics.ErrNotFound) {
-			p.Log.Debug("fetch failed", "tier", t.bodyKey, "isrc", isrc, "err", err)
-			return nil, err
-		}
-		return nil, nil
-	}
-
-	var outer map[string]map[string]json.RawMessage
-	json.Unmarshal(body, &outer)
-	var content string
-	json.Unmarshal(outer[t.bodyKey][t.contentField], &content)
-	if content == "" {
-		return nil, nil
-	}
-	return t.parse(content), nil
-}
-
-func (p *Provider) get(ctx context.Context, endpoint string, extra url.Values) (json.RawMessage, error) {
-	for range len(p.pool.tokens) {
-		token, idx, err := p.pool.get(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		p.Log.Debug("using token", "slot", idx, "token", token[:8])
-		body, err := p.doRequest(ctx, endpoint, extra, token)
-		if err == nil {
-			return body, nil
-		}
-		if !errors.Is(err, errTokenUnusable) {
-			return nil, err
-		}
-		p.Log.Debug("token unusable, retiring", "slot", idx)
-		p.pool.retire(idx)
-	}
-	return nil, providers.ErrRateLimited
-}
-
-func (p *Provider) doRequest(ctx context.Context, endpoint string, extra url.Values, token string) (json.RawMessage, error) {
-	params := url.Values{}
+func (p *Provider) get(ctx context.Context, method string, params url.Values) (json.RawMessage, error) {
 	params.Set("app_id", appID)
 	params.Set("format", "json")
-	params.Set("usertoken", token)
-	maps.Copy(params, extra)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+endpoint+"?"+params.Encode(), nil)
+	key, err := p.signer.key(ctx)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", userAgent)
+	body, err := p.do(ctx, method, params, key)
+	if errors.Is(err, errBadSignature) {
+		// the key rotates with every site deploy
+		if key, err = p.signer.refresh(ctx, key); err != nil {
+			return nil, err
+		}
+		body, err = p.do(ctx, method, params, key)
+	}
+	return body, err
+}
+
+func (p *Provider) do(ctx context.Context, method string, params url.Values, key string) (json.RawMessage, error) {
+	u := sign(apiURL+method+"?"+params.Encode(), key, time.Now())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	// a navigation-style accept gets a varnish 503
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Origin", siteURL)
+	req.Header.Set("Referer", siteURL+"/")
 
 	resp, err := p.HTTP.Do(req)
 	if err != nil {
@@ -179,13 +104,14 @@ func (p *Provider) doRequest(ctx context.Context, endpoint string, extra url.Val
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	switch {
+	case resp.StatusCode == http.StatusUnauthorized:
+		return nil, errBadSignature
+	case blocked(resp.StatusCode):
+		return nil, providers.ErrRateLimited
+	case resp.StatusCode != http.StatusOK:
 		return nil, fmt.Errorf("http %d", resp.StatusCode)
-	}
-
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read: %w", err)
+	default:
 	}
 
 	var res struct {
@@ -197,18 +123,26 @@ func (p *Provider) doRequest(ctx context.Context, endpoint string, extra url.Val
 			Body json.RawMessage `json:"body"`
 		} `json:"message"`
 	}
-	if err := json.Unmarshal(raw, &res); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 
 	switch res.Message.Header.StatusCode {
-	case 200:
+	case http.StatusOK:
 		return res.Message.Body, nil
-	case 401:
-		return nil, errTokenUnusable
-	case 404:
+	case http.StatusNotFound:
 		return nil, lyrics.ErrNotFound
+	default:
+		return nil, fmt.Errorf("api %d (%s)", res.Message.Header.StatusCode, res.Message.Header.Hint)
 	}
-	p.Log.Debug("api error", "status", res.Message.Header.StatusCode, "hint", res.Message.Header.Hint)
-	return nil, fmt.Errorf("api %d (%s)", res.Message.Header.StatusCode, res.Message.Header.Hint)
+}
+
+// aws waf answers a challenge with 202 and a captcha with 405
+func blocked(status int) bool {
+	switch status {
+	case http.StatusAccepted, http.StatusForbidden, http.StatusMethodNotAllowed, http.StatusTooManyRequests:
+		return true
+	default:
+		return false
+	}
 }

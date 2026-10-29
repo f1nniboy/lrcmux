@@ -58,8 +58,6 @@ enable = true
 
 [providers.musixmatch]
 enable = true
-# how many tokens to use in rotation
-# pool_size = 5
 
 [providers.netease]
 enable = true

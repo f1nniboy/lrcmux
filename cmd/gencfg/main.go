@@ -51,7 +51,7 @@ func main() {
 			"genius":     genius.Provider{Common: providers.Common{Enable: true, Proxy: "mypool"}},
 			"kugou":      kugou.Provider{Common: enabled},
 			"lrclib":     lrclib.Provider{Common: enabled, BaseURL: "https://lrclib.net"},
-			"musixmatch": musixmatch.Provider{Common: enabled, PoolSize: 5},
+			"musixmatch": musixmatch.Provider{Common: enabled},
 			"netease":    netease.Provider{Common: enabled},
 			"ytmusic":    ytmusic.Provider{Common: enabled},
 		},

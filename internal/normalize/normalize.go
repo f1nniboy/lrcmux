@@ -43,6 +43,11 @@ var (
 	// splits multi-artist strings on common feature markers
 	collaborationRE = regexp.MustCompile(`(?i)\s*[&,×]\s*|\s+(?:` + featRE + `|and|und|et|con|with|vs\.?|x)\s+`)
 
+	// strips a single-token bracket suffix like "(DEU)" or "[UK]" that genius
+	// appends to tell apart artists sharing a name, while multi-word groups
+	// such as "(feat. X)" are left for collaborationRE to split
+	disambigRE = regexp.MustCompile(`\s*[` + openBrackets + `][^\s` + openBrackets + closeBrackets + `]+[` + closeBrackets + `]`)
+
 	// strips feature credits from song titles
 	titleFeatureRE = regexp.MustCompile(`(?i)\s*[` + openBrackets + `]` + featRE + `[^` + closeBrackets + `]*[` + closeBrackets + `]|\s+` + featRE + `\s+\S.*$`)
 
@@ -89,6 +94,7 @@ func artist(s string) string {
 }
 
 func splitArtists(s string) []string {
+	s = disambigRE.ReplaceAllString(s, "")
 	s = artistBrackets.Replace(s)
 	parts := collaborationRE.Split(s, -1)
 

@@ -176,6 +176,9 @@ func TestArtistMatch(t *testing.T) {
 		{"Another", "Artist x Another", true},
 		{"Artist", "Artist (Ft. Someone)", true},
 		{"Someone", "Artist (Ft. Someone)", true},
+		{"Artist (DEU)", "Artist", true},
+		{"Artist [UK]", "Artist", true},
+		{"Artist (feat. Someone)", "Someone", true},
 	}
 	for _, c := range cases {
 		if got := ArtistMatch(c.sourceArtist, c.inputArtist); got != c.want {

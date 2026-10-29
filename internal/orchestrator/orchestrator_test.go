@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"slices"
+	"sync/atomic"
 	"testing"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
@@ -24,8 +25,10 @@ func result(source string, level lyrics.SyncLevel, lines ...string) *lyrics.Resu
 }
 
 type stubProvider struct {
-	id string
 	providers.Common
+	search   func(context.Context) (*lyrics.Result, error)
+	id       string
+	calls    atomic.Int32
 	maxLevel lyrics.SyncLevel
 }
 
@@ -34,8 +37,12 @@ func (s *stubProvider) Name() string               { return s.id }
 func (s *stubProvider) URL() string                { return "" }
 func (s *stubProvider) Desc() string               { return "" }
 func (s *stubProvider) MaxLevel() lyrics.SyncLevel { return s.maxLevel }
-func (s *stubProvider) Search(_ context.Context, _ lyrics.Query) (*lyrics.Result, error) {
-	return nil, nil
+func (s *stubProvider) Search(ctx context.Context, _ lyrics.Query) (*lyrics.Result, error) {
+	s.calls.Add(1)
+	if s.search == nil {
+		return nil, lyrics.ErrNotFound
+	}
+	return s.search(ctx)
 }
 
 func prov(id string, level lyrics.SyncLevel) providers.Provider {

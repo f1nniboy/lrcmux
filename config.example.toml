@@ -26,6 +26,8 @@ word = '0s'
 line = '720h0m0s'
 # unsynced results
 none = '168h0m0s'
+# instrumental results
+instrumental = '168h0m0s'
 # provider not-found results
 miss = '24h0m0s'
 

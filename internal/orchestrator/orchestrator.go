@@ -124,19 +124,25 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		ISRC:     req.ISRC,
 	})
 	if err != nil {
-		o.recordOutcome("isrc_not_found")
+		// only a miss is a cacheable 404, anything else is our failure
+		outcome := "isrc_error"
+		if errors.Is(err, lyrics.ErrNotFound) {
+			outcome, err = "isrc_not_found", ErrNotFound
+		}
+		o.recordOutcome(outcome)
 		if req.Charge != nil {
 			if err := req.Charge(ctx); err != nil {
 				return nil, err
 			}
 		}
-		return nil, ErrNotFound
+		return nil, err
 	}
 
 	q := lyrics.Query{Track: track}
 
 	respond := func(r *lyrics.Result, cached bool) *Response {
-		out := r.Downgrade(req.Level)
+		// a copy, since the fanout may still be caching r in the background
+		out := *r.Downgrade(req.Level)
 		out.Track = q.Track
 
 		ttl := o.ttlFor(r)
@@ -151,7 +157,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 			ttl = 365 * 24 * time.Hour
 		}
 
-		return &Response{Result: out, Cached: cached, TTL: ttl}
+		return &Response{Result: &out, Cached: cached, TTL: ttl}
 	}
 
 	cached, unknowns := o.getCacheAndProviders(ctx, q, req, active)
@@ -193,6 +199,8 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	}
 
 	v, err, _ := o.sf.Do(key, func() (any, error) {
+		// shared by every waiter, so one caller going away mustn't fail the rest
+		ctx := context.WithoutCancel(ctx)
 		o.recordOutcome("fanout")
 
 		// seed with cached so pick weighs them against fresh results each tier
@@ -203,7 +211,8 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 			o.log.Debug("fanout tier", "tier", i, "providers", providers.IDs(tier), "target_level", req.Level.String())
 			results = append(results, o.fanOut(ctx, tier, q, req.Level)...)
 
-			if picked := o.pick(results, pickLevel); picked != nil && (satisfies(picked, pickLevel) || i == len(tiers)-1) {
+			last := i == len(tiers)-1
+			if picked := o.pick(results, pickLevel); picked != nil && (last || satisfies(picked, maxLevel(tiers[i+1]))) {
 				o.log.Debug("tier satisfied", "tier", i, "provider", picked.Source.ID, "level", picked.SyncLevel.String())
 				return respond(picked, slices.Contains(cached, picked)), nil
 			}
@@ -218,7 +227,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 }
 
 // returns cached results and the providers still worth querying,
-// after applying force/cache mode, breaker filter, strict, and the
+// after applying force/cache mode, breaker filter, and the
 // "must beat what's already cached" filter
 func (o *Orchestrator) getCacheAndProviders(ctx context.Context, q lyrics.Query, req Request, provs []providers.Provider) (cached []*lyrics.Result, unknowns []providers.Provider) {
 	if req.FetchMode == "force" {
@@ -281,7 +290,7 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, provs []p
 
 func (o *Orchestrator) ttlFor(r *lyrics.Result) time.Duration {
 	if r.Instrumental {
-		return 0
+		return o.opts.TTL.Instrumental.Duration
 	}
 	switch r.SyncLevel {
 	case lyrics.SyncWord:

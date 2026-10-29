@@ -29,10 +29,11 @@ func main() {
 		Cache: config.Cache{
 			RedisURL: "redis://localhost:6379",
 			TTL: config.CacheTTL{
-				Word: config.Duration{Duration: 0},
-				Line: config.Duration{Duration: 720 * time.Hour},
-				None: config.Duration{Duration: 168 * time.Hour},
-				Miss: config.Duration{Duration: 24 * time.Hour},
+				Word:         config.Duration{Duration: 0},
+				Line:         config.Duration{Duration: 720 * time.Hour},
+				None:         config.Duration{Duration: 168 * time.Hour},
+				Instrumental: config.Duration{Duration: 168 * time.Hour},
+				Miss:         config.Duration{Duration: 24 * time.Hour},
 			},
 		},
 		Log: logging.Config{Level: "info", Format: "text"},

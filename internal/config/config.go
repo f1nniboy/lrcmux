@@ -16,10 +16,11 @@ type Server struct {
 }
 
 type CacheTTL struct {
-	Word Duration `toml:"word" comment:"word-level results"`
-	Line Duration `toml:"line" comment:"line-level results"`
-	None Duration `toml:"none" comment:"unsynced results"`
-	Miss Duration `toml:"miss" comment:"provider not-found results"`
+	Word         Duration `toml:"word" comment:"word-level results"`
+	Line         Duration `toml:"line" comment:"line-level results"`
+	None         Duration `toml:"none" comment:"unsynced results"`
+	Instrumental Duration `toml:"instrumental" comment:"instrumental results"`
+	Miss         Duration `toml:"miss" comment:"provider not-found results"`
 }
 
 type Cache struct {

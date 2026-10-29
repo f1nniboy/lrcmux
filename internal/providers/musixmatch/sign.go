@@ -24,7 +24,7 @@ var (
 	bundleRE = regexp.MustCompile(`src="([^"]*/_next/static/chunks/pages/_app-[^"]+\.js)"`)
 	// the key ships in the app bundle reversed and base64 encoded,
 	// as Buffer.from("...".split("").reverse().join(""), "base64")
-	keyRE    = regexp.MustCompile(`from\(\s*"(.*?)"\s*\.split`)
+	keyRE    = regexp.MustCompile(`from\(\s*"([^"]*)"\s*\.split`)
 	hexKeyRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
 )
 
@@ -49,7 +49,9 @@ func (s *signer) key(ctx context.Context) (string, error) {
 // stale is the key the caller failed with, so a caller that lost the race
 // to an already finished refresh takes the new key instead of scraping again
 func (s *signer) refresh(ctx context.Context, stale string) (string, error) {
-	v, err, _ := s.sf.Do("key", func() (any, error) {
+	// every waiter shares one scrape that a caller going away can't cancel,
+	// while each caller still gives up at its own deadline
+	ch := s.sf.DoChan("key", func() (any, error) {
 		s.mu.Lock()
 		k := s.current
 		s.mu.Unlock()
@@ -57,7 +59,7 @@ func (s *signer) refresh(ctx context.Context, stale string) (string, error) {
 			return k, nil
 		}
 
-		k, err := s.scrape(ctx)
+		k, err := s.scrape(context.WithoutCancel(ctx))
 		if err != nil {
 			return "", err
 		}
@@ -66,10 +68,15 @@ func (s *signer) refresh(ctx context.Context, stale string) (string, error) {
 		s.mu.Unlock()
 		return k, nil
 	})
-	if err != nil {
-		return "", err
+	select {
+	case res := <-ch:
+		if res.Err != nil {
+			return "", res.Err
+		}
+		return res.Val.(string), nil
+	case <-ctx.Done():
+		return "", ctx.Err()
 	}
-	return v.(string), nil
 }
 
 func (s *signer) scrape(ctx context.Context) (string, error) {

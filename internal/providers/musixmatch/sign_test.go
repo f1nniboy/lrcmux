@@ -1,6 +1,11 @@
 package musixmatch
 
 import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -23,7 +28,40 @@ func TestExtractKey(t *testing.T) {
 	if key, ok := extractKey(js); !ok || key != "0123456789abcdef0123456789abcdef" {
 		t.Errorf("extractKey() = %q, %v", key, ok)
 	}
+	minified := `a=Buffer.from("deadbeef","hex");` +
+		`b=Buffer.from("=YWZkNmYhlDO3YTN0MjMxAjZlR2YiFWO4cjN1QzMyEDM".split("").reverse().join(""),"base64")`
+	if key, ok := extractKey(minified); !ok || key != "0123456789abcdef0123456789abcdef" {
+		t.Errorf("extractKey(minified) = %q, %v", key, ok)
+	}
 	if _, ok := extractKey(`c=Buffer.from("x".split(""))`); ok {
 		t.Error("extractKey() found a key where there is none")
+	}
+}
+
+// sends every request to the test server, so the signer keeps its real urls
+type redirect struct{ target *url.URL }
+
+func (rt redirect) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
+	req.URL.Scheme, req.URL.Host = rt.target.Scheme, rt.target.Host
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+func TestRefreshLeavesAtDeadline(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+	}))
+	t.Cleanup(srv.Close)
+	target, _ := url.Parse(srv.URL)
+	s := &signer{client: &http.Client{Transport: redirect{target}}}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if _, err := s.refresh(ctx, ""); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want DeadlineExceeded", err)
+	}
+	if d := time.Since(start); d > 150*time.Millisecond {
+		t.Errorf("refresh took %v, want it to leave at its deadline", d)
 	}
 }

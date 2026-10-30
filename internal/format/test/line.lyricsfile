@@ -1,17 +1,17 @@
 version: "1.0"
 metadata:
-    title: Test Song
-    artist: Test Artist
-    album: Test Album
+    title: Song
+    artist: Artist
+    album: Album
     duration_ms: 180000
 lines:
-    - text: Hello world
+    - text: First line
       start_ms: 0
       end_ms: 3000
-    - text: Goodbye
+    - text: Second
       start_ms: 5000
       end_ms: 7000
 plain: |-
-    Hello world
+    First line
 
-    Goodbye
+    Second

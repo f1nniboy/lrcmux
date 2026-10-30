@@ -70,6 +70,7 @@ type Track struct {
 	Artist   string     `json:"artist"`
 	Album    string     `json:"album"`
 	Duration int64      `json:"duration"`
+	DeezerID int64      `json:"-"`
 }
 
 type Word struct {
@@ -92,9 +93,9 @@ type Source struct {
 }
 
 type Result struct {
-	Track        Track
 	Source       Source
 	Lines        []Line
+	Track        Track
 	SyncLevel    SyncLevel
 	Instrumental bool
 }

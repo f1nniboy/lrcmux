@@ -20,6 +20,7 @@ type JSONLine struct {
 	Words   []lyrics.Word `json:"words,omitempty"`
 }
 
+//nolint:govet // fieldalignment
 type JSONResponse struct {
 	Track lyrics.Track `json:"track"`
 	Meta  JSONMeta     `json:"meta"`

@@ -17,6 +17,7 @@ body:
       description: Which provider has the issue?
       multiple: true
       options:
+        - Deezer
         - Genius
         - KuGou
         - LRCLIB

@@ -2,9 +2,17 @@ package lyrics
 
 import (
 	"bufio"
+	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 )
+
+// a transcriber's "[Chorus]" or "(Verse: Artist)", never sung, unlike an ad-lib "(yeah)"
+func SectionMarker(text string) bool {
+	return strings.HasPrefix(text, "[") && strings.HasSuffix(text, "]") ||
+		strings.HasPrefix(text, "(") && strings.HasSuffix(text, ")") && strings.Contains(text, ":")
+}
 
 func ParsePlain(s string) []Line {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
@@ -34,11 +42,15 @@ func ParseLRC(body string) ([]Line, SyncLevel) {
 		words := splitWordStamps(text)
 		cleanText := text
 		if len(words) > 0 {
-			parts := make([]string, len(words))
-			for i, w := range words {
-				parts[i] = w.Text
+			// words carry their space, like every other provider's
+			var b strings.Builder
+			for i := range words {
+				if i < len(words)-1 {
+					words[i].Text += " "
+				}
+				b.WriteString(words[i].Text)
 			}
-			cleanText = strings.Join(parts, " ")
+			cleanText = b.String()
 		}
 		for _, ms := range stamps {
 			l := Line{StartMs: ms, Text: cleanText}
@@ -51,6 +63,9 @@ func ParseLRC(body string) ([]Line, SyncLevel) {
 			lines = append(lines, l)
 		}
 	}
+
+	// a line with several stamps comes back later in the song
+	slices.SortStableFunc(lines, func(a, b Line) int { return cmp.Compare(a.StartMs, b.StartMs) })
 
 	// fill line EndMs
 	for i := 0; i < len(lines)-1; i++ {

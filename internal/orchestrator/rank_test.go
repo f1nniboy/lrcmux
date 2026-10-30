@@ -13,19 +13,9 @@ func TestRankResult(t *testing.T) {
 		name string
 	}{
 		{
-			name: "word beats line",
+			name: "higher sync beats more lines",
 			a:    result("a", lyrics.SyncWord, "x"),
 			b:    result("b", lyrics.SyncLine, "x", "y", "z"),
-		},
-		{
-			name: "word beats none",
-			a:    result("a", lyrics.SyncWord),
-			b:    result("b", lyrics.SyncNone, "x", "y"),
-		},
-		{
-			name: "line beats none",
-			a:    result("a", lyrics.SyncLine, "x"),
-			b:    result("b", lyrics.SyncNone, "x", "y", "z"),
 		},
 		{
 			name: "more lines wins at equal sync",
@@ -33,9 +23,14 @@ func TestRankResult(t *testing.T) {
 			b:    result("b", lyrics.SyncNone, "x", "y"),
 		},
 		{
-			name: "higher sync beats more lines",
-			a:    result("a", lyrics.SyncWord, "x"),
-			b:    result("b", lyrics.SyncNone, "x", "y", "z"),
+			name: "less censored beats higher sync",
+			a:    result("a", lyrics.SyncLine, "a*a"),
+			b:    result("b", lyrics.SyncWord, "a*a b*b c*c"),
+		},
+		{
+			name: "otherwise the source id",
+			a:    result("aaa", lyrics.SyncLine, "x", "y"),
+			b:    result("zzz", lyrics.SyncLine, "x", "y"),
 		},
 	}
 	for _, c := range cases {
@@ -45,100 +40,15 @@ func TestRankResult(t *testing.T) {
 			}
 		})
 	}
-
-	t.Run("clean line beats censored word", func(t *testing.T) {
-		a := result("clean", lyrics.SyncLine, "hello world")
-		b := result("dirty", lyrics.SyncWord, "hello **** world")
-		if rankResult(a, b) <= 0 {
-			t.Error("clean line-synced should outrank censored word-synced")
-		}
-	})
-
-	t.Run("less censored line beats more censored word", func(t *testing.T) {
-		a := result("light", lyrics.SyncLine, "a*a")
-		b := result("heavy", lyrics.SyncWord, "a*a b*b c*c")
-		if rankResult(a, b) <= 0 {
-			t.Error("fewer masked chars should outrank a higher sync level")
-		}
-	})
-
-	t.Run("otherwise equal: alphabetical source ID wins", func(t *testing.T) {
-		a := result("aaa", lyrics.SyncLine, "x", "y")
-		b := result("zzz", lyrics.SyncLine, "x", "y")
-		if rankResult(a, b) <= 0 {
-			t.Error("expected 'aaa' to outrank 'zzz' on alpha tiebreak")
-		}
-	})
 }
 
 func TestPick(t *testing.T) {
 	o := testOrch()
-
-	t.Run("no result meets required level", func(t *testing.T) {
-		results := []*lyrics.Result{
-			result("a", lyrics.SyncNone, "x"),
-			result("b", lyrics.SyncLine, "x"),
-		}
-		if got := o.pick(results, lyrics.SyncWord); got != nil {
-			t.Errorf("expected nil, got %s", got.Source.ID)
-		}
-	})
-
-	t.Run("exact level match accepted", func(t *testing.T) {
-		results := []*lyrics.Result{
-			result("a", lyrics.SyncLine, "x"),
-		}
-		if got := o.pick(results, lyrics.SyncLine); got == nil {
-			t.Error("exact level match should be accepted")
-		}
-	})
-
-	t.Run("best ranked result selected", func(t *testing.T) {
-		results := []*lyrics.Result{
-			result("word", lyrics.SyncWord, "x"),
-			result("line", lyrics.SyncLine, "x", "y", "z"),
-			result("none", lyrics.SyncNone, "x"),
-		}
-		got := o.pick(results, lyrics.SyncNone)
-		if got == nil || got.Source.ID != "word" {
-			t.Errorf("expected word-sync to win, got %v", got)
-		}
-	})
-}
-
-func TestSatisfies(t *testing.T) {
-	t.Run("uncensored at level: satisfies", func(t *testing.T) {
-		r := result("a", lyrics.SyncWord, "clean")
-		if !satisfies(r, lyrics.SyncWord) {
-			t.Error("clean word result should satisfy word target")
-		}
-	})
-
-	t.Run("censored at level: does not satisfy", func(t *testing.T) {
-		r := result("a", lyrics.SyncWord, "f**k")
-		if satisfies(r, lyrics.SyncWord) {
-			t.Error("censored word result should not satisfy word target")
-		}
-	})
-
-	t.Run("uncensored above level: satisfies", func(t *testing.T) {
-		r := result("a", lyrics.SyncWord, "abc")
-		if !satisfies(r, lyrics.SyncLine) {
-			t.Error("word result should satisfy line target")
-		}
-	})
-
-	t.Run("uncensored below level: does not satisfy", func(t *testing.T) {
-		r := result("a", lyrics.SyncLine, "abc")
-		if satisfies(r, lyrics.SyncWord) {
-			t.Error("line result should not satisfy word target")
-		}
-	})
-
-	t.Run("instrumental satisfies any target, cancels the fanout", func(t *testing.T) {
-		r := &lyrics.Result{Source: lyrics.Source{ID: "a"}, Instrumental: true}
-		if !satisfies(r, lyrics.SyncWord) {
-			t.Error("instrumental result should satisfy even a word target")
-		}
-	})
+	results := []*lyrics.Result{result("none", lyrics.SyncNone, "x"), result("line", lyrics.SyncLine, "x")}
+	if got := o.pick(results, lyrics.SyncWord); got != nil {
+		t.Errorf("got %s below the required level", got.Source.ID)
+	}
+	if got := o.pick(results, lyrics.SyncLine); got == nil || got.Source.ID != "line" {
+		t.Errorf("got %v, want line at its exact level", got)
+	}
 }

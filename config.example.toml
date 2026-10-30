@@ -32,8 +32,10 @@ instrumental = '168h0m0s'
 miss = '24h0m0s'
 
 [ratelimit]
-# max requests per window per IP
+# max requests per window per IP, or per /64 for IPv6
 limit = 45
+# max requests at once, the rest refill evenly over the window, defaults to limit
+burst = 10
 # rate limit time window
 window = '1h0m0s'
 
@@ -46,6 +48,9 @@ window = '1h0m0s'
 timeout = '5s'
 
 [providers]
+[providers.deezer]
+enable = true
+
 [providers.genius]
 enable = true
 # proxy = 'mypool'

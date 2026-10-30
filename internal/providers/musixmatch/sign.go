@@ -12,75 +12,20 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
-	"sync"
 	"time"
-
-	"golang.org/x/sync/singleflight"
 
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
 var (
 	bundleRE = regexp.MustCompile(`src="([^"]*/_next/static/chunks/pages/_app-[^"]+\.js)"`)
-	// the key ships in the app bundle reversed and base64 encoded,
-	// as Buffer.from("...".split("").reverse().join(""), "base64")
+	// the bundle ships the key reversed and base64 encoded
 	keyRE    = regexp.MustCompile(`from\(\s*"([^"]*)"\s*\.split`)
 	hexKeyRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
 )
 
-type signer struct {
-	client *http.Client
-	sf     singleflight.Group
-
-	current string
-	mu      sync.Mutex
-}
-
-func (s *signer) key(ctx context.Context) (string, error) {
-	s.mu.Lock()
-	k := s.current
-	s.mu.Unlock()
-	if k != "" {
-		return k, nil
-	}
-	return s.refresh(ctx, "")
-}
-
-// stale is the key the caller failed with, so a caller that lost the race
-// to an already finished refresh takes the new key instead of scraping again
-func (s *signer) refresh(ctx context.Context, stale string) (string, error) {
-	// every waiter shares one scrape that a caller going away can't cancel,
-	// while each caller still gives up at its own deadline
-	ch := s.sf.DoChan("key", func() (any, error) {
-		s.mu.Lock()
-		k := s.current
-		s.mu.Unlock()
-		if k != "" && k != stale {
-			return k, nil
-		}
-
-		k, err := s.scrape(context.WithoutCancel(ctx))
-		if err != nil {
-			return "", err
-		}
-		s.mu.Lock()
-		s.current = k
-		s.mu.Unlock()
-		return k, nil
-	})
-	select {
-	case res := <-ch:
-		if res.Err != nil {
-			return "", res.Err
-		}
-		return res.Val.(string), nil
-	case <-ctx.Done():
-		return "", ctx.Err()
-	}
-}
-
-func (s *signer) scrape(ctx context.Context) (string, error) {
-	home, err := s.fetch(ctx, siteURL+"/")
+func (p *Provider) scrape(ctx context.Context) (string, error) {
+	home, err := p.fetch(ctx, siteURL+"/")
 	if err != nil {
 		return "", fmt.Errorf("home page: %w", err)
 	}
@@ -88,7 +33,7 @@ func (s *signer) scrape(ctx context.Context) (string, error) {
 	if m == nil {
 		return "", errors.New("app bundle not found")
 	}
-	js, err := s.fetch(ctx, m[1])
+	js, err := p.fetch(ctx, m[1])
 	if err != nil {
 		return "", fmt.Errorf("app bundle: %w", err)
 	}
@@ -99,12 +44,12 @@ func (s *signer) scrape(ctx context.Context) (string, error) {
 	return key, nil
 }
 
-func (s *signer) fetch(ctx context.Context, u string) (string, error) {
+func (p *Provider) fetch(ctx context.Context, u string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return "", err
 	}
-	resp, err := s.client.Do(req)
+	resp, err := p.HTTP.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -132,8 +77,7 @@ func extractKey(js string) (string, bool) {
 	return "", false
 }
 
-// the signed message is the url plus the utc date, so a signature is only
-// valid for the day it was made
+// the utc date is signed too, so a signature expires daily
 func sign(rawURL, key string, now time.Time) string {
 	mac := hmac.New(sha256.New, []byte(key))
 	mac.Write([]byte(rawURL + now.UTC().Format("20060102")))

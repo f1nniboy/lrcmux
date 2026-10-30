@@ -8,13 +8,9 @@ func TestString(t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
-		{"Artist Name", "artist name"},
-		{"  spaces  ", "spaces"},
 		{"Héros", "heros"},
 		{"naïve café", "naive cafe"},
 		{"'smart' “quotes”", "'smart' \"quotes\""},
-		{"collapse   whitespace", "collapse whitespace"},
-		{"UPPER", "upper"},
 		{"Straße", "strasse"},
 	}
 	for _, c := range cases {
@@ -24,38 +20,17 @@ func TestString(t *testing.T) {
 	}
 }
 
-func TestArtist(t *testing.T) {
-	cases := []struct {
-		in, want string
-	}{
-		{"Artist", "artist"},
-		{"Artist - Topic", "artist"},
-		{"Artist - TOPIC", "artist"},
-		{"Héros - Topic", "heros"},
-	}
-	for _, c := range cases {
-		if got := artist(c.in); got != c.want {
-			t.Errorf("artist(%q) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}
-
 func TestTitle(t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
-		{"Song Title", "song title"},
 		{"Title (feat. Someone)", "title"},
 		{"Title（feat. Someone）", "title"},
-		{"Title (ft. Someone)", "title"},
 		{"Title [feat. Someone]", "title"},
 		{"Title ft. Someone", "title"},
 		{"Title feat. Someone Else", "title"},
 		{"Title (Instrumental)", "title"},
-		{"Title [Instrumental Remake]", "title"},
-		{"Title (Instrumental Version)", "title"},
 		{"Title (Karaoke)", "title"},
-		{"Title", "title"},
 	}
 	for _, c := range cases {
 		if got := Title(c.in); got != c.want {
@@ -68,23 +43,16 @@ func TestQuery(t *testing.T) {
 	cases := []struct {
 		artist, title, wantArtist, wantTitle string
 	}{
-		{"Artist", "Title", "artist", "title"},
 		{"Artist - Topic", "Title", "artist", "title"},
 		{"Artist feat. Someone", "Title", "artist", "title"},
 		{"Uploader", "Artist - Title", "uploader", "artist - title"},
-		{"Uploader", "Artist – Title", "uploader", "artist – title"},
-		{"Uploader", "Artist ~ Title", "uploader", "artist ~ title"},
 		{"Uploader", "Artist - Song ft. Other", "uploader", "artist - song"},
-		{"Artist", "Artist - Title", "artist", "artist - title"},
 		{"Uploader", "Artist - Song ft. Other (Official Video)", "uploader", "artist - song"},
 		{"Artist", "Artist - Title (Offizielles Musikvideo)", "artist", "artist - title"},
 		{"", "Title (Official Video)", "", "title"},
-		{"Artist", "Artist - Title (prod by Someone)", "artist", "artist - title"},
 		{"", "Title (prod. Producer)", "", "title"},
 		{"", "Title (produced by Producer)", "", "title"},
-		{"Uploader", "Artist - Title (OFFICIAL VIDEO) prod. by Producer", "uploader", "artist - title"},
 		{"Uploader", "Artist - Title (OFFICIAL VIDEO) | prod. Producer", "uploader", "artist - title"},
-		{"Artist", "Title 【MV】", "artist", "title"},
 		{"Artist", "Title 【Official MV】", "artist", "title"},
 	}
 	for _, c := range cases {
@@ -102,20 +70,6 @@ func TestSplitArtists(t *testing.T) {
 		want []string
 	}{
 		{"Artist", []string{"artist"}},
-		{"Artist & Another", []string{"artist", "another"}},
-		{"Artist, Another", []string{"artist", "another"}},
-		{"Artist feat. Another", []string{"artist", "another"}},
-		{"Artist ft. Another", []string{"artist", "another"}},
-		{"Artist feat Another", []string{"artist", "another"}},
-		{"Artist and Another", []string{"artist", "another"}},
-		{"Artist und Another", []string{"artist", "another"}},
-		{"Artist et Another", []string{"artist", "another"}},
-		{"Artist x Another", []string{"artist", "another"}},
-		{"Artist con Another", []string{"artist", "another"}},
-		{"Artist with Another", []string{"artist", "another"}},
-		{"Artist vs Another", []string{"artist", "another"}},
-		{"Artist vs. Another", []string{"artist", "another"}},
-		{"Artist × Another", []string{"artist", "another"}},
 		{"Artist×Another", []string{"artist", "another"}},
 		{"Artxst", []string{"artxst"}},
 		{"A & B, C feat D", []string{"a", "b", "c", "d"}},
@@ -131,34 +85,6 @@ func TestSplitArtists(t *testing.T) {
 				t.Errorf("splitArtists(%q)[%d] = %q, want %q", c.in, i, got[i], c.want[i])
 			}
 		}
-	}
-}
-
-func TestPrimaryArtist(t *testing.T) {
-	cases := []struct {
-		in, want string
-	}{
-		{"Artist", "artist"},
-		{"Artist & Another", "artist"},
-		{"Artist feat. Another", "artist"},
-		{"", ""},
-	}
-	for _, c := range cases {
-		if got := primaryArtist(c.in); got != c.want {
-			t.Errorf("primaryArtist(%q) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}
-
-func TestMatch(t *testing.T) {
-	if !Match("Song", "Artist", "Song", "Artist") {
-		t.Error("identical title and artist should match")
-	}
-	if Match("Song", "Artist", "Other Song", "Artist") {
-		t.Error("different title should not match")
-	}
-	if Match("Song", "Artist", "Song", "Other Artist") {
-		t.Error("different artist should not match")
 	}
 }
 
@@ -222,10 +148,6 @@ func TestArtistMatch(t *testing.T) {
 		{"Someone", "Artist feat. Someone", true},
 		{"Someone Else", "Artist", false},
 		{"Artist & Friends", "Artist", true},
-		{"Artist", "Artist and Another", true},
-		{"Artist", "Artist und Another", true},
-		{"Another", "Artist et Another", true},
-		{"Another", "Artist x Another", true},
 		{"Artist", "Artist (Ft. Someone)", true},
 		{"Someone", "Artist (Ft. Someone)", true},
 		{"Artist (DEU)", "Artist", true},

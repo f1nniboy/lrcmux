@@ -39,63 +39,74 @@ func New(client *http.Client, c cache.Cache, missTTL time.Duration, log *slog.Lo
 	return &Resolver{client: client, cache: c, missTTL: missTTL, log: log}
 }
 
-// long enough to spare deezer on repeat requests, finite since the key holds
-// client chosen fields and so matcher fixes reach old lookups
+const Timeout = 3 * time.Second
+
+// finite so matcher fixes reach old lookups
 const searchTTL = 30 * 24 * time.Hour
 
-// deezer answers a malformed isrc with a bare 403 or 404 instead of its
-// not-found error, which would never be cached
+// deezer answers a malformed isrc with a bare 403 or 404, which would never cache as a miss
 var isrcRE = regexp.MustCompile(`^[A-Z]{2}[A-Z0-9]{3}[0-9]{7}$`)
 
-func (r *Resolver) Resolve(ctx context.Context, in ResolveInput) (lyrics.Track, error) {
+type route struct {
+	log    *slog.Logger
+	lookup func(context.Context) (lyrics.Track, error)
+	key    string
+	ttl    time.Duration
+}
+
+func (r *Resolver) routeFor(in ResolveInput) (route, bool) {
 	if in.ISRC != "" {
 		isrc := strings.ToUpper(strings.ReplaceAll(in.ISRC, "-", ""))
 		if !isrcRE.MatchString(isrc) {
-			return lyrics.Track{}, lyrics.ErrNotFound
+			return route{}, false
 		}
-		return r.cached(ctx, r.log.With("isrc", isrc), metaKey(isrc), 0, func(ctx context.Context) (lyrics.Track, bool, error) {
-			track, err := r.lookupMeta(ctx, isrc)
-			return track, true, err
-		})
+		return route{log: r.log.With("isrc", isrc), key: metaKey(isrc), lookup: func(ctx context.Context) (lyrics.Track, error) {
+			t, err := r.track(ctx, "isrc:"+isrc)
+			return t.toTrack(), err
+		}}, true
 	}
 	in.Artist, in.Title = normalize.Query(in.Artist, in.Title)
 	// a title alone would match anyone's song of that name
-	if in.Artist == "" {
-		return lyrics.Track{}, lyrics.ErrNotFound
+	if in.Artist == "" || in.Title == "" {
+		return route{}, false
 	}
-	return r.cached(ctx, r.log.With("artist", in.Artist, "title", in.Title), searchKey(in), searchTTL, func(ctx context.Context) (lyrics.Track, bool, error) {
+	return route{log: r.log.With("artist", in.Artist, "title", in.Title), key: searchKey(in), ttl: searchTTL, lookup: func(ctx context.Context) (lyrics.Track, error) {
 		return r.lookup(ctx, in)
-	})
+	}}, true
 }
 
-// serves key from the cache, or runs lookup once for every concurrent caller,
-// keeping complete hits for ttl and clean misses for missTTL
-func (r *Resolver) cached(ctx context.Context, log *slog.Logger, key string, ttl time.Duration, lookup func(context.Context) (lyrics.Track, bool, error)) (lyrics.Track, error) {
-	switch track, status, _ := cache.Get[lyrics.Track](ctx, r.cache, key); status {
-	case cache.Hit:
-		log.Debug("isrc cache hit")
-		return track, nil
-	case cache.KnownMiss:
-		log.Debug("isrc negative cache hit")
+// a known miss and an input that can never resolve are hits too
+func (r *Resolver) Cached(ctx context.Context, in ResolveInput) (lyrics.Track, bool, error) {
+	rt, ok := r.routeFor(in)
+	if !ok {
+		return lyrics.Track{}, true, lyrics.ErrNotFound
+	}
+	return r.fromCache(ctx, rt)
+}
+
+func (r *Resolver) Resolve(ctx context.Context, in ResolveInput) (lyrics.Track, error) {
+	rt, ok := r.routeFor(in)
+	if !ok {
 		return lyrics.Track{}, lyrics.ErrNotFound
 	}
+	if track, hit, err := r.fromCache(ctx, rt); hit {
+		return track, err
+	}
 
-	v, err, _ := r.group.Do(key, func() (any, error) {
-		// shared by every waiter, so one caller going away mustn't fail the rest
-		track, complete, err := lookup(context.WithoutCancel(ctx))
+	v, err, _ := r.group.Do(rt.key, func() (any, error) {
+		track, err := rt.lookup(context.WithoutCancel(ctx))
 		if errors.Is(err, lyrics.ErrNotFound) {
-			log.Debug("isrc not found")
-			cache.SetMiss(context.Background(), r.cache, key, r.missTTL)
+			rt.log.Debug("isrc not found")
+			cache.SetMiss(context.Background(), r.cache, rt.key, r.missTTL)
 			return lyrics.Track{}, err
 		}
 		if err != nil {
-			log.Warn("isrc lookup failed", "err", err)
+			rt.log.Warn("isrc lookup failed", "err", err)
 			return lyrics.Track{}, err
 		}
-		if complete {
-			go cache.Set(context.Background(), r.cache, key, track, ttl)
-		}
-		log.Debug("isrc resolved", "isrc", track.ISRC, "complete", complete)
+		// not async, so the next request finds it
+		cache.Set(context.Background(), r.cache, rt.key, track, rt.ttl)
+		rt.log.Debug("isrc resolved", "isrc", track.ISRC)
 		return track, nil
 	})
 	if err != nil {
@@ -104,12 +115,24 @@ func (r *Resolver) cached(ctx context.Context, log *slog.Logger, key string, ttl
 	return v.(lyrics.Track), nil
 }
 
+func (r *Resolver) fromCache(ctx context.Context, rt route) (lyrics.Track, bool, error) {
+	switch track, status, _ := cache.Get[lyrics.Track](ctx, r.cache, rt.key); status {
+	case cache.Hit:
+		rt.log.Debug("isrc cache hit")
+		return track, true, nil
+	case cache.KnownMiss:
+		rt.log.Debug("isrc negative cache hit")
+		return lyrics.Track{}, true, lyrics.ErrNotFound
+	default:
+		return lyrics.Track{}, false, nil
+	}
+}
+
 func metaKey(isrc string) string {
 	return "isrc2track:" + isrc
 }
 
-// album is part of the key since pickBest scores on it, and the parts are
-// hashed since they are client input of any length
+// hashed since the parts are client input of any length
 func searchKey(in ResolveInput) string {
 	sum := sha256.Sum256([]byte(strings.Join([]string{
 		normalize.String(in.Artist),

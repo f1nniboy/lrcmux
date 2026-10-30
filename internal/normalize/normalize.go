@@ -47,9 +47,7 @@ var (
 	// splits multi-artist strings on common feature markers
 	collaborationRE = regexp.MustCompile(`(?i)\s*[&,×]\s*|\s+(?:` + featRE + `|and|und|et|con|with|vs\.?|x)\s+`)
 
-	// strips a single-token bracket suffix like "(DEU)" or "[UK]" that genius
-	// appends to tell apart artists sharing a name, while multi-word groups
-	// such as "(feat. X)" are left for collaborationRE to split
+	// the one-word suffix genius uses to tell artists apart ("(DEU)", "[UK]")
 	disambigRE = regexp.MustCompile(`(\S)\s*[` + openBrackets + `][^\s` + openBrackets + closeBrackets + `]+[` + closeBrackets + `]$`)
 
 	// strips feature credits from song titles
@@ -67,7 +65,6 @@ var (
 	// matches the artist–title separator in combined title strings
 	artistTitleSepRE = regexp.MustCompile(`\s[-–—~]\s`)
 
-	// matches every bracketed group, for comparing titles without them
 	bracketGroupRE = regexp.MustCompile(`\s*[` + openBrackets + `][^` + closeBrackets + `]*[` + closeBrackets + `]`)
 )
 
@@ -94,13 +91,10 @@ func Title(s string) string {
 	return String(s)
 }
 
-// reports whether a title marks an instrumental or karaoke version
 func Instrumental(s string) bool {
 	return instrumentalRE.MatchString(s)
 }
 
-// the title without any bracketed group, for matching a title against a
-// version of itself decorated on one side only
 func CoreTitle(s string) string {
 	return String(bracketGroupRE.ReplaceAllString(Title(s), ""))
 }
@@ -142,7 +136,6 @@ func ArtistMatch(a, b string) bool {
 	return false
 }
 
-// "the weeknd" and "weeknd" name the same artist
 func withoutArticle(s string) string {
 	return strings.TrimPrefix(s, "the ")
 }

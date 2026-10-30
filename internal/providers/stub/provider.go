@@ -19,9 +19,14 @@ func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 func (p *Provider) Search(_ context.Context, _ lyrics.Query) (*lyrics.Result, error) {
 	return &lyrics.Result{
 		Lines: []lyrics.Line{
-			{Text: "Never gonna give you up", StartMs: 0, EndMs: 1000},
-			{Text: "Never gonna let you down", StartMs: 2000, EndMs: 3000},
-			{Text: "Never gonna run around and desert you", StartMs: 4000, EndMs: 5000},
+			{Text: "First line", StartMs: 0, EndMs: 1000, Words: []lyrics.Word{
+				{Text: "First ", StartMs: 0, EndMs: 500},
+				{Text: "line", StartMs: 500, EndMs: 1000},
+			}},
+			{Text: "Second line", StartMs: 2000, EndMs: 3000, Words: []lyrics.Word{
+				{Text: "Second ", StartMs: 2000, EndMs: 2500},
+				{Text: "line", StartMs: 2500, EndMs: 3000},
+			}},
 		},
 		SyncLevel: lyrics.SyncWord,
 	}, nil

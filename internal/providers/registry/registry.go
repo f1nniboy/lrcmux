@@ -1,4 +1,4 @@
-package main
+package registry
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers"
 	"github.com/f1nniboy/lrcmux/internal/proxy"
 
+	"github.com/f1nniboy/lrcmux/internal/providers/deezer"
 	"github.com/f1nniboy/lrcmux/internal/providers/genius"
 	"github.com/f1nniboy/lrcmux/internal/providers/kugou"
 	"github.com/f1nniboy/lrcmux/internal/providers/lrclib"
@@ -21,10 +22,11 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers/ytmusic"
 )
 
-func buildProviders(cfg *config.Root, c cache.Cache, pools *proxy.Registry, log *slog.Logger) ([]providers.Provider, error) {
+func Build(cfg *config.Root, c cache.Cache, pools *proxy.Registry, log *slog.Logger) ([]providers.Provider, error) {
 	timeout := cfg.Provider.Timeout.Duration
 
 	provs := []providers.Provider{
+		&deezer.Provider{},
 		&genius.Provider{},
 		&kugou.Provider{},
 		&lrclib.Provider{},

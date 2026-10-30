@@ -36,6 +36,7 @@ type searchCandidate struct {
 	SongName    string `json:"song"`
 	SingerName  string `json:"singer"`
 	ProductFrom string `json:"product_from"`
+	Language    string `json:"language"`
 	Duration    int64  `json:"duration"`
 	Score       int64  `json:"score"`
 	KRCType     int    `json:"krctype"`
@@ -157,7 +158,7 @@ func (p *Provider) download(ctx context.Context, cand *searchCandidate) (*lyrics
 		return nil, err
 	}
 
-	lines := parseKRC(krcText)
+	lines := parseKRC(krcText, cand.Language)
 	if len(lines) == 0 {
 		return nil, lyrics.ErrNotFound
 	}

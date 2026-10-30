@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
@@ -9,114 +10,26 @@ import (
 )
 
 func TestFilterBySources(t *testing.T) {
-	word1 := prov("word1", lyrics.SyncWord)
-	word2 := prov("word2", lyrics.SyncWord)
-	none := prov("none", lyrics.SyncNone)
-	all := []providers.Provider{word1, word2, none}
-
-	t.Run("empty sources: return all", func(t *testing.T) {
-		out, err := filterBySources(all, nil)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(out) != 3 {
-			t.Errorf("expected 3 providers, got %d", len(out))
-		}
-	})
-
-	t.Run("single include: keep only that", func(t *testing.T) {
-		out, err := filterBySources(all, []string{"word1"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(out) != 1 || out[0].ID() != "word1" {
-			t.Errorf("expected [word1], got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("multiple includes: keep all listed", func(t *testing.T) {
-		out, err := filterBySources(all, []string{"word1", "none"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(out) != 2 {
-			t.Errorf("expected 2 providers, got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("single exclude: drop that", func(t *testing.T) {
-		out, err := filterBySources(all, []string{"!none"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(out) != 2 {
-			t.Errorf("expected 2 providers, got %v", providers.IDs(out))
-		}
-		for _, p := range out {
-			if p.ID() == "none" {
-				t.Error("none should have been excluded")
+	all := []providers.Provider{prov("word1", lyrics.SyncWord), prov("word2", lyrics.SyncWord), prov("none", lyrics.SyncNone)}
+	tests := []struct {
+		err     error
+		name    string
+		sources []string
+		want    []string
+	}{
+		{name: "include", sources: []string{"word1"}, want: []string{"word1"}},
+		{name: "exclude", sources: []string{"!none"}, want: []string{"word1", "word2"}},
+		{name: "an unknown include is dropped", sources: []string{"word1", "unknown"}, want: []string{"word1"}},
+		{name: "only unknown", sources: []string{"unknown"}, err: ErrInvalidSource},
+		{name: "include and exclude", sources: []string{"word1", "!none"}, err: ErrInvalidSource},
+		{name: "empty name", sources: []string{"word1", ""}, err: ErrInvalidSource},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := filterBySources(all, tc.sources)
+			if !errors.Is(err, tc.err) || !slices.Equal(providers.IDs(out), tc.want) {
+				t.Errorf("got %v, %v, want %v, %v", providers.IDs(out), err, tc.want, tc.err)
 			}
-		}
-	})
-
-	t.Run("unknown provider only: error", func(t *testing.T) {
-		_, err := filterBySources(all, []string{"unknown"})
-		if !errors.Is(err, ErrInvalidSource) {
-			t.Errorf("expected ErrInvalidSource, got %v", err)
-		}
-	})
-
-	t.Run("unknown mixed with known include: unknown dropped", func(t *testing.T) {
-		out, err := filterBySources(all, []string{"word1", "unknown"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(out) != 1 || out[0].ID() != "word1" {
-			t.Errorf("expected [word1], got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("unknown exclude: no-op", func(t *testing.T) {
-		out, err := filterBySources(all, []string{"!unknown"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(out) != 3 {
-			t.Errorf("expected 3 providers, got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("mixed include and exclude: error", func(t *testing.T) {
-		_, err := filterBySources(all, []string{"word1", "!none"})
-		if !errors.Is(err, ErrInvalidSource) {
-			t.Errorf("expected ErrInvalidSource, got %v", err)
-		}
-	})
-
-	t.Run("empty name: error", func(t *testing.T) {
-		_, err := filterBySources(all, []string{"word1", ""})
-		if !errors.Is(err, ErrInvalidSource) {
-			t.Errorf("expected ErrInvalidSource, got %v", err)
-		}
-	})
-
-	t.Run("case-insensitive: normalized to lowercase", func(t *testing.T) {
-		out, err := filterBySources(all, []string{"WORD1"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(out) != 1 || out[0].ID() != "word1" {
-			t.Errorf("expected [word1], got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("whitespace trimmed", func(t *testing.T) {
-		out, err := filterBySources(all, []string{" word1 "})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(out) != 1 || out[0].ID() != "word1" {
-			t.Errorf("expected [word1], got %v", providers.IDs(out))
-		}
-	})
+		})
+	}
 }

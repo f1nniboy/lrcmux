@@ -22,6 +22,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/meta"
 	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
+	"github.com/f1nniboy/lrcmux/internal/providers/registry"
 	"github.com/f1nniboy/lrcmux/internal/proxy"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
 )
@@ -76,7 +77,7 @@ func run(cfgPath string) error {
 		return fmt.Errorf("proxies: %w", err)
 	}
 
-	provs, err := buildProviders(cfg, cacheLayer, pools, log)
+	provs, err := registry.Build(cfg, cacheLayer, pools, log)
 	if err != nil {
 		return fmt.Errorf("providers: %w", err)
 	}
@@ -93,7 +94,7 @@ func run(cfgPath string) error {
 		log.Info("metrics enabled", "addr", cfg.Metrics.Listen)
 	}
 
-	isrcResolver := isrc.New(&http.Client{Timeout: 3 * time.Second}, cacheLayer, cfg.Cache.TTL.Miss.Duration, logging.New("isrc"))
+	isrcResolver := isrc.New(&http.Client{Timeout: isrc.Timeout}, cacheLayer, cfg.Cache.TTL.Miss.Duration, logging.New("isrc"))
 
 	breaker := orchestrator.NewBreaker(cacheLayer, logging.New("breaker"))
 	orch := orchestrator.New(provs, cacheLayer, breaker, isrcResolver, coll, orchestrator.Options{
@@ -106,7 +107,7 @@ func run(cfgPath string) error {
 
 	var rate *ratelimit.Limiter
 	if cfg.RateLimit.Limit > 0 && cfg.RateLimit.Window.Duration.Seconds() > 0 && rdb != nil {
-		rate = ratelimit.New(rdb, cfg.RateLimit.Limit, cfg.RateLimit.Window.Duration, logging.New("ratelimit"))
+		rate = ratelimit.New(rdb, cfg.RateLimit, logging.New("ratelimit"))
 	}
 
 	srv := api.NewServer(orch, rate, cfg, coll, logging.New("api"))

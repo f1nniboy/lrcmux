@@ -33,7 +33,7 @@ User-Agent: MyApp v1.0.0 (https://github.com/example/myapp)
 
 ## Rate limiting
 
-Up to **{{.RateLimit.Limit}}** requests per **{{.RateLimit.Window}}** window. Cache hits are free and do not count against the limit.
+Up to **{{.RateLimit.Limit}}** requests per **{{.RateLimit.Window}}**, refilled evenly, with at most **{{.RateLimit.Burst}}** at once. Cache hits are free and do not count against the limit.
 
 You should respect the `Retry-After` header on 429 responses.
 {{end}}

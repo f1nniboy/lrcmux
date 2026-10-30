@@ -42,11 +42,12 @@ go run ./cmd/lrcmux -config config.toml
 
 ### Fly.io + Cloudflare Workers
 
-The API runs on Fly.io and the frontend on Cloudflare Workers. Set up the API first:
+The API runs on Fly.io and the frontend on Cloudflare Workers. Set up the API first, then push `config.prod.toml` as its config:
 
 ```sh
 fly launch --no-deploy
 fly secrets set REDIS_URL=redis://...
+just deploy-config
 ```
 
 Then deploy both:

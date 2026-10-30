@@ -16,6 +16,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/format"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
+	"github.com/f1nniboy/lrcmux/internal/providers"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
 )
 
@@ -86,11 +87,11 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 		}()
 	}
 
-	fetchMode := input.Fetch
+	fetchMode := orchestrator.FetchMode(input.Fetch)
 	if fetchMode == "" {
-		fetchMode = "default"
+		fetchMode = orchestrator.FetchDefault
 	}
-	if fetchMode == "force" && !internal {
+	if fetchMode == orchestrator.FetchForce && !internal {
 		return nil, huma.Error403Forbidden("you can't force-refresh, sorry")
 	}
 
@@ -161,7 +162,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 			} else {
 				ctx.SetHeader("X-Cache", "MISS")
 			}
-			if lyricsResp.TTL > 0 && fetchMode != "force" {
+			if lyricsResp.TTL > 0 && fetchMode != orchestrator.FetchForce {
 				ctx.SetHeader("Cache-Control", fmt.Sprintf("public, max-age=%d", int(lyricsResp.TTL.Seconds())))
 			}
 			ctx.SetStatus(http.StatusOK)
@@ -216,6 +217,10 @@ func (s *Server) mapError(err error) error {
 		return huma.Error400BadRequest(err.Error())
 	case errors.Is(err, orchestrator.ErrNoProviders):
 		return huma.Error503ServiceUnavailable(err.Error())
+	case errors.Is(err, providers.ErrRateLimited):
+		return huma.Error503ServiceUnavailable("track lookup is rate limited, try again later")
+	case errors.Is(err, context.Canceled):
+		return huma.NewError(499, "client closed request")
 	case errors.Is(err, orchestrator.ErrNotFound), errors.Is(err, errInstrumental):
 		e := huma.Error404NotFound(err.Error())
 		if s.cfg.Cache.TTL.Miss.Duration > 0 {

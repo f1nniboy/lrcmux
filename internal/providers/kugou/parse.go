@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"html"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 )
@@ -35,7 +38,55 @@ func stripMetadata(lines []lyrics.Line) []lyrics.Line {
 	return lines
 }
 
-func parseKRC(text string) []lyrics.Line {
+func allHan(text string) bool {
+	seen := false
+	for _, r := range text {
+		if !unicode.IsLetter(r) {
+			continue
+		}
+		if !unicode.Is(unicode.Han, r) {
+			return false
+		}
+		seen = true
+	}
+	return seen
+}
+
+// an ad-lib like "(oh)" between sung lines is too short to be translated
+func translates(text, translation string) bool {
+	letters := 0
+	for _, r := range text {
+		if unicode.Is(unicode.Han, r) {
+			return false
+		}
+		if unicode.IsLetter(r) {
+			letters++
+		}
+	}
+	return letters >= utf8.RuneCountInString(translation)
+}
+
+// some uploads, mostly ones converted from qq music, put a chinese translation under
+// every line as if it were sung
+func dropTranslations(lines []lyrics.Line) []lyrics.Line {
+	var han, translations int
+	for i, l := range lines {
+		if !allHan(l.Text) {
+			continue
+		}
+		han++
+		if i > 0 && translates(lines[i-1].Text, l.Text) {
+			translations++
+		}
+	}
+	// the han lines that aren't translations are markers like "（间奏）"
+	if translations*3 < len(lines) || translations*4 < han*3 {
+		return lines
+	}
+	return slices.DeleteFunc(lines, func(l lyrics.Line) bool { return allHan(l.Text) })
+}
+
+func parseKRC(text, language string) []lyrics.Line {
 	out := make([]lyrics.Line, 0, 64)
 	sc := bufio.NewScanner(strings.NewReader(text))
 	for sc.Scan() {
@@ -82,6 +133,9 @@ func parseKRC(text string) []lyrics.Line {
 			text = b.String()
 		}
 
+		if lyrics.SectionMarker(strings.TrimSpace(text)) {
+			continue
+		}
 		out = append(out, lyrics.Line{
 			StartMs: lineStart,
 			EndMs:   lineEnd,
@@ -89,5 +143,11 @@ func parseKRC(text string) []lyrics.Line {
 			Words:   lineWords,
 		})
 	}
-	return stripMetadata(out)
+	out = stripMetadata(out)
+	// a chinese song is never translated to chinese
+	if language == "国语" || language == "粤语" {
+		return out
+	}
+	// after the credits, which are often all han
+	return dropTranslations(out)
 }

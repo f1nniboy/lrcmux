@@ -10,6 +10,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/config"
 	"github.com/f1nniboy/lrcmux/internal/logging"
 	"github.com/f1nniboy/lrcmux/internal/providers"
+	"github.com/f1nniboy/lrcmux/internal/providers/deezer"
 	"github.com/f1nniboy/lrcmux/internal/providers/genius"
 	"github.com/f1nniboy/lrcmux/internal/providers/kugou"
 	"github.com/f1nniboy/lrcmux/internal/providers/lrclib"
@@ -42,6 +43,7 @@ func main() {
 		},
 		RateLimit: config.RateLimit{
 			Limit:  45,
+			Burst:  10,
 			Window: config.Duration{Duration: time.Hour},
 		},
 		Metrics: config.Metrics{Listen: ":9091"},
@@ -49,6 +51,7 @@ func main() {
 			"mypool": {URLs: []string{"socks5://user:pass@proxy1.example.com:1080"}},
 		},
 		Providers: map[string]any{
+			"deezer":     deezer.Provider{Common: enabled},
 			"genius":     genius.Provider{Common: providers.Common{Enable: true, Proxy: "mypool"}},
 			"kugou":      kugou.Provider{Common: enabled},
 			"lrclib":     lrclib.Provider{Common: enabled, BaseURL: "https://lrclib.net"},

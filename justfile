@@ -14,6 +14,11 @@ dev-frontend:
 dev-backend:
     go run ./cmd/lrcmux --config config.toml
 
+# e.g. just probe -sources deezer -artist Artist -title Song
+[positional-arguments]
+probe *args:
+    go run ./cmd/probe "$@"
+
 logo:
     mkdir -p frontend/static
     inkscape assets/logo.svg --export-text-to-path --export-type=svg --export-filename=frontend/static/logo.svg
@@ -58,6 +63,10 @@ coverage:
 
 deploy-api:
     fly deploy --local-only
+
+# fly mounts this secret as the config file, and wants it base64 encoded
+deploy-config:
+    fly secrets set APP_CONFIG="$(base64 -w0 config.prod.toml)"
 
 deploy-frontend:
     cd frontend && pnpm deploy

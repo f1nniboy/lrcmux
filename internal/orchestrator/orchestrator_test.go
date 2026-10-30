@@ -50,55 +50,23 @@ func prov(id string, level lyrics.SyncLevel) providers.Provider {
 }
 
 func TestWorthQuerying(t *testing.T) {
-	word := prov("word", lyrics.SyncWord)
-	line := prov("line", lyrics.SyncLine)
-	none := prov("none", lyrics.SyncNone)
-	all := []providers.Provider{word, line, none}
-
-	t.Run("no cache: keep all providers", func(t *testing.T) {
-		out := worthQuerying(slices.Clone(all), nil)
-		if len(out) != 3 {
-			t.Errorf("expected all 3 providers, got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("cache has line: drop line-and-below, keep word", func(t *testing.T) {
-		cached := []*lyrics.Result{result("cached", lyrics.SyncLine, "x")}
-		out := worthQuerying(slices.Clone(all), cached)
-		if len(out) != 1 || out[0].ID() != "word" {
-			t.Errorf("expected [word], got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("cache has word: drop everything", func(t *testing.T) {
-		cached := []*lyrics.Result{result("cached", lyrics.SyncWord, "x")}
-		out := worthQuerying(slices.Clone(all), cached)
-		if len(out) != 0 {
-			t.Errorf("expected empty, got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("cache has instrumental: drop all providers", func(t *testing.T) {
-		cached := []*lyrics.Result{{Source: lyrics.Source{ID: "cached"}, Instrumental: true}}
-		out := worthQuerying(slices.Clone(all), cached)
-		if len(out) != 0 {
-			t.Errorf("expected empty, got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("cache has censored line: keep all, any other clean beats censored", func(t *testing.T) {
-		cached := []*lyrics.Result{result("cached", lyrics.SyncLine, "c**sored")}
-		out := worthQuerying(slices.Clone(all), cached)
-		if len(out) != 3 {
-			t.Errorf("expected [word line none], got %v", providers.IDs(out))
-		}
-	})
-
-	t.Run("cache has censored word: keep all, even a clean line or plain result wins", func(t *testing.T) {
-		cached := []*lyrics.Result{result("cached", lyrics.SyncWord, "c**sored")}
-		out := worthQuerying(slices.Clone(all), cached)
-		if len(out) != 3 {
-			t.Errorf("expected [word line none], got %v", providers.IDs(out))
-		}
-	})
+	all := []providers.Provider{prov("word", lyrics.SyncWord), prov("line", lyrics.SyncLine), prov("none", lyrics.SyncNone)}
+	tests := []struct {
+		name   string
+		cached []*lyrics.Result
+		want   []string
+	}{
+		{name: "nothing cached", want: []string{"word", "line", "none"}},
+		{name: "line cached", cached: []*lyrics.Result{result("cached", lyrics.SyncLine, "x")}, want: []string{"word"}},
+		{name: "word cached", cached: []*lyrics.Result{result("cached", lyrics.SyncWord, "x")}},
+		{name: "instrumental cached", cached: []*lyrics.Result{{Source: lyrics.Source{ID: "cached"}, Instrumental: true}}},
+		{name: "censored word cached, anything clean beats it", cached: []*lyrics.Result{result("cached", lyrics.SyncWord, "c**sored")}, want: []string{"word", "line", "none"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := providers.IDs(worthQuerying(slices.Clone(all), tc.cached)); !slices.Equal(got, tc.want) {
+				t.Errorf("got %v, want %v", got, tc.want)
+			}
+		})
+	}
 }

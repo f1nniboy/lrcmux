@@ -9,15 +9,12 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/normalize"
 )
 
-// a candidate needs its title and its artist to each agree at least this much,
-// while duration and album only rank the candidates that do
+// title and artist each need this similarity, duration and album only rank
 const minSimilarity = 0.8
 
 var numberRE = regexp.MustCompile(`\b(?:\d+|[ivx]+)\b`)
 
-// the dash in "x - y" is part of the title ("Garakuta - JUNK"), splits artist
-// from title the way youtube uploads do, or follows the title with a version
-// ("Title - Remastered 2011"), so every reading is scored against the candidates
+// "x - y" can be one title, artist and title, or a title and its version
 func readings(in ResolveInput) []ResolveInput {
 	out := []ResolveInput{in}
 	if head, tail, ok := normalize.SplitArtistTitle(in.Title); ok {
@@ -44,23 +41,56 @@ func (a candidate) beats(b candidate) bool {
 		cmp.Compare(a.exact, b.exact),
 		cmp.Compare(a.title, b.title),
 		cmp.Compare(a.artist, b.artist),
-		// the title as written beats a reading of it, before duration has a say
+		// the title as written beats a reading of it
 		cmp.Compare(b.reading, a.reading),
 		cmp.Compare(a.duration, b.duration),
 		cmp.Compare(a.album, b.album),
 	) > 0
 }
 
-func pickBest(tracks []deezerTrack, in ResolveInput, artistID int64) (candidate, bool) {
+type artistScore func(t deezerTrack, in ResolveInput) float64
+
+func best(tracks []deezerTrack, reads []ResolveInput, artist artistScore) (candidate, bool) {
+	var out candidate
+	found := false
+	for i, rd := range reads {
+		c, ok := pick(tracks, rd, artist)
+		c.reading = i
+		if ok && (!found || c.beats(out)) {
+			out, found = c, true
+		}
+	}
+	return out, found
+}
+
+func byName(t deezerTrack, in ResolveInput) float64 {
+	score := artistSimilarity(t.Artist.Name, in.Artist)
+	for _, a := range t.Contributors {
+		score = max(score, artistSimilarity(a.Name, in.Artist))
+	}
+	return score
+}
+
+func anyArtist(deezerTrack, ResolveInput) float64 { return 1 }
+
+func byID(id int64) artistScore {
+	return func(t deezerTrack, _ ResolveInput) float64 {
+		if t.Artist.ID == id || slices.ContainsFunc(t.Contributors, func(a deezerArtist) bool { return a.ID == id }) {
+			return 1
+		}
+		return 0
+	}
+}
+
+func pick(tracks []deezerTrack, in ResolveInput, artist artistScore) (candidate, bool) {
 	var best *candidate
 	for _, t := range tracks {
-		// an instrumental or karaoke version has no lyrics of its own, yet its
-		// title normalizes to the song's
+		// instrumentals normalize to the song's title but have no lyrics
 		if normalize.Instrumental(t.Title) || !sameNumbers(t.Title, in.Title) {
 			continue
 		}
 		exact, title := titleScore(t.Title, in.Title)
-		c := candidate{track: t, title: title, artist: artistSimilarity(t.Artist, in.Artist, artistID)}
+		c := candidate{track: t, title: title, artist: artist(t, in)}
 		if c.title < minSimilarity || c.artist < minSimilarity {
 			continue
 		}
@@ -83,30 +113,20 @@ func pickBest(tracks []deezerTrack, in ResolveInput, artistID int64) (candidate,
 	return *best, true
 }
 
-// exact when the full titles agree, scored by the closer of the full titles and
-// their cores, so a decoration on one side only, like "Summertime (From 'Porgy &
-// Bess')" against "Summertime", still names the song, though below an exact one
+// a decoration on one side only ("Song (From Film)" for "Song") still matches, below exact
 func titleScore(have, want string) (exact bool, score float64) {
 	full := similarity(normalize.Title(have), normalize.Title(want))
 	return full == 1, max(full, similarity(normalize.CoreTitle(have), normalize.CoreTitle(want)))
 }
 
-func titleMatches(tracks []deezerTrack, title string) bool {
-	return slices.ContainsFunc(tracks, func(t deezerTrack) bool {
-		_, score := titleScore(t.Title, title)
-		return score >= minSimilarity
-	})
-}
-
-// numbers that disagree set siblings apart ("Part 1" and "Part 2", "Song I" and
-// "Song II"), while numbers only one side has are a decoration ("Live 1999")
+// "Part 1" and "Part 2" are siblings, a number on one side only is a decoration
 func sameNumbers(have, want string) bool {
 	a := numberRE.FindAllString(normalize.Title(have), -1)
 	b := numberRE.FindAllString(normalize.Title(want), -1)
 	return contains(a, b) || contains(b, a)
 }
 
-// reports whether every number of sub is in of, counting repeats
+// multiset containment
 func contains(of, sub []string) bool {
 	left := slices.Clone(of)
 	for _, n := range sub {
@@ -119,16 +139,13 @@ func contains(of, sub []string) bool {
 	return true
 }
 
-// id is deezer's own pick for want, or 0 when not asked
-func artistSimilarity(have deezerArtist, want string, id int64) float64 {
-	if (id != 0 && have.ID == id) || normalize.ArtistMatch(have.Name, want) || normalize.ArtistMatch(want, have.Name) {
+func artistSimilarity(have, want string) float64 {
+	if normalize.ArtistMatch(have, want) || normalize.ArtistMatch(want, have) {
 		return 1
 	}
-	return similarity(normalize.String(have.Name), normalize.String(want))
+	return similarity(normalize.String(have), normalize.String(want))
 }
 
-// share of the longer string left unchanged, so one edit costs a short title as
-// much as it should
 func similarity(a, b string) float64 {
 	ra, rb := []rune(a), []rune(b)
 	n := max(len(ra), len(rb))
@@ -138,8 +155,7 @@ func similarity(a, b string) float64 {
 	return 1 - float64(distance(ra, rb))/float64(n)
 }
 
-// edit distance that counts swapping two adjacent characters, the commonest
-// typo, as one edit where plain levenshtein counts two
+// osa distance, an adjacent swap is one edit
 func distance(a, b []rune) int {
 	prev2, prev, cur := make([]int, len(b)+1), make([]int, len(b)+1), make([]int, len(b)+1)
 	for j := range prev {

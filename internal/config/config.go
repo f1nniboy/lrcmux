@@ -37,7 +37,8 @@ type ProviderOptions struct {
 }
 
 type RateLimit struct {
-	Limit  int64    `toml:"limit" comment:"max requests per window per IP"`
+	Limit  int64    `toml:"limit" comment:"max requests per window per IP, or per /64 for IPv6"`
+	Burst  int64    `toml:"burst" comment:"max requests at once, the rest refill evenly over the window, defaults to limit"`
 	Window Duration `toml:"window" comment:"rate limit time window"`
 }
 
@@ -69,6 +70,9 @@ func Load(path string) (*Root, error) {
 
 	if r.Server.Listen == "" {
 		r.Server.Listen = ":8080"
+	}
+	if r.RateLimit.Burst == 0 {
+		r.RateLimit.Burst = r.RateLimit.Limit
 	}
 	if r.Provider.Timeout.Duration == 0 {
 		r.Provider.Timeout.Duration = 5 * time.Second

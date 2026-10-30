@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/singleflight"
@@ -35,14 +36,21 @@ type Orchestrator struct {
 	opts      Options
 }
 
+type FetchMode string
+
+const (
+	FetchDefault FetchMode = "default"
+	FetchCache   FetchMode = "cache"
+	FetchForce   FetchMode = "force"
+)
+
 type Request struct {
-	Charge func(ctx context.Context) error
-	Artist string
-	Title  string
-	Album  string
-	ISRC   string
-	// "default", "cache", "force"
-	FetchMode string
+	Charge    func(ctx context.Context) error
+	Artist    string
+	Title     string
+	Album     string
+	ISRC      string
+	FetchMode FetchMode
 	Sources   []string
 	Duration  int64
 	Level     lyrics.SyncLevel
@@ -115,26 +123,46 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 			return p.MaxLevel() < req.Level
 		})
 	}
+	if len(active) == 0 {
+		return nil, ErrNotFound
+	}
 
-	track, err := o.resolver.Resolve(ctx, isrc.ResolveInput{
+	// paid once, before the first upstream work
+	charge := sync.OnceValue(func() error {
+		// a request that is gone starts nothing
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if req.Charge == nil {
+			return nil
+		}
+		return req.Charge(ctx)
+	})
+
+	in := isrc.ResolveInput{
 		Artist:   req.Artist,
 		Title:    req.Title,
 		Album:    req.Album,
 		Duration: req.Duration,
 		ISRC:     req.ISRC,
-	})
+	}
+	track, hit, err := o.resolver.Cached(ctx, in)
+	if !hit {
+		if req.FetchMode == FetchCache {
+			return nil, ErrNotFound
+		}
+		if err := charge(); err != nil {
+			return nil, err
+		}
+		track, err = o.resolver.Resolve(ctx, in)
+	}
 	if err != nil {
-		// only a miss is a cacheable 404, anything else is our failure
+		// only a miss is a cacheable 404
 		outcome := "isrc_error"
 		if errors.Is(err, lyrics.ErrNotFound) {
 			outcome, err = "isrc_not_found", ErrNotFound
 		}
 		o.recordOutcome(outcome)
-		if req.Charge != nil {
-			if err := req.Charge(ctx); err != nil {
-				return nil, err
-			}
-		}
 		return nil, err
 	}
 
@@ -173,7 +201,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	//
 	// worthQuerying already dropped providers that can't improve on cache,
 	// so if unknowns is empty, the pick here is as good as we can get
-	if req.FetchMode == "cache" || len(unknowns) == 0 {
+	if req.FetchMode == FetchCache || len(unknowns) == 0 {
 		if picked := o.pick(cached, pickLevel); picked != nil {
 			o.log.Debug("serving from cache", "provider", picked.Source.ID, "sync", picked.SyncLevel.String())
 			return respond(picked, true), nil
@@ -181,15 +209,17 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		return nil, ErrNotFound
 	}
 
-	if req.Charge != nil {
-		if err := req.Charge(ctx); err != nil {
-			return nil, err
-		}
+	if err := charge(); err != nil {
+		return nil, err
 	}
 
 	key := q.Track.ISRC + ":" + req.Level.String()
 	if req.Strict {
 		key += ":strict"
+	}
+	// a forced fetch can't take a pick seeded from the cache
+	if req.FetchMode == FetchForce {
+		key += ":force"
 	}
 	if len(req.Sources) > 0 {
 		// order of sources shouldn't matter
@@ -199,7 +229,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	}
 
 	v, err, _ := o.sf.Do(key, func() (any, error) {
-		// shared by every waiter, so one caller going away mustn't fail the rest
+		// so the leader leaving can't cancel it for the others
 		ctx := context.WithoutCancel(ctx)
 		o.recordOutcome("fanout")
 
@@ -230,12 +260,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 // after applying force/cache mode, breaker filter, and the
 // "must beat what's already cached" filter
 func (o *Orchestrator) getCacheAndProviders(ctx context.Context, q lyrics.Query, req Request, provs []providers.Provider) (cached []*lyrics.Result, unknowns []providers.Provider) {
-	if req.FetchMode == "force" {
+	if req.FetchMode == FetchForce {
 		return nil, slices.Clone(provs)
 	}
 
 	cached, unknowns = o.checkCache(ctx, q, provs)
-	if req.FetchMode == "cache" {
+	if req.FetchMode == FetchCache {
 		return cached, nil
 	}
 

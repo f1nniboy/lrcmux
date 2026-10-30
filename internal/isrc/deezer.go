@@ -7,25 +7,26 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
-	"sync"
+	"strconv"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
+	"github.com/f1nniboy/lrcmux/internal/providers"
 )
 
-const baseURL = "https://api.deezer.com"
+const (
+	baseURL     = "https://api.deezer.com"
+	searchLimit = 50
+)
 
 type deezerTrack struct {
-	ISRC           string       `json:"isrc"`
-	Title          string       `json:"title"`
-	TitleShort     string       `json:"title_short"`
-	Preview        string       `json:"preview,omitempty"`
-	ReleaseDate    string       `json:"release_date,omitempty"`
-	Album          deezerAlbum  `json:"album"`
-	Artist         deezerArtist `json:"artist"`
-	ID             int64        `json:"id"`
-	Duration       int64        `json:"duration"`
-	ExplicitLyrics bool         `json:"explicit_lyrics"`
+	ISRC   string       `json:"isrc"`
+	Title  string       `json:"title"`
+	Album  deezerAlbum  `json:"album"`
+	Artist deezerArtist `json:"artist"`
+	// only /track has them, a search result names its first main artist alone
+	Contributors []deezerArtist `json:"contributors"`
+	ID           int64          `json:"id"`
+	Duration     int64          `json:"duration"`
 }
 
 func (raw deezerTrack) toTrack() lyrics.Track {
@@ -40,22 +41,20 @@ func (raw deezerTrack) toTrack() lyrics.Track {
 			Medium: raw.Album.CoverMedium,
 			Big:    raw.Album.CoverBig,
 		},
+		DeezerID: raw.ID,
 	}
 }
 
 type deezerArtist struct {
-	Name          string `json:"name"`
-	PictureSmall  string `json:"picture_small,omitempty"`
-	PictureMedium string `json:"picture_medium,omitempty"`
-	ID            int64  `json:"id"`
+	Name string `json:"name"`
+	ID   int64  `json:"id"`
 }
 
 type deezerAlbum struct {
 	Title       string `json:"title"`
-	CoverSmall  string `json:"cover_small,omitempty"`
-	CoverMedium string `json:"cover_medium,omitempty"`
-	CoverBig    string `json:"cover_big,omitempty"`
-	ID          int64  `json:"id"`
+	CoverSmall  string `json:"cover_small"`
+	CoverMedium string `json:"cover_medium"`
+	CoverBig    string `json:"cover_big"`
 }
 
 // deezer answers errors with http 200 and an error object
@@ -71,91 +70,60 @@ type deezerError struct {
 	Code    int    `json:"code"`
 }
 
-// deezer's code for a lookup that matched nothing
-const codeNoData = 800
+const (
+	codeQuota  = 4
+	codeNoData = 800
+)
 
 func (e *deezerError) err() error {
-	if e.Code == codeNoData {
+	switch e.Code {
+	case codeNoData:
 		return lyrics.ErrNotFound
+	case codeQuota:
+		return fmt.Errorf("deezer: %w", providers.ErrRateLimited)
+	default:
+		return fmt.Errorf("deezer %s %d: %s", e.Type, e.Code, e.Message)
 	}
-	return fmt.Errorf("deezer %s %d: %s", e.Type, e.Code, e.Message)
 }
 
-// complete is false once a request failed, since its results could have held a
-// better match, so the track is served but not cached
-func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (track lyrics.Track, complete bool, err error) {
+func (r *Resolver) lookup(ctx context.Context, in ResolveInput) (lyrics.Track, error) {
+	tracks, err := r.search(ctx, in.Artist+" "+in.Title)
+	if err != nil {
+		return lyrics.Track{}, err
+	}
 	reads := readings(in)
+	if c, ok := best(tracks, reads, byName); ok {
+		return c.track.toTrack(), nil
+	}
+	c, ok := best(tracks, reads, anyArtist)
+	if !ok {
+		return lyrics.Track{}, lyrics.ErrNotFound
+	}
 
-	// deezer's artist: filter returns nothing even for exact matches, so pair a
-	// title-only filter (finds originals buried under remixes) with free text
-	// (finds generic titles that drown in a title-only search)
-	var queries []string
-	for _, rd := range reads {
-		for _, q := range []string{fmt.Sprintf(`track:"%s"`, rd.Title), rd.Artist + " " + rd.Title} {
-			if !slices.Contains(queries, q) {
-				queries = append(queries, q)
+	full, err := r.track(ctx, strconv.FormatInt(c.track.ID, 10))
+	if err != nil && !errors.Is(err, lyrics.ErrNotFound) {
+		return lyrics.Track{}, err
+	}
+	if err == nil {
+		for i := range tracks {
+			if tracks[i].ID == full.ID {
+				tracks[i] = full
 			}
 		}
-	}
-
-	results := make([][]deezerTrack, len(queries))
-	errs := make([]error, len(queries))
-	var wg sync.WaitGroup
-	for i, q := range queries {
-		wg.Go(func() { results[i], errs[i] = r.search(ctx, q) })
-	}
-	wg.Wait()
-	tracks := mergeTracks(results...)
-
-	var best candidate
-	found := false
-	consider := func(reading int, c candidate, ok bool) {
-		c.reading = reading
-		if ok && (!found || c.beats(best)) {
-			best, found = c, true
-		}
-	}
-	for i, rd := range reads {
-		c, ok := pickBest(tracks, rd, 0)
-		consider(i, c, ok)
-	}
-	if !found {
-		// an artist named by an alias or in another script ("米津玄師" for
-		// "Kenshi Yonezu") fails the comparison, so ask deezer who it is
-		ids := map[string]int64{}
-		for i, rd := range reads {
-			if !titleMatches(tracks, rd.Title) {
-				continue
-			}
-			id, asked := ids[rd.Artist]
-			if !asked {
-				var err error
-				if id, err = r.artistID(ctx, rd.Artist); err != nil {
-					errs = append(errs, err)
-				}
-				ids[rd.Artist] = id
-			}
-			if id != 0 {
-				c, ok := pickBest(tracks, rd, id)
-				consider(i, c, ok)
-			}
+		if c, ok := best(tracks, reads, byName); ok {
+			return c.track.toTrack(), nil
 		}
 	}
 
-	var failed error
-	for _, err := range errs {
-		if err != nil && !errors.Is(err, lyrics.ErrNotFound) {
-			failed = err
-			break
-		}
+	// aliases and names in other scripts fail the name check
+	id, err := r.artistID(ctx, in.Artist)
+	if err != nil {
+		return lyrics.Track{}, err
 	}
-	if !found {
-		if failed != nil {
-			return lyrics.Track{}, false, failed
-		}
-		return lyrics.Track{}, true, lyrics.ErrNotFound
+	if c, ok := best(tracks, reads, byID(id)); id != 0 && ok {
+		return c.track.toTrack(), nil
 	}
-	return best.track.toTrack(), failed == nil, nil
+	return lyrics.Track{}, lyrics.ErrNotFound
 }
 
 func (r *Resolver) artistID(ctx context.Context, name string) (int64, error) {
@@ -163,13 +131,25 @@ func (r *Resolver) artistID(ctx context.Context, name string) (int64, error) {
 		deezerEnvelope
 		Data []deezerArtist `json:"data"`
 	}
-	if err := r.get(ctx, "/search/artist?q="+url.QueryEscape(name)+"&limit=1", &res); err != nil {
-		return 0, err
-	}
-	if len(res.Data) == 0 {
+	err := r.get(ctx, "/search/artist?q="+url.QueryEscape(name)+"&limit=1", &res)
+	if errors.Is(err, lyrics.ErrNotFound) || err == nil && len(res.Data) == 0 {
 		return 0, nil
 	}
+	if err != nil {
+		return 0, err
+	}
 	return res.Data[0].ID, nil
+}
+
+func (r *Resolver) track(ctx context.Context, ref string) (deezerTrack, error) {
+	var res struct {
+		deezerEnvelope
+		deezerTrack
+	}
+	if err := r.get(ctx, "/track/"+ref, &res); err != nil {
+		return deezerTrack{}, err
+	}
+	return res.deezerTrack, nil
 }
 
 func (r *Resolver) search(ctx context.Context, q string) ([]deezerTrack, error) {
@@ -177,36 +157,10 @@ func (r *Resolver) search(ctx context.Context, q string) ([]deezerTrack, error) 
 		deezerEnvelope
 		Data []deezerTrack `json:"data"`
 	}
-	if err := r.get(ctx, "/search?q="+url.QueryEscape(q)+"&limit=10", &res); err != nil {
+	if err := r.get(ctx, "/search?q="+url.QueryEscape(q)+"&limit="+strconv.Itoa(searchLimit), &res); err != nil {
 		return nil, err
 	}
 	return res.Data, nil
-}
-
-func mergeTracks(lists ...[]deezerTrack) []deezerTrack {
-	seen := make(map[int64]bool)
-	var out []deezerTrack
-	for _, list := range lists {
-		for _, t := range list {
-			if seen[t.ID] {
-				continue
-			}
-			seen[t.ID] = true
-			out = append(out, t)
-		}
-	}
-	return out
-}
-
-func (r *Resolver) lookupMeta(ctx context.Context, isrc string) (lyrics.Track, error) {
-	var res struct {
-		deezerEnvelope
-		deezerTrack
-	}
-	if err := r.get(ctx, "/track/isrc:"+isrc, &res); err != nil {
-		return lyrics.Track{}, err
-	}
-	return res.toTrack(), nil
 }
 
 func (r *Resolver) get(ctx context.Context, path string, out interface{ apiErr() *deezerError }) error {

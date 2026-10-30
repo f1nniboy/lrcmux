@@ -35,6 +35,7 @@ func (f formatEntry) MinLevel() string { lo, _ := f.Encoder.Levels(); return lo.
 type rateLimitDoc struct {
 	Window string
 	Limit  int
+	Burst  int
 }
 
 func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Limiter) (string, error) {
@@ -58,6 +59,7 @@ func renderDocs(tmpl string, orch *orchestrator.Orchestrator, rate *ratelimit.Li
 	if rate != nil {
 		d.RateLimit = &rateLimitDoc{
 			Limit:  rate.Limit(),
+			Burst:  rate.Burst(),
 			Window: fmtDuration(rate.Window()),
 		}
 	}

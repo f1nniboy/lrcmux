@@ -15,9 +15,9 @@ import (
 )
 
 var track = lyrics.Track{
-	Artist:   "Test Artist",
-	Title:    "Test Song",
-	Album:    "Test Album",
+	Artist:   "Artist",
+	Title:    "Song",
+	Album:    "Album",
 	Duration: 180,
 	ISRC:     "ABCD12345678",
 	Cover: lyrics.TrackCover{
@@ -35,17 +35,17 @@ var result = &lyrics.Result{
 	Source:    source,
 	Lines: []lyrics.Line{
 		{
-			StartMs: 0, EndMs: 3000, Text: "Hello world",
+			StartMs: 0, EndMs: 3000, Text: "First line",
 			Words: []lyrics.Word{
-				{StartMs: 0, EndMs: 2000, Text: "Hello "},
-				{StartMs: 2000, EndMs: 3000, Text: "world"},
+				{StartMs: 0, EndMs: 2000, Text: "First "},
+				{StartMs: 2000, EndMs: 3000, Text: "line"},
 			},
 		},
 		{StartMs: 3000, EndMs: 5000, Text: ""},
 		{
-			StartMs: 5000, EndMs: 7000, Text: "Goodbye",
+			StartMs: 5000, EndMs: 7000, Text: "Second",
 			Words: []lyrics.Word{
-				{StartMs: 5000, EndMs: 7000, Text: "Goodbye"},
+				{StartMs: 5000, EndMs: 7000, Text: "Second"},
 			},
 		},
 	},

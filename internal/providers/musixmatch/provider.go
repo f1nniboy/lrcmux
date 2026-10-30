@@ -3,7 +3,6 @@ package musixmatch
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,22 +14,20 @@ import (
 
 // based on https://github.com/omkarcloud/musixmatch-scraper
 
-// only plain lyrics are served anonymously, track.subtitle.get and
-// track.richsync.get answer 403 without a paid plan, and the desktop api
-// (apic-desktop) hands out all-zero tokens instead
+// plain lyrics only, synced endpoints answer 403 without a paid plan
 const (
 	siteURL = "https://www.musixmatch.com"
 	apiURL  = siteURL + "/ws/1.1/"
 	appID   = "community-app-v1.0"
 )
 
-var errBadSignature = errors.New("invalid signature")
+var errBadSignature = fmt.Errorf("%w: invalid signature", providers.ErrRejected)
 
 //nolint:govet // fieldalignment
 type Provider struct {
 	providers.Common
 
-	signer *signer
+	key *providers.Secret
 }
 
 func (p *Provider) ID() string                 { return "musixmatch" }
@@ -40,7 +37,7 @@ func (p *Provider) Desc() string               { return "Extensive library, but 
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncNone }
 
 func (p *Provider) Init() {
-	p.signer = &signer{client: p.HTTP}
+	p.key = providers.NewSecret(p.scrape)
 }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
@@ -72,18 +69,13 @@ func (p *Provider) get(ctx context.Context, method string, params url.Values) (j
 	params.Set("app_id", appID)
 	params.Set("format", "json")
 
-	key, err := p.signer.key(ctx)
-	if err != nil {
-		return nil, err
-	}
-	body, err := p.do(ctx, method, params, key)
-	if errors.Is(err, errBadSignature) {
-		// the key rotates with every site deploy
-		if key, err = p.signer.refresh(ctx, key); err != nil {
-			return nil, err
-		}
+	var body json.RawMessage
+	// the key rotates with every site deploy
+	err := p.key.Do(ctx, func(key string) error {
+		var err error
 		body, err = p.do(ctx, method, params, key)
-	}
+		return err
+	})
 	return body, err
 }
 

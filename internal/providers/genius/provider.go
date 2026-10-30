@@ -165,8 +165,7 @@ func (p *Provider) scrape(ctx context.Context, pageURL string) ([]lyrics.Line, e
 	for l := range strings.SplitSeq(raw.String(), "\n") {
 		t := strings.TrimSpace(l)
 		switch {
-		case strings.HasPrefix(t, "[") && strings.HasSuffix(t, "]"):
-		case strings.HasPrefix(t, "(") && strings.HasSuffix(t, ")") && strings.Contains(t, ":"):
+		case lyrics.SectionMarker(t):
 		case t == "" && (len(lines) == 0 || lines[len(lines)-1].Text == ""):
 		default:
 			lines = append(lines, lyrics.Line{Text: t})

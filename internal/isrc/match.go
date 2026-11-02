@@ -41,7 +41,7 @@ func (a candidate) beats(b candidate) bool {
 		cmp.Compare(a.exact, b.exact),
 		cmp.Compare(a.title, b.title),
 		cmp.Compare(a.artist, b.artist),
-		// the title as written beats a reading of it
+		// prefer the title as written over a reinterpretation of it
 		cmp.Compare(b.reading, a.reading),
 		cmp.Compare(a.duration, b.duration),
 		cmp.Compare(a.album, b.album),

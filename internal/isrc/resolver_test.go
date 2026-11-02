@@ -115,7 +115,7 @@ func TestResolveReadings(t *testing.T) {
 			want: "XX0000000001",
 		},
 		{
-			name: "the title as written beats its bare reading, whatever the duration",
+			name: "the title as written wins over a reinterpretation, whatever the duration",
 			body: `{"data":[{"id":1,"isrc":"XX0000000001","title":"Song - Subtitle","artist":{"name":"Artist"},"duration":260},` +
 				`{"id":2,"isrc":"XX0000000002","title":"Song","artist":{"name":"Artist"},"duration":200}]}`,
 			in:   ResolveInput{Artist: "Artist", Title: "Song - Subtitle", Duration: 200},

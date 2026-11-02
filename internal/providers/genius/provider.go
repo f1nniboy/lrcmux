@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"strings"
-
-	"github.com/PuerkitoBio/goquery"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/normalize"
@@ -17,6 +15,8 @@ import (
 
 const (
 	searchURL = "https://genius.com/api/search/multi"
+	// the embed page is way smaller than the normal song page
+	embedURL  = "https://genius.com/songs/%d/embed.js"
 	userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0"
 )
 
@@ -31,7 +31,7 @@ func (p *Provider) Desc() string               { return "Best song coverage, but
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncNone }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {
-	pageURL, instrumental, err := p.findURL(ctx, q)
+	id, instrumental, err := p.findSong(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, 
 		return &lyrics.Result{Instrumental: true}, nil
 	}
 
-	lines, err := p.scrape(ctx, pageURL)
+	lines, err := p.lyrics(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +57,8 @@ type searchResponse struct {
 				Type   string `json:"type"`
 				Result struct {
 					Title        string `json:"title"`
-					URL          string `json:"url"`
 					ArtistNames  string `json:"artist_names"`
+					ID           int    `json:"id"`
 					Instrumental bool   `json:"instrumental"`
 				} `json:"result"`
 			} `json:"hits"`
@@ -66,11 +66,11 @@ type searchResponse struct {
 	} `json:"response"`
 }
 
-func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (pageURL string, instrumental bool, err error) {
+func (p *Provider) findSong(ctx context.Context, q lyrics.Query) (id int, instrumental bool, err error) {
 	endpoint := searchURL + "?per_page=5&q=" + url.QueryEscape(q.Track.Artist+" "+q.Track.Title)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return "", false, err
+		return 0, false, err
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/json, text/plain, */*")
@@ -83,21 +83,21 @@ func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (pageURL string,
 
 	resp, err := p.HTTP.Do(req)
 	if err != nil {
-		return "", false, fmt.Errorf("search: %w", err)
+		return 0, false, fmt.Errorf("search: %w", err)
 	}
 	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusOK:
 	case http.StatusForbidden, http.StatusTooManyRequests:
-		return "", false, providers.ErrRateLimited
+		return 0, false, providers.ErrRateLimited
 	default:
-		return "", false, fmt.Errorf("search status %d", resp.StatusCode)
+		return 0, false, fmt.Errorf("search status %d", resp.StatusCode)
 	}
 
 	var sr searchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
-		return "", false, fmt.Errorf("search decode: %w", err)
+		return 0, false, fmt.Errorf("search decode: %w", err)
 	}
 
 	for _, section := range sr.Response.Sections {
@@ -107,29 +107,28 @@ func (p *Provider) findURL(ctx context.Context, q lyrics.Query) (pageURL string,
 			}
 			r := hit.Result
 			if normalize.Match(q.Track.Title, q.Track.Artist, r.Title, r.ArtistNames) {
-				return r.URL, r.Instrumental, nil
+				return r.ID, r.Instrumental, nil
 			}
 		}
 	}
-	return "", false, lyrics.ErrNotFound
+	return 0, false, lyrics.ErrNotFound
 }
 
-func (p *Provider) scrape(ctx context.Context, pageURL string) ([]lyrics.Line, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
+func (p *Provider) lyrics(ctx context.Context, id int) ([]lyrics.Line, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf(embedURL, id), nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Upgrade-Insecure-Requests", "1")
-	req.Header.Set("Sec-Fetch-Dest", "document")
-	req.Header.Set("Sec-Fetch-Mode", "navigate")
-	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Sec-Fetch-Dest", "script")
+	req.Header.Set("Sec-Fetch-Mode", "no-cors")
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
 
 	resp, err := p.HTTP.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("scrape: %w", err)
+		return nil, fmt.Errorf("embed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -140,29 +139,12 @@ func (p *Provider) scrape(ctx context.Context, pageURL string) ([]lyrics.Line, e
 	case http.StatusForbidden, http.StatusTooManyRequests:
 		return nil, providers.ErrRateLimited
 	default:
-		return nil, fmt.Errorf("scrape status %d", resp.StatusCode)
+		return nil, fmt.Errorf("embed status %d", resp.StatusCode)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
+		return nil, fmt.Errorf("embed: %w", err)
 	}
-
-	var raw strings.Builder
-	doc.Find(`div[data-lyrics-container="true"]`).Each(func(_ int, s *goquery.Selection) {
-		s.Find(`div[data-exclude-from-selection="true"]`).Remove()
-		s.Find("br").ReplaceWithHtml("\n")
-		raw.WriteString(s.Text())
-		raw.WriteByte('\n')
-	})
-
-	if raw.Len() == 0 {
-		return nil, nil
-	}
-
-	var lines []lyrics.Line
-	for l := range strings.SplitSeq(raw.String(), "\n") {
-		lines = append(lines, lyrics.Line{Text: strings.TrimSpace(l)})
-	}
-	return lines, nil
+	return parseEmbed(string(b))
 }

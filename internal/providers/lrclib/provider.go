@@ -96,7 +96,7 @@ func (p *Provider) do(ctx context.Context, endpoint string, out any) error {
 	case http.StatusTooManyRequests, http.StatusServiceUnavailable:
 		return providers.RateLimitedFrom(resp)
 	case http.StatusUnauthorized:
-		// lrclib's json names which check failed, a rejection at its edge has no body
+		// lrclib's json names the failed check, a 401 from its proxy has no body
 		var body struct {
 			Name string `json:"name"`
 		}

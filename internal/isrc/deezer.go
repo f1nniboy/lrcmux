@@ -23,7 +23,7 @@ type deezerTrack struct {
 	Title  string       `json:"title"`
 	Album  deezerAlbum  `json:"album"`
 	Artist deezerArtist `json:"artist"`
-	// only /track has them, a search result names its first main artist alone
+	// only /track has them, a search result only names the first main artist
 	Contributors []deezerArtist `json:"contributors"`
 	ID           int64          `json:"id"`
 	Duration     int64          `json:"duration"`

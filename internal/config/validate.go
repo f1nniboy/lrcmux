@@ -56,7 +56,7 @@ func message(root reflect.Type, fe validator.FieldError) string {
 	}
 }
 
-// required_with names a field by its go name, a message wants its config name
+// required_with names a field by its go name, the message uses its config name
 func siblingName(root reflect.Type, fe validator.FieldError) string {
 	t := root
 	path := strings.Split(fe.StructNamespace(), ".")

@@ -139,11 +139,7 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 	}
 
 	if s.metrics != nil && !internal {
-		cacheResult := "miss"
-		if lyricsResp.Cached {
-			cacheResult = "hit"
-		}
-		s.metrics.CacheOps.WithLabelValues(cacheResult).Inc()
+		s.metrics.Served.WithLabelValues(lyricsResp.Result.Source.ID).Inc()
 	}
 
 	var buf bytes.Buffer

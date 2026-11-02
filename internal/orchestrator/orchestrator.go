@@ -106,9 +106,9 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		return nil, ErrNotFound
 	}
 
-	// paid once, before the first upstream work
+	// charged once, before the first upstream request
 	charge := sync.OnceValue(func() error {
-		// a request that is gone starts nothing
+		// don't start upstream work for a request that's already cancelled
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -128,6 +128,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	track, hit, err := o.resolver.Cached(ctx, in)
 	if !hit {
 		if req.FetchMode == FetchCache {
+			o.recordOutcome("cache")
 			return nil, ErrNotFound
 		}
 		if err := charge(); err != nil {
@@ -181,6 +182,7 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 	// worthQuerying already dropped providers that can't improve on cache,
 	// so if unknowns is empty, the pick here is as good as we can get
 	if req.FetchMode == FetchCache || len(unknowns) == 0 {
+		o.recordOutcome("cache")
 		if picked := o.pick(cached, pickLevel); picked != nil {
 			o.log.Debug("serving from cache", "provider", picked.Source.ID, "sync", picked.SyncLevel.String())
 			return respond(picked, true), nil
@@ -207,11 +209,12 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 		key += ":" + strings.Join(sorted, ",")
 	}
 
+	// counted per request, since followers of the flight below needed a fanout too
+	o.recordOutcome("fanout")
 	v, err, _ := o.sf.Do(key, func() (any, error) {
 		// so the leader leaving can't cancel it for the others
 		ctx, end := proxy.WithSession(context.WithoutCancel(ctx))
 		defer end()
-		o.recordOutcome("fanout")
 
 		// seed with cached so pick weighs them against fresh results each tier
 		results := slices.Clone(cached)

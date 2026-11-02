@@ -36,7 +36,7 @@ func ParseLRC(body string) ([]Line, SyncLevel) {
 		words := splitWordStamps(text)
 		cleanText := text
 		if len(words) > 0 {
-			// words carry their space, like every other provider's
+			// each word includes its trailing space, as with every other provider
 			var b strings.Builder
 			for i := range words {
 				if i < len(words)-1 {

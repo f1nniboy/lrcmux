@@ -19,13 +19,12 @@ import (
 
 var (
 	chunkRE = regexp.MustCompile(`src="([^"]*/_next/static/chunks/[^"]+\.js)"`)
-	// a chunk ships the key reversed and base64 encoded
+	// a chunk contains the key reversed and base64 encoded
 	keyRE    = regexp.MustCompile(`from\(\s*"([^"]*)"\s*\.split`)
 	hexKeyRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
 )
 
-// the home page is a separate landing app whose key the lyrics api rejects. chunk names
-// are hashes, so all are searched at once instead of waiting a proxy round trip for each
+// the home page is a separate landing app whose key the lyrics api rejects
 func (p *Provider) scrape(ctx context.Context) (string, error) {
 	page, err := p.fetch(ctx, siteURL+"/discover")
 	if err != nil {

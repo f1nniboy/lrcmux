@@ -101,7 +101,7 @@ func (p *Provider) fetch(ctx context.Context, jwt string, track lyrics.Track) (*
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, fmt.Errorf("decode: %w", err)
 	}
-	// parse can't tell a failure from missing lyrics, so every other error stops here
+	// parse returns no lyrics for a failed response too, so any other error is returned here
 	for _, e := range body.Errors {
 		switch e.Extensions.Type {
 		case "LyricsNotFoundError", "TrackNotFoundError":
@@ -117,7 +117,7 @@ func (p *Provider) fetch(ctx context.Context, jwt string, track lyrics.Track) (*
 	return parse(body.Data.Track.Lyrics, track.Duration)
 }
 
-// a 403 is akamai blocking the exit, not a bad request
+// akamai answers a blocked exit ip with 403
 func blocked(status int) bool {
 	return status == http.StatusForbidden || status == http.StatusTooManyRequests
 }

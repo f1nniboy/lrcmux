@@ -13,7 +13,7 @@ import (
 var ErrRejected = errors.New("secret rejected")
 
 // a key or token every request shares, fetched again only once upstream rejects it.
-// it's kept in the cache too, so a restart or another instance takes it from there
+// it's kept in the cache too, so a restart or another instance can reuse it
 type Secret struct {
 	cache cache.Cache
 	fetch func(context.Context) (string, error)
@@ -54,14 +54,13 @@ func (s *Secret) get(ctx context.Context, stale string) (string, error) {
 		return v, nil
 	}
 	// keyed by stale, so a renewal never joins a flight that hands back the stale one,
-	// and each caller still leaves at its own deadline
+	// and each caller still returns at its own deadline
 	ch := s.sf.DoChan(stale, func() (any, error) {
 		if v := s.load(); v != "" && v != stale {
 			return v, nil
 		}
 		ctx := context.WithoutCancel(ctx)
-		// another instance may have renewed it already. the cache only saves a fetch,
-		// so its errors fall through to one
+		// another instance may have renewed it already. on a cache error we just fetch
 		if b, ok, err := s.cache.GetBytes(ctx, s.key); err == nil && ok && string(b) != stale {
 			s.store(string(b))
 			return string(b), nil

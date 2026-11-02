@@ -55,7 +55,7 @@ func breakText(text string) bool {
 	}) == ""
 }
 
-// a transcriber's "[Chorus]" or "(Verse: Artist)", unlike an ad-lib "(yeah)"
+// a section header like "[Chorus]" or "(Verse: Artist)", ad-libs like "(yeah)" stay
 func SectionMarker(text string) bool {
 	return strings.HasPrefix(text, "[") && strings.HasSuffix(text, "]") ||
 		strings.HasPrefix(text, "(") && strings.HasSuffix(text, ")") && strings.Contains(text, ":")
@@ -64,7 +64,7 @@ func SectionMarker(text string) bool {
 // some providers watermark lyrics with look-alike apostrophes, letters and spaces
 var apostrophes = strings.NewReplacer("\u2019", "'", "\u2018", "'", "\u2032", "'", "\u02bc", "'")
 
-// cyrillic and greek letters drawn like latin ones
+// cyrillic and greek letters that look like latin ones
 var lookalikes = map[rune]rune{
 	'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x', 'і': 'i', 'ј': 'j', 'ѕ': 's',
 	'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H', 'О': 'O', 'Р': 'P', 'С': 'C', 'Т': 'T',
@@ -73,7 +73,7 @@ var lookalikes = map[rune]rune{
 	'Ρ': 'P', 'Τ': 'T', 'Υ': 'Y', 'Χ': 'X', 'Ζ': 'Z',
 }
 
-// a word chunk holds no latin letter to go by, so it follows its line
+// a word chunk may have no latin letter of its own, so it is swapped whenever its line was
 func normalizeText(s string, lineSwapped bool) (string, bool) {
 	s = apostrophes.Replace(s)
 	s = strings.Map(func(r rune) rune {

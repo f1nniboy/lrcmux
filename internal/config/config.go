@@ -53,7 +53,7 @@ type Root struct {
 	Metrics   Metrics          `toml:"metrics,commented"`
 	Cache     Cache            `toml:"cache"`
 	RateLimit RateLimit        `toml:"ratelimit"`
-	Proxies   map[string]Proxy `toml:"proxies,commented"`
+	Proxies   map[string]Proxy `toml:"proxies,commented" validate:"dive"`
 	Provider  ProviderOptions  `toml:"provider"`
 	Providers map[string]any   `toml:"providers"`
 }

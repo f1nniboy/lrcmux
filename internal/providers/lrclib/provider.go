@@ -3,6 +3,7 @@ package lrclib
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -33,6 +34,8 @@ func (r apiResult) toResult() (*lyrics.Result, error) {
 type Provider struct {
 	providers.Common
 	BaseURL string `toml:"base_url,commented,omitempty" comment:"which instance to use"`
+	APIKey  string `toml:"api_key,commented,omitempty" validate:"required_with=AppID" comment:"secret key of an application registered at https://lrclib.net/developers\nyou only need this if you exceed the 90req/min limit"`
+	AppID   string `toml:"app_id,commented,omitempty" validate:"required_with=APIKey" comment:"ID of that application"`
 }
 
 func (p *Provider) ID() string                 { return "lrclib" }
@@ -75,6 +78,12 @@ func (p *Provider) do(ctx context.Context, endpoint string, out any) error {
 	if err != nil {
 		return err
 	}
+	if p.APIKey != "" {
+		req.Header.Set("Lrclib-Api-Key", p.APIKey)
+	}
+	if p.AppID != "" {
+		req.Header.Set("Lrclib-App-Id", p.AppID)
+	}
 	resp, err := p.HTTP.Do(req)
 	if err != nil {
 		return fmt.Errorf("request: %w", err)
@@ -84,8 +93,17 @@ func (p *Provider) do(ctx context.Context, endpoint string, out any) error {
 	case http.StatusOK:
 	case http.StatusNotFound:
 		return lyrics.ErrNotFound
-	case http.StatusTooManyRequests:
+	case http.StatusTooManyRequests, http.StatusServiceUnavailable:
 		return providers.RateLimitedFrom(resp)
+	case http.StatusUnauthorized:
+		// lrclib's json names which check failed, a rejection at its edge has no body
+		var body struct {
+			Name string `json:"name"`
+		}
+		if json.NewDecoder(resp.Body).Decode(&body) != nil || body.Name == "" {
+			return errors.New("unauthorized")
+		}
+		return fmt.Errorf("unauthorized: %s", body.Name)
 	default:
 		return fmt.Errorf("status %d", resp.StatusCode)
 	}

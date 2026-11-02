@@ -18,6 +18,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
+	"github.com/f1nniboy/lrcmux/internal/proxy"
 )
 
 var (
@@ -63,17 +64,6 @@ type Response struct {
 	TTL    time.Duration
 }
 
-type ProviderHealth struct {
-	Reason string `json:"reason,omitempty"`
-	TTL    int64  `json:"ttl,omitempty"`
-	Ok     bool   `json:"ok"`
-}
-
-type ProviderInfo struct {
-	lyrics.Source
-	Health ProviderHealth `json:"health"`
-}
-
 type Options struct {
 	Timeout time.Duration
 	TTL     config.CacheTTL
@@ -93,19 +83,8 @@ func New(provs []providers.Provider, c cache.Cache, breaker *Breaker, resolver *
 
 func (o *Orchestrator) Providers() []providers.Provider { return o.providers }
 
-func (o *Orchestrator) Health(ctx context.Context) []ProviderInfo {
-	disabled := o.breaker.states(ctx, o.providers)
-	infos := make([]ProviderInfo, len(o.providers))
-	for i, p := range o.providers {
-		health := ProviderHealth{Ok: true}
-		if open, ok := disabled[p.ID()]; ok {
-			health.Ok = false
-			health.TTL = int64(open.TTL.Seconds())
-			health.Reason = open.Reason
-		}
-		infos[i] = ProviderInfo{Source: providers.Source(p), Health: health}
-	}
-	return infos
+func (o *Orchestrator) OpenCircuits(ctx context.Context) map[string]string {
+	return o.breaker.Tripped(ctx, o.providers)
 }
 
 func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) {
@@ -230,7 +209,8 @@ func (o *Orchestrator) Get(ctx context.Context, req Request) (*Response, error) 
 
 	v, err, _ := o.sf.Do(key, func() (any, error) {
 		// so the leader leaving can't cancel it for the others
-		ctx := context.WithoutCancel(ctx)
+		ctx, end := proxy.WithSession(context.WithoutCancel(ctx))
+		defer end()
 		o.recordOutcome("fanout")
 
 		// seed with cached so pick weighs them against fresh results each tier
@@ -283,9 +263,6 @@ func worthQuerying(unknowns []providers.Provider, cached []*lyrics.Result) []pro
 			best = c
 		}
 	}
-	if best != nil && best.Instrumental {
-		return nil
-	}
 	return slices.DeleteFunc(unknowns, func(p providers.Provider) bool {
 		// once the cached result is satisfying, only a higher sync level can
 		// improve on it
@@ -306,6 +283,11 @@ func (o *Orchestrator) checkCache(ctx context.Context, q lyrics.Query, provs []p
 	for i, p := range provs {
 		switch statuses[i] {
 		case cache.Hit:
+			// entries can predate a cleanup rule, and word-level ones never expire
+			if !results[i].Clean() {
+				o.log.Debug("cached result empty after cleanup", "provider", p.ID())
+				continue
+			}
 			o.log.Debug("cache hit", "provider", p.ID(), "sync", results[i].SyncLevel.String())
 			hits = append(hits, &results[i])
 		case cache.KnownMiss:

@@ -3,17 +3,10 @@ package ytmusic
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
 
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/normalize"
 )
-
-func isInstrumentalMarker(s string) bool {
-	return strings.TrimFunc(s, func(r rune) bool {
-		return strings.ContainsRune("♪", r)
-	}) == ""
-}
 
 // YouTube returns these millisecond timestamps as quoted strings, so accept
 // either a JSON number or string
@@ -201,14 +194,10 @@ func (r *timedBrowseResp) parse() ([]lyrics.Line, string) {
 		if start == 0 && end == 0 {
 			continue
 		}
-		text := tl.LyricLine
-		if isInstrumentalMarker(strings.TrimSpace(text)) {
-			text = ""
-		}
 		out = append(out, lyrics.Line{
 			StartMs: start,
 			EndMs:   end,
-			Text:    text,
+			Text:    tl.LyricLine,
 		})
 	}
 	return out, data.SourceMessage

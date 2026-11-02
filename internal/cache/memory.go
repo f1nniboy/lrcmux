@@ -92,21 +92,6 @@ func (m *Memory) TTL(_ context.Context, key string) (time.Duration, error) {
 	return time.Until(e.expires), nil
 }
 
-func (m *Memory) TTLMany(_ context.Context, keys ...string) ([]time.Duration, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make([]time.Duration, len(keys))
-	for i, k := range keys {
-		e, ok := m.entries[k]
-		if !ok || e.expires.IsZero() || !m.alive(e) {
-			out[i] = -1
-			continue
-		}
-		out[i] = time.Until(e.expires)
-	}
-	return out, nil
-}
-
 func (m *Memory) Expire(_ context.Context, key string, ttl time.Duration) error {
 	m.mu.Lock()
 	if e, ok := m.entries[key]; ok {

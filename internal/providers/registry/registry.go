@@ -44,17 +44,20 @@ func Build(cfg *config.Root, c cache.Cache, pools *proxy.Registry, log *slog.Log
 		}
 		b, err := toml.Marshal(raw)
 		if err != nil {
-			return nil, fmt.Errorf("provider %q: %w", p.ID(), err)
+			return nil, fmt.Errorf("%s: %w", p.ID(), err)
 		}
 		var common providers.Common
 		if err := toml.Unmarshal(b, &common); err != nil {
-			return nil, fmt.Errorf("provider %q: %w", p.ID(), err)
+			return nil, fmt.Errorf("%s: %w", p.ID(), err)
 		}
 		if !common.Enable {
 			continue
 		}
 		if err := toml.Unmarshal(b, p); err != nil {
-			return nil, fmt.Errorf("provider %q: %w", p.ID(), err)
+			return nil, fmt.Errorf("%s: %w", p.ID(), err)
+		}
+		if err := config.Validate(p); err != nil {
+			return nil, fmt.Errorf("%s: %w", p.ID(), err)
 		}
 		if common.Proxy != "" {
 			if _, ok := pools.Pool(common.Proxy); !ok {

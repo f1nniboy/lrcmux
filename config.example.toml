@@ -62,6 +62,11 @@ enable = true
 enable = true
 # which instance to use
 # base_url = 'https://lrclib.net'
+# secret key of an application registered at https://lrclib.net/developers
+# you only need this if you exceed the 90req/min limit
+# api_key = '...'
+# ID of that application
+# app_id = '...'
 
 [providers.musixmatch]
 enable = true

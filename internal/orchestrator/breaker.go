@@ -17,7 +17,6 @@ const (
 
 type breakerState struct {
 	Reason string
-	TTL    time.Duration
 }
 
 type Breaker struct {
@@ -29,25 +28,21 @@ func NewBreaker(c cache.Cache, log *slog.Logger) *Breaker {
 	return &Breaker{cache: c, log: log}
 }
 
-func (b *Breaker) states(ctx context.Context, provs []providers.Provider) map[string]breakerState {
+// why each open circuit opened, by provider ID
+func (b *Breaker) Tripped(ctx context.Context, provs []providers.Provider) map[string]string {
 	keys := make([]string, len(provs))
 	for i, p := range provs {
 		keys[i] = "cb:" + p.ID()
 	}
-	ttls, err := b.cache.TTLMany(ctx, keys...)
+	vals, statuses, err := cache.GetMany[breakerState](ctx, b.cache, keys)
 	if err != nil {
 		return nil
 	}
-	vals, _, err := cache.GetMany[breakerState](ctx, b.cache, keys)
-	if err != nil {
-		return nil
-	}
-	out := make(map[string]breakerState, len(provs))
+	out := make(map[string]string)
 	for i, p := range provs {
-		if ttls[i] <= 0 {
-			continue
+		if statuses[i] == cache.Hit {
+			out[p.ID()] = vals[i].Reason
 		}
-		out[p.ID()] = breakerState{TTL: ttls[i], Reason: vals[i].Reason}
 	}
 	return out
 }

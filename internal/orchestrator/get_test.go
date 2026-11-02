@@ -238,3 +238,45 @@ func TestGetCharging(t *testing.T) {
 		}
 	})
 }
+
+func TestGetInstrumentalFlag(t *testing.T) {
+	tests := []struct {
+		name   string
+		want   string
+		lyrics bool
+	}{
+		{name: "lyrics from another provider win", lyrics: true, want: "lyrics"},
+		{name: "kept when nobody has lyrics", want: "flag"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			flagged := make(chan struct{})
+			flag := &stubProvider{id: "flag", maxLevel: lyrics.SyncLine, search: func(context.Context) (*lyrics.Result, error) {
+				defer close(flagged)
+				return &lyrics.Result{Instrumental: true}, nil
+			}}
+			// answers after the flag, unless the fanout was cancelled by then
+			other := &stubProvider{id: "lyrics", maxLevel: lyrics.SyncLine, search: func(ctx context.Context) (*lyrics.Result, error) {
+				<-flagged
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(50 * time.Millisecond):
+				}
+				if !tc.lyrics {
+					return nil, lyrics.ErrNotFound
+				}
+				return lineResult(ctx)
+			}}
+			o, _ := newOrch(t, flag, other)
+
+			resp, err := o.Get(t.Context(), Request{ISRC: testISRC, Level: lyrics.SyncLine})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resp.Result.Source.ID != tc.want {
+				t.Errorf("got %s, want %s", resp.Result.Source.ID, tc.want)
+			}
+		})
+	}
+}

@@ -37,7 +37,7 @@ func (p *Provider) Desc() string               { return "Extensive library, but 
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncNone }
 
 func (p *Provider) Init() {
-	p.key = providers.NewSecret(p.scrape)
+	p.key = providers.NewSecret(p.Cache, p.ID(), p.scrape)
 }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {

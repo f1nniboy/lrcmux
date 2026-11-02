@@ -42,7 +42,7 @@ func (p *Provider) Desc() string               { return "Word-level sync for mos
 func (p *Provider) MaxLevel() lyrics.SyncLevel { return lyrics.SyncWord }
 
 func (p *Provider) Init() {
-	p.token = providers.NewSecret(p.mint)
+	p.token = providers.NewSecret(p.Cache, p.ID(), p.mint)
 }
 
 func (p *Provider) Search(ctx context.Context, q lyrics.Query) (*lyrics.Result, error) {

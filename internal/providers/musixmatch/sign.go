@@ -18,30 +18,50 @@ import (
 )
 
 var (
-	bundleRE = regexp.MustCompile(`src="([^"]*/_next/static/chunks/pages/_app-[^"]+\.js)"`)
-	// the bundle ships the key reversed and base64 encoded
+	chunkRE = regexp.MustCompile(`src="([^"]*/_next/static/chunks/[^"]+\.js)"`)
+	// a chunk ships the key reversed and base64 encoded
 	keyRE    = regexp.MustCompile(`from\(\s*"([^"]*)"\s*\.split`)
 	hexKeyRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
 )
 
+// the home page is a separate landing app whose key the lyrics api rejects. chunk names
+// are hashes, so all are searched at once instead of waiting a proxy round trip for each
 func (p *Provider) scrape(ctx context.Context) (string, error) {
-	home, err := p.fetch(ctx, siteURL+"/")
+	page, err := p.fetch(ctx, siteURL+"/discover")
 	if err != nil {
-		return "", fmt.Errorf("home page: %w", err)
+		return "", fmt.Errorf("lyrics page: %w", err)
 	}
-	m := bundleRE.FindStringSubmatch(home)
-	if m == nil {
-		return "", errors.New("app bundle not found")
+	chunks := chunkRE.FindAllStringSubmatch(page, -1)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	type found struct {
+		err error
+		key string
 	}
-	js, err := p.fetch(ctx, m[1])
-	if err != nil {
-		return "", fmt.Errorf("app bundle: %w", err)
+	ch := make(chan found, len(chunks))
+	for _, m := range chunks {
+		go func() {
+			js, err := p.fetch(ctx, m[1])
+			key, _ := extractKey(js)
+			ch <- found{key: key, err: err}
+		}()
 	}
-	key, ok := extractKey(js)
-	if !ok {
-		return "", errors.New("signing key not found in app bundle")
+
+	var firstErr error
+	for range chunks {
+		f := <-ch
+		if f.key != "" {
+			return f.key, nil
+		}
+		if firstErr == nil {
+			firstErr = f.err
+		}
 	}
-	return key, nil
+	if firstErr != nil {
+		return "", fmt.Errorf("chunk: %w", firstErr)
+	}
+	return "", errors.New("signing key not found in any chunk")
 }
 
 func (p *Provider) fetch(ctx context.Context, u string) (string, error) {

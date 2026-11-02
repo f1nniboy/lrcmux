@@ -43,13 +43,39 @@ func (r *Registry) Pool(name string) (*Pool, bool) {
 }
 
 func (r *Registry) ClientFor(name string, timeout time.Duration) *http.Client {
-	pool, ok := r.Pool(name)
-	t := http.DefaultTransport.(*http.Transport).Clone()
-	if ok {
-		t.Proxy = func(_ *http.Request) (*url.URL, error) {
-			return pool.urls[rand.IntN(len(pool.urls))], nil
-		}
-		t.DisableKeepAlives = true
+	var rt http.RoundTripper = http.DefaultTransport.(*http.Transport).Clone()
+	if pool, ok := r.Pool(name); ok {
+		rt = &poolTransport{pool: pool, fresh: pool.transport(nil)}
 	}
-	return &http.Client{Timeout: timeout, Transport: t}
+	return &http.Client{Timeout: timeout, Transport: rt}
+}
+
+type poolTransport struct {
+	pool  *Pool
+	fresh *http.Transport
+}
+
+func (t *poolTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if s, ok := r.Context().Value(sessionKey{}).(*session); ok {
+		if st := s.transport(t.pool); st != nil {
+			return st.RoundTrip(r)
+		}
+	}
+	return t.fresh.RoundTrip(r)
+}
+
+func (p *Pool) transport(fixed *url.URL) *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	if fixed != nil {
+		t.Proxy = http.ProxyURL(fixed)
+		return t
+	}
+	t.Proxy = func(*http.Request) (*url.URL, error) { return p.pick(), nil }
+	// a reused connection keeps its exit ip, so the load would never spread
+	t.DisableKeepAlives = true
+	return t
+}
+
+func (p *Pool) pick() *url.URL {
+	return p.urls[rand.IntN(len(p.urls))]
 }

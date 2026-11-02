@@ -80,6 +80,7 @@ type Word struct {
 }
 
 type Line struct {
+	// empty for a break between stanzas
 	Text    string `json:"text"`
 	Words   []Word `json:"words,omitempty"`
 	StartMs int64  `json:"start,omitempty"`

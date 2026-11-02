@@ -74,7 +74,8 @@ func (s *Server) Run(ctx context.Context, listen string) error {
 	s.api = humachi.New(r, humaCfg)
 
 	huma.Register(s.api, s.getOp(), s.handleGet)
-	huma.Register(s.api, s.statsOp(), s.handleStats)
+	huma.Register(s.api, s.sourcesOp(), s.handleSources)
+	huma.Register(s.api, s.versionOp(), s.handleVersion)
 	huma.Register(s.api, s.kpoeOp(), s.handleKpoe)
 	huma.Register(s.api, s.lrclibOp(), s.handleLrclib)
 	huma.Register(s.api, s.lrclibSearchOp(), s.handleLrclibSearch)

@@ -5,7 +5,7 @@
 <h1 align="center">lrcmux</h1>
 
 <p align="center">
-  A lyrics aggregator API
+  A lyrics API that aggregates every public provider
   <br><br>
   <a href="https://github.com/f1nniboy/lrcmux/releases"><img src="https://img.shields.io/github/v/release/f1nniboy/lrcmux" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/f1nniboy/lrcmux?color=blue" alt="License"></a>

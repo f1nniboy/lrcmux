@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/f1nniboy/lrcmux/internal/cache"
 )
 
 func counting() (func(context.Context) (string, error), *atomic.Int32) {
@@ -18,7 +20,7 @@ func counting() (func(context.Context) (string, error), *atomic.Int32) {
 
 func TestSecretShared(t *testing.T) {
 	fetch, n := counting()
-	s := NewSecret(fetch)
+	s := NewSecret(cache.NewMemory(), "test", fetch)
 	var wg sync.WaitGroup
 	for range 10 {
 		wg.Go(func() {
@@ -35,7 +37,7 @@ func TestSecretShared(t *testing.T) {
 
 func TestSecretRejected(t *testing.T) {
 	fetch, n := counting()
-	s := NewSecret(fetch)
+	s := NewSecret(cache.NewMemory(), "test", fetch)
 	var seen []string
 	err := s.Do(t.Context(), func(v string) error {
 		seen = append(seen, v)
@@ -53,9 +55,42 @@ func TestSecretRejected(t *testing.T) {
 	}
 }
 
+func TestSecretSharedCache(t *testing.T) {
+	c := cache.NewMemory()
+	fetch, n := counting()
+	a, b := NewSecret(c, "test", fetch), NewSecret(c, "test", fetch)
+	var seen string
+	use := func(v string) error { seen = v; return nil }
+
+	// a restart or another instance takes the secret from the cache
+	_ = a.Do(t.Context(), use)
+	_ = b.Do(t.Context(), use)
+	if n.Load() != 1 || seen != "secret-1" {
+		t.Fatalf("saw %q after %d fetches, want secret-1 after 1", seen, n.Load())
+	}
+
+	// once b renews it, a takes the new one from the cache instead of fetching again
+	_ = b.Do(t.Context(), func(v string) error {
+		if v == "secret-1" {
+			return ErrRejected
+		}
+		return nil
+	})
+	err := a.Do(t.Context(), func(v string) error {
+		seen = v
+		if v == "secret-1" {
+			return ErrRejected
+		}
+		return nil
+	})
+	if err != nil || seen != "secret-2" || n.Load() != 2 {
+		t.Errorf("err %v, saw %q after %d fetches, want secret-2 after 2", err, seen, n.Load())
+	}
+}
+
 func TestSecretCallerLeaves(t *testing.T) {
 	started, release := make(chan struct{}), make(chan struct{})
-	s := NewSecret(func(context.Context) (string, error) {
+	s := NewSecret(cache.NewMemory(), "test", func(context.Context) (string, error) {
 		close(started)
 		<-release
 		return "secret", nil

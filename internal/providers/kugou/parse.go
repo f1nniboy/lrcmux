@@ -133,6 +133,7 @@ func parseKRC(text, language string) []lyrics.Line {
 			text = b.String()
 		}
 
+		// a "[Verse 1: Artist]" would pass for a credit line in stripMetadata
 		if lyrics.SectionMarker(strings.TrimSpace(text)) {
 			continue
 		}

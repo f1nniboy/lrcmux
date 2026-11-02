@@ -41,12 +41,13 @@ func (c *breakerCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *breakerCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	for _, info := range c.orch.Health(ctx) {
+	open := c.orch.OpenCircuits(ctx)
+	for _, p := range c.orch.Providers() {
 		var v float64
-		if !info.Health.Ok {
+		if reason, ok := open[p.ID()]; ok {
 			v = 1
-			ch <- prometheus.MustNewConstMetric(c.infoDesc, prometheus.GaugeValue, 1, info.ID, info.Health.Reason)
+			ch <- prometheus.MustNewConstMetric(c.infoDesc, prometheus.GaugeValue, 1, p.ID(), reason)
 		}
-		ch <- prometheus.MustNewConstMetric(c.stateDesc, prometheus.GaugeValue, v, info.ID)
+		ch <- prometheus.MustNewConstMetric(c.stateDesc, prometheus.GaugeValue, v, p.ID())
 	}
 }

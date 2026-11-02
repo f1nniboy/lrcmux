@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/f1nniboy/lrcmux/internal/cache"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/providers"
 )
@@ -54,7 +55,7 @@ func testProvider(t *testing.T, pipe func(w http.ResponseWriter, n int32)) (*Pro
 	t.Cleanup(srv.Close)
 	target, _ := url.Parse(srv.URL)
 	p := &Provider{}
-	p.SetDeps(&http.Client{Transport: redirect{target}}, nil, nil)
+	p.SetDeps(&http.Client{Transport: redirect{target}}, cache.NewMemory(), nil)
 	p.Init()
 	return p, &mints
 }

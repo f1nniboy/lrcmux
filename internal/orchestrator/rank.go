@@ -22,18 +22,27 @@ func (o *Orchestrator) pick(results []*lyrics.Result, level lyrics.SyncLevel) *l
 	return best
 }
 
-// reports whether a result is good enough to stop the fanout early
+// reports whether a result is good enough to stop the fanout early. an instrumental
+// never is, a provider can flag a song that another has lyrics for
 func satisfies(r *lyrics.Result, level lyrics.SyncLevel) bool {
-	return r.Instrumental || (r.SyncLevel >= level && censored(r) == 0)
+	return !r.Instrumental && r.SyncLevel >= level && censored(r) == 0
 }
 
 func rankResult(a, b *lyrics.Result) int {
 	return cmp.Or(
+		cmp.Compare(hasLyrics(a), hasLyrics(b)),
 		cmp.Compare(censored(b), censored(a)),
 		cmp.Compare(a.SyncLevel, b.SyncLevel),
 		cmp.Compare(len(a.Lines), len(b.Lines)),
 		cmp.Compare(b.Source.ID, a.Source.ID), // tiebreaker
 	)
+}
+
+func hasLyrics(r *lyrics.Result) int {
+	if r.Instrumental {
+		return 0
+	}
+	return 1
 }
 
 func censored(r *lyrics.Result) int {

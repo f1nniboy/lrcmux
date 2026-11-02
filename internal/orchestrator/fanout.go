@@ -43,6 +43,9 @@ func (o *Orchestrator) fanOut(ctx context.Context, active []providers.Provider, 
 			o.log.Debug("querying provider", "provider", p.ID())
 			start := time.Now()
 			r, err := p.Search(fanCtx, q)
+			if err == nil && r != nil && !r.Clean() {
+				r, err = nil, lyrics.ErrNotFound
+			}
 			ch <- providerOutcome{source: providers.Source(p), result: r, err: err, latency: time.Since(start)}
 		})
 	}

@@ -67,22 +67,6 @@ func (r *Redis) TTL(ctx context.Context, key string) (time.Duration, error) {
 	return d, nil
 }
 
-func (r *Redis) TTLMany(ctx context.Context, keys ...string) ([]time.Duration, error) {
-	pipe := r.client.Pipeline()
-	cmds := make([]*redis.DurationCmd, len(keys))
-	for i, k := range keys {
-		cmds[i] = pipe.TTL(ctx, k)
-	}
-	if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) {
-		return nil, fmt.Errorf("redis ttl pipeline: %w", err)
-	}
-	out := make([]time.Duration, len(keys))
-	for i, cmd := range cmds {
-		out[i] = cmd.Val()
-	}
-	return out, nil
-}
-
 func (r *Redis) Expire(ctx context.Context, key string, ttl time.Duration) error {
 	if err := r.client.Expire(ctx, key, ttl).Err(); err != nil {
 		return fmt.Errorf("redis expire: %w", err)

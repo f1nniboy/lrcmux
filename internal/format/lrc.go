@@ -19,32 +19,24 @@ func (lrcEncoder) SupportsInstrumental() bool        { return false }
 func (lrcEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 	bw := bufio.NewWriter(w)
 
-	switch r.SyncLevel {
-	case lyrics.SyncWord:
-		for _, line := range r.Lines {
-			fmt.Fprintf(bw, "[%s]", formatStamp(line.StartMs))
-			if len(line.Words) == 0 {
-				fmt.Fprintln(bw)
-				continue
-			}
-			for _, word := range line.Words {
-				fmt.Fprintf(bw, "<%s>%s", formatStamp(word.StartMs), word.Text)
-			}
-			fmt.Fprintln(bw)
-		}
-	case lyrics.SyncNone:
+	if r.SyncLevel == lyrics.SyncNone {
 		for _, line := range r.Lines {
 			fmt.Fprintln(bw, line.Text)
 		}
-	case lyrics.SyncLine:
-		for _, line := range r.Lines {
-			if line.Text != "" {
-				fmt.Fprintf(bw, "[%s] %s\n", formatStamp(line.StartMs), line.Text)
-			} else {
-				fmt.Fprintf(bw, "[%s]\n", formatStamp(line.StartMs))
+		return bw.Flush()
+	}
+	for _, line := range r.Lines {
+		fmt.Fprintf(bw, "[%s]", formatStamp(line.StartMs))
+		switch {
+		case r.SyncLevel == lyrics.SyncWord && len(line.Words) > 0:
+			for _, word := range line.Words {
+				fmt.Fprintf(bw, "<%s>%s", formatStamp(word.StartMs), word.Text)
 			}
+		case line.Text != "":
+			fmt.Fprintf(bw, " %s", line.Text)
+		default:
 		}
-	default:
+		fmt.Fprintln(bw)
 	}
 	return bw.Flush()
 }

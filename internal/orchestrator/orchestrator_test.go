@@ -59,7 +59,7 @@ func TestWorthQuerying(t *testing.T) {
 		{name: "nothing cached", want: []string{"word", "line", "none"}},
 		{name: "line cached", cached: []*lyrics.Result{result("cached", lyrics.SyncLine, "x")}, want: []string{"word"}},
 		{name: "word cached", cached: []*lyrics.Result{result("cached", lyrics.SyncWord, "x")}},
-		{name: "instrumental cached", cached: []*lyrics.Result{{Source: lyrics.Source{ID: "cached"}, Instrumental: true}}},
+		{name: "instrumental cached, the others may have lyrics", cached: []*lyrics.Result{{Source: lyrics.Source{ID: "cached"}, Instrumental: true}}, want: []string{"word", "line", "none"}},
 		{name: "censored word cached, anything clean beats it", cached: []*lyrics.Result{result("cached", lyrics.SyncWord, "c**sored")}, want: []string{"word", "line", "none"}},
 	}
 	for _, tc := range tests {

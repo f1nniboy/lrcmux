@@ -1,4 +1,6 @@
-**{{.AppName}}** is a lyrics aggregation API. It queries multiple providers, caches results, and returns the best available lyrics for a given track.
+> **For vibecoders:** a compact overview for agents is available at [llms.txt](https://{{.AppDomain}}/llms.txt).
+
+**{{.AppName}}** is a lyrics API that aggregates every public provider. It caches results and returns the best available lyrics for a given track.
 
 ## Providers
 
@@ -35,5 +37,5 @@ User-Agent: MyApp v1.0.0 (https://github.com/example/myapp)
 
 Up to **{{.RateLimit.Limit}}** requests per **{{.RateLimit.Window}}**, refilled evenly, with at most **{{.RateLimit.Burst}}** at once. Cache hits are free and do not count against the limit.
 
-You should respect the `Retry-After` header on 429 responses.
+Respect the `Retry-After` header on 429 responses.
 {{end}}

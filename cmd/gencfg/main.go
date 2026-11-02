@@ -54,7 +54,7 @@ func main() {
 			"deezer":     deezer.Provider{Common: enabled},
 			"genius":     genius.Provider{Common: providers.Common{Enable: true, Proxy: "mypool"}},
 			"kugou":      kugou.Provider{Common: enabled},
-			"lrclib":     lrclib.Provider{Common: enabled, BaseURL: "https://lrclib.net"},
+			"lrclib":     lrclib.Provider{Common: enabled, BaseURL: "https://lrclib.net", APIKey: "...", AppID: "..."},
 			"musixmatch": musixmatch.Provider{Common: enabled},
 			"netease":    netease.Provider{Common: enabled},
 			"ytmusic":    ytmusic.Provider{Common: enabled},

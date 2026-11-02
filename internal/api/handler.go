@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -30,9 +31,10 @@ type GetLyricsInput struct {
 	Level    string `query:"level" doc:"Highest sync level to accept, or exact level if strict is set" enum:"word,line,none" default:"word"`
 	Format   string `query:"format" doc:"Response format" enum:"lrc,txt,json,srt,vtt,lyricsfile" default:"json"`
 	Fetch    string `query:"fetch" doc:"Cache strategy" enum:"default,cache,force" default:"default"`
-	Sources  string `query:"sources" doc:"Comma-separated providers to restrict the fanout to, prefix with '!' to exclude"`
+	Sources  string `query:"sources" doc:"Comma-separated source IDs from /sources to restrict the fanout to, prefix with '!' to exclude"`
 	Duration int64  `query:"duration" doc:"Track duration in seconds"`
 	Strict   bool   `query:"strict" doc:"Fail instead of falling back to a lower sync level"`
+	Download bool   `query:"download" doc:"Send the lyrics as a file download instead of inline"`
 }
 
 var responseHeaders = map[string]*huma.Param{
@@ -150,11 +152,16 @@ func (s *Server) handleGet(ctx context.Context, input *GetLyricsInput) (resp *hu
 	}
 
 	filename := fmt.Sprintf("%s - %s.%s", sanitizeFilename(lyricsResp.Result.Track.Artist), sanitizeFilename(lyricsResp.Result.Track.Title), encoder.Extension())
+	disposition := "inline"
+	if input.Download {
+		disposition = "attachment"
+	}
 
 	return &huma.StreamResponse{
 		Body: func(ctx huma.Context) {
 			ctx.SetHeader("Content-Type", encoder.ContentType())
-			ctx.SetHeader("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
+			// spells a non-ascii name as filename*, which browsers decode
+			ctx.SetHeader("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": filename}))
 			ctx.SetHeader("X-Source", lyricsResp.Result.Source.ID)
 			ctx.SetHeader("X-Sync-Level", lyricsResp.Result.SyncLevel.String())
 			if lyricsResp.Cached {

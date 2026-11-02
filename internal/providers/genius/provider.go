@@ -160,23 +160,9 @@ func (p *Provider) scrape(ctx context.Context, pageURL string) ([]lyrics.Line, e
 		return nil, nil
 	}
 
-	// genius uses double <br> for section breaks, keep one blank per gap
 	var lines []lyrics.Line
 	for l := range strings.SplitSeq(raw.String(), "\n") {
-		t := strings.TrimSpace(l)
-		switch {
-		case lyrics.SectionMarker(t):
-		case t == "" && (len(lines) == 0 || lines[len(lines)-1].Text == ""):
-		default:
-			lines = append(lines, lyrics.Line{Text: t})
-		}
-	}
-	// pop off all remaining trailing blank lines
-	for len(lines) > 0 && lines[len(lines)-1].Text == "" {
-		lines = lines[:len(lines)-1]
-	}
-	if len(lines) == 0 {
-		return nil, nil
+		lines = append(lines, lyrics.Line{Text: strings.TrimSpace(l)})
 	}
 	return lines, nil
 }

@@ -8,12 +8,6 @@ import (
 	"strings"
 )
 
-// a transcriber's "[Chorus]" or "(Verse: Artist)", never sung, unlike an ad-lib "(yeah)"
-func SectionMarker(text string) bool {
-	return strings.HasPrefix(text, "[") && strings.HasSuffix(text, "]") ||
-		strings.HasPrefix(text, "(") && strings.HasSuffix(text, ")") && strings.Contains(text, ":")
-}
-
 func ParsePlain(s string) []Line {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	s = strings.TrimSpace(s)

@@ -14,7 +14,7 @@ type JSONMeta struct {
 }
 
 type JSONLine struct {
-	Text    string        `json:"text"`
+	Text    string        `json:"text" doc:"Empty for a break between stanzas"`
 	StartMs *int64        `json:"start,omitempty" doc:"in milliseconds"`
 	EndMs   *int64        `json:"end,omitempty" doc:"in milliseconds"`
 	Words   []lyrics.Word `json:"words,omitempty"`
@@ -46,9 +46,6 @@ func (jsonEncoder) Encode(w io.Writer, r *lyrics.Result) error {
 
 	lines := make([]JSONLine, 0, len(r.Lines))
 	for _, l := range r.Lines {
-		if l.Text == "" {
-			continue
-		}
 		line := JSONLine{Text: l.Text}
 		if r.SyncLevel >= lyrics.SyncLine {
 			start, end := l.StartMs, l.EndMs

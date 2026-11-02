@@ -13,6 +13,11 @@ func TestRankResult(t *testing.T) {
 		name string
 	}{
 		{
+			name: "any lyrics beat an instrumental flag",
+			a:    result("a", lyrics.SyncLine, "a*a"),
+			b:    &lyrics.Result{Source: lyrics.Source{ID: "b"}, Instrumental: true},
+		},
+		{
 			name: "higher sync beats more lines",
 			a:    result("a", lyrics.SyncWord, "x"),
 			b:    result("b", lyrics.SyncLine, "x", "y", "z"),

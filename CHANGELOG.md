@@ -1,5 +1,88 @@
 # Changelog
 
+## [1.8.0](https://github.com/f1nniboy/lrcmux/compare/v1.7.0...v1.8.0) (2026-11-03)
+
+
+### Features
+
+* **api:** add /sources and /version, drop /stats ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **api:** add download option to /get ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **config:** add instrumental cache ttl ([1c213a6](https://github.com/f1nniboy/lrcmux/commit/1c213a6baa4380155519bdf240ac7f9ba4861292))
+* **config:** name toml keys in validation errors, validate providers and proxies ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **format:** keep break lines in json and lrc ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **frontend:** fetch song lyrics client-side ([ef062c4](https://github.com/f1nniboy/lrcmux/commit/ef062c445d4a8dd16ccefa2016c7f5bc211bdf84))
+* **frontend:** redesign site ([7872403](https://github.com/f1nniboy/lrcmux/commit/7872403f5896748fed6eded1b60921c011ba5b0a))
+* **frontend:** show notice for instrumentals instead of blank box ([a17c821](https://github.com/f1nniboy/lrcmux/commit/a17c8217813a2a05d9120ee7673bdbbc0ae9a03f))
+* **lyrics:** normalize breaks and look-alike text across providers ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **metrics:** count fanout per request ([cf7456a](https://github.com/f1nniboy/lrcmux/commit/cf7456a268bcec98379cb50132526e609b7435f6))
+* **metrics:** count served lyrics per provider ([cf7456a](https://github.com/f1nniboy/lrcmux/commit/cf7456a268bcec98379cb50132526e609b7435f6))
+* **orchestrator:** open the breaker immediately on a rate limit with a ([5c24a0e](https://github.com/f1nniboy/lrcmux/commit/5c24a0e4dd96463dd31b816091ec466c0b2306ec))
+* **probe:** add cli that runs one lookup through orchestrator ([d27ee37](https://github.com/f1nniboy/lrcmux/commit/d27ee37321d28a5a85ef341a8f20380022f8febe))
+* **providers/deezer:** add ([d27ee37](https://github.com/f1nniboy/lrcmux/commit/d27ee37321d28a5a85ef341a8f20380022f8febe))
+* **providers/lrclib:** add app credentials ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **providers:** respect Retry-After on provider ratelimit ([5c24a0e](https://github.com/f1nniboy/lrcmux/commit/5c24a0e4dd96463dd31b816091ec466c0b2306ec))
+* **providers:** send a browser user agent by default ([7fac359](https://github.com/f1nniboy/lrcmux/commit/7fac359e5df61c263e086b380c6796b580822acf))
+
+
+### Bug fixes
+
+* **filter:** ignore unknown source names ([6089ffd](https://github.com/f1nniboy/lrcmux/commit/6089ffd59b4ee00d530d47e8620d9d3665e20c03))
+* **format/lyricsfile:** change extension ([2b03822](https://github.com/f1nniboy/lrcmux/commit/2b03822e2611b3eea27d1ff5b44d1ddcfd2a15cd))
+* **frontend:** attribute lyrics source with "via" instead of copyright symbol ([6246ebd](https://github.com/f1nniboy/lrcmux/commit/6246ebdfeed65c1adc2ef95a04d71b385cdc8275)), closes [#9](https://github.com/f1nniboy/lrcmux/issues/9)
+* **isrc:** match co-artist through the track's credits ([d27ee37](https://github.com/f1nniboy/lrcmux/commit/d27ee37321d28a5a85ef341a8f20380022f8febe))
+* **isrc:** reject deezer matches backed just by fuzzy title ([7a24950](https://github.com/f1nniboy/lrcmux/commit/7a2495016b6eb89e78bf381aef722d24ad968fcd))
+* **isrc:** rework track matching to stop false matches ([f1b95cc](https://github.com/f1nniboy/lrcmux/commit/f1b95ccff4cf11d9d5d606d94a373eb54a45a866))
+* **metrics:** extend latency buckets ([cf7456a](https://github.com/f1nniboy/lrcmux/commit/cf7456a268bcec98379cb50132526e609b7435f6))
+* **normalize:** match artists with genius disambiguation suffix ([a8cb968](https://github.com/f1nniboy/lrcmux/commit/a8cb9681011b62326ef14ab01777eb847ea4db4b))
+* **orchestrator:** charge before first upstream work ([d27ee37](https://github.com/f1nniboy/lrcmux/commit/d27ee37321d28a5a85ef341a8f20380022f8febe))
+* **orchestrator:** keep escalating while a lower tier can beat the pick ([1c213a6](https://github.com/f1nniboy/lrcmux/commit/1c213a6baa4380155519bdf240ac7f9ba4861292))
+* **orchestrator:** keep searching when a provider flags an instrumental ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **orchestrator:** search lower tiers when the best result is censored ([3d88275](https://github.com/f1nniboy/lrcmux/commit/3d88275eb61a1a2604426080d62631d9baadf938))
+* **providers/kugou:** drop section markers and translations in lyrics ([d27ee37](https://github.com/f1nniboy/lrcmux/commit/d27ee37321d28a5a85ef341a8f20380022f8febe))
+* **providers/kugou:** fix name capitalization ([c1a304c](https://github.com/f1nniboy/lrcmux/commit/c1a304cf8cd92af60262e90c2d47192cce0b9598))
+* **providers/lrclib:** treat 503 as rate limit ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **providers/musixmatch:** find signing key in minified bundles ([12c5016](https://github.com/f1nniboy/lrcmux/commit/12c5016ab5bfafca9bb1f388d2f6db18a449fd2b))
+* **providers/musixmatch:** merge whitespace-only words into preceding word ([2d4dd8f](https://github.com/f1nniboy/lrcmux/commit/2d4dd8f71ec10e2a7cbb043ed5fe51fafe42166c))
+* **providers/musixmatch:** read signing key from the app chunks ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **providers/musixmatch:** switch to signed api, plain lyrics only ([597fc35](https://github.com/f1nniboy/lrcmux/commit/597fc3525f62dea6858b1183d620218b2484d7e9))
+* **providers/ytmusic:** keep first line when it starts at 0ms ([d8e0be6](https://github.com/f1nniboy/lrcmux/commit/d8e0be617865025ca3f7a6b3e7b2909cc1076d70))
+* **providers:** skip the retry when a renewed secret is unchanged ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **ratelimit:** count ipv6 clients per /64, cap bursts ([d27ee37](https://github.com/f1nniboy/lrcmux/commit/d27ee37321d28a5a85ef341a8f20380022f8febe))
+
+
+### Performance
+
+* **isrc:** cache search resolutions ([f1b95cc](https://github.com/f1nniboy/lrcmux/commit/f1b95ccff4cf11d9d5d606d94a373eb54a45a866))
+* **providers/genius:** fetch lyrics from embed script instead of song page ([cf7456a](https://github.com/f1nniboy/lrcmux/commit/cf7456a268bcec98379cb50132526e609b7435f6))
+* **providers/musixmatch:** serve ready tokens without blocking on fetch ([822ce89](https://github.com/f1nniboy/lrcmux/commit/822ce89f2296adaa83c099d2e5ab1faab60aa7a5))
+* **providers:** share secrets across instances through cache ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **proxy:** reuse connections within one lookup ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+
+
+### Documentation
+
+* **api:** document line/word start/end field unit ([7732831](https://github.com/f1nniboy/lrcmux/commit/7732831129b65c8abb120444fa0e705d66dd87cb))
+
+
+### Refactors
+
+* **api/lrclib:** take encoder name in renderFormat directly ([b9459b6](https://github.com/f1nniboy/lrcmux/commit/b9459b646da3e27a8784fc959dc65ca69e9d5201))
+* **format:** clean up lyricsfile parser ([b9459b6](https://github.com/f1nniboy/lrcmux/commit/b9459b646da3e27a8784fc959dc65ca69e9d5201))
+* **frontend:** use attribute interpolation for hrefs ([bb4f14c](https://github.com/f1nniboy/lrcmux/commit/bb4f14c1a571e086e31c016ec2beedf7a3f6a671))
+* **metrics:** drop separate cache counter ([cf7456a](https://github.com/f1nniboy/lrcmux/commit/cf7456a268bcec98379cb50132526e609b7435f6))
+* **orchestrator:** reeport open circuits only instead of provider health ([c356777](https://github.com/f1nniboy/lrcmux/commit/c35677754acf4ddd590f91c58a2a4b5f156cc616))
+* **orchestrator:** type fetch modes ([d27ee37](https://github.com/f1nniboy/lrcmux/commit/d27ee37321d28a5a85ef341a8f20380022f8febe))
+* **providers:** move provider registry into its own package ([d27ee37](https://github.com/f1nniboy/lrcmux/commit/d27ee37321d28a5a85ef341a8f20380022f8febe))
+* **providers:** use one shared secret type ([d27ee37](https://github.com/f1nniboy/lrcmux/commit/d27ee37321d28a5a85ef341a8f20380022f8febe))
+* turn deezer and lrclib response conversions into methods ([8133555](https://github.com/f1nniboy/lrcmux/commit/81335559b8f787da5bcb3b7a10dfa22a1d6cf826))
+
+
+### Build
+
+* **deps:** bump ([78e92dd](https://github.com/f1nniboy/lrcmux/commit/78e92dd6845020fabdaf7654abe3174267e1dbca))
+* **deps:** bump ([bb4f14c](https://github.com/f1nniboy/lrcmux/commit/bb4f14c1a571e086e31c016ec2beedf7a3f6a671))
+* **deps:** bump ([88644b3](https://github.com/f1nniboy/lrcmux/commit/88644b32bc1f29c99271633c4c4fc59392e5965f))
+
 ## [1.7.0](https://github.com/f1nniboy/lrcmux/compare/v1.6.0...v1.7.0) (2026-07-27)
 
 

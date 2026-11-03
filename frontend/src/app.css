@@ -1,75 +1,181 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
 @theme {
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, sans-serif;
+    "Geist Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --color-paper: var(--paper);
-  --color-paper-2: var(--paper-2);
-  --color-ink: var(--ink);
-  --color-muted: var(--ink-2);
-  --color-rule: var(--rule);
-  --color-cue: var(--cue);
-  --color-peak: var(--peak);
+  --color-background: light-dark(oklch(0.972 0.008 85), oklch(0.13 0.006 60));
+  --color-foreground: light-dark(oklch(0.16 0.012 60), oklch(0.96 0.005 60));
+  --color-card: light-dark(oklch(0.99 0.004 85), oklch(0.165 0.006 60));
+  --color-muted: light-dark(oklch(0.94 0.01 85), oklch(0.2 0.006 60));
+  --color-hover: light-dark(
+    oklch(0.16 0.012 60 / 0.06),
+    oklch(0.96 0.005 60 / 0.08)
+  );
+  --color-muted-foreground: light-dark(
+    oklch(0.46 0.008 60),
+    oklch(0.68 0.01 60)
+  );
+  --color-border: light-dark(oklch(0.88 0.008 70), oklch(0.26 0.006 60));
+  --color-border-strong: light-dark(oklch(0.8 0.01 70), oklch(0.34 0.006 60));
+  --color-danger: light-dark(oklch(0.55 0.2 30), oklch(0.72 0.18 35));
+  --color-cue: #ffb300;
+  --color-cue-foreground: #1c1c1c;
+  --color-cue-text: light-dark(oklch(0.5 0.12 65), #ffb300);
+  --color-raised: light-dark(oklch(0.99 0.004 85), oklch(0.2 0.006 60));
+  --color-inset: light-dark(oklch(0.94 0.01 85), oklch(0.13 0.006 60));
+
+  --shadow-popover:
+    0 10px 30px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.5)),
+    0 2px 6px light-dark(rgb(0 0 0 / 0.04), rgb(0 0 0 / 0.3));
+}
+
+:root {
+  color-scheme: light dark;
 }
 
 @layer base {
-  :root {
-    --paper: oklch(0.972 0.008 85);
-    --paper-2: oklch(0.94 0.01 85);
-    --ink: oklch(0.16 0.012 60);
-    --ink-2: oklch(0.46 0.008 60);
-    --rule: oklch(0.85 0.008 60);
-    --cue: oklch(0.74 0.165 75);
-    --peak: oklch(0.6 0.22 25);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --paper: oklch(0.13 0.006 60);
-      --paper-2: oklch(0.175 0.006 60);
-      --ink: oklch(0.96 0.005 60);
-      --ink-2: oklch(0.6 0.012 60);
-      --rule: oklch(0.26 0.006 60);
-      --cue: oklch(0.83 0.18 75);
-      --peak: oklch(0.72 0.24 25);
-    }
-  }
-
-  html,
   body {
-    height: 100%;
+    @apply bg-background font-sans text-foreground antialiased;
   }
-
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--font-sans);
-  }
-
   ::selection {
-    background: var(--cue);
-    color: var(--paper);
+    @apply bg-cue text-cue-foreground;
   }
-
-  *:focus-visible {
-    outline: 2px solid var(--cue);
-    outline-offset: 3px;
-    border-radius: 2px;
+  button:not(:disabled),
+  [role="option"] {
+    cursor: pointer;
   }
+  :disabled {
+    cursor: not-allowed;
+  }
+  input[type="search"]::-webkit-search-cancel-button {
+    appearance: none;
+  }
+  :focus-visible {
+    @apply rounded-md outline-2 outline-offset-2 outline-muted-foreground;
+  }
+}
 
-  body::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: -1;
-    opacity: 0.04;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 256px 256px;
+@utility page {
+  @apply mx-auto flex w-full max-w-3xl min-w-0 flex-col px-5 sm:px-8;
+}
+
+@utility surface {
+  @apply rounded-xl border border-border bg-card;
+}
+
+@utility button {
+  @apply inline-flex h-(--button-height,--spacing(9)) items-center justify-center gap-2 rounded-lg border border-border-strong bg-card px-(--button-padding,--spacing(3.5)) text-(length:--button-text,var(--text-sm)) font-medium whitespace-nowrap transition-colors hover:bg-muted disabled:opacity-50;
+}
+
+@utility button-lg {
+  --button-height: --spacing(11);
+  --button-padding: --spacing(5);
+  --button-text: var(--text-base);
+}
+
+@utility button-cue {
+  @apply button border-cue bg-cue text-cue-foreground hover:border-cue hover:bg-cue/85;
+}
+
+@utility icon-button {
+  @apply inline-grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-hover hover:text-foreground;
+}
+
+@utility link {
+  @apply text-cue-text underline decoration-cue-text/30 underline-offset-3 transition-colors hover:decoration-cue-text;
+}
+
+@utility nav-item {
+  @apply inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors;
+}
+
+@utility nav-link {
+  @apply nav-item text-muted-foreground hover:bg-hover hover:text-foreground;
+}
+
+@utility nav-cue {
+  @apply nav-item bg-cue/15 font-medium text-cue-text hover:bg-cue/25;
+}
+
+@utility section-title {
+  @apply text-2xl font-semibold tracking-tight;
+}
+
+@utility card-button {
+  @apply surface transition-colors hover:border-border-strong hover:bg-muted/40;
+}
+
+@utility tag {
+  @apply rounded-full border border-border px-2 text-xs/5 text-muted-foreground;
+}
+
+@utility tag-cue {
+  @apply tag border-transparent bg-cue/15 font-medium text-cue-text;
+}
+
+@utility menu-item {
+  @apply flex cursor-pointer items-center justify-between gap-6 rounded-lg px-2.5 py-2 text-sm outline-none data-highlighted:bg-hover;
+}
+
+@utility dialog-overlay {
+  @apply fixed inset-0 z-40 fade bg-black/40;
+}
+
+@utility dialog {
+  @apply fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-md -translate-1/2 pop flex-col gap-5 overflow-y-auto popover p-5;
+}
+
+@utility popover {
+  @apply rounded-xl border border-border bg-raised shadow-popover;
+}
+
+@utility pop {
+  @apply motion-safe:data-[state=closed]:animate-[pop-out_100ms_ease-in] motion-safe:data-[state=open]:animate-[pop-in_140ms_ease-out];
+}
+
+@utility fade {
+  @apply motion-safe:data-[state=closed]:animate-[fade-out_120ms_ease-in] motion-safe:data-[state=open]:animate-[fade-in_160ms_ease-out];
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
+@keyframes pop-out {
+  to {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+::view-transition-group(root) {
+  animation-duration: 150ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
   }
 }

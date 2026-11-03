@@ -19,6 +19,11 @@ export interface LyricsSource {
   url?: string;
 }
 
+export interface Source extends LyricsSource {
+  level: SyncLevel;
+  desc: string;
+}
+
 export interface LyricsMeta {
   source?: LyricsSource;
   level: SyncLevel;
@@ -46,11 +51,13 @@ export interface Track {
   cover: TrackCover;
 }
 
-export type LyricsFormat = "lrc" | "txt" | "json" | "srt" | "vtt";
+export type LyricsFormat =
+  "lrc" | "txt" | "json" | "srt" | "vtt" | "lyricsfile";
 
 export interface DeezerArtist {
   id: number;
   name: string;
+  nb_fan?: number;
   picture_small?: string;
   picture_medium?: string;
   picture_big?: string;
@@ -68,7 +75,7 @@ export interface DeezerTrack {
   id: number;
   title: string;
   title_short: string;
-  isrc: string;
+  isrc?: string;
   duration: number;
   preview?: string;
   explicit_lyrics?: boolean;

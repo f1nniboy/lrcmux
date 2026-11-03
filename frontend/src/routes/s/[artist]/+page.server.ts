@@ -6,7 +6,6 @@ import {
   deezerToAPITrack,
 } from "$lib/deezer";
 import type { PageServerLoad } from "./$types";
-import type { Track } from "$lib/types";
 
 export const load: PageServerLoad = async ({ params, fetch, setHeaders }) => {
   const name = fromSlug(params.artist);
@@ -14,11 +13,9 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders }) => {
   const artist = await getArtistByName({ fetch }, name);
   if (!artist) error(404, "We couldn't find this artist.");
 
-  const deezerTracks = await getArtistTopTracks({ fetch }, artist.id);
-  const tracks: Track[] = deezerTracks.map((dt) => ({
-    ...deezerToAPITrack(dt),
-    isrc: dt.isrc || String(dt.id),
-  }));
+  const tracks = (await getArtistTopTracks({ fetch }, artist.id)).map(
+    deezerToAPITrack,
+  );
 
   setHeaders({ "cache-control": "public, max-age=86400" });
   return { artist, tracks };

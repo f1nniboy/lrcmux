@@ -12,7 +12,7 @@
   style:height="{size}px"
   style:border-width="{stroke}px"
   style:border-top-color="transparent"
-  class="inline-block rounded-full animate-spin align-middle opacity-70 box-border border-current border-solid"
+  class="box-border inline-block animate-spin rounded-full border-solid border-current align-middle opacity-70"
   aria-label="Loading"
   role="status"
 ></span>

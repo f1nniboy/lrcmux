@@ -1,10 +1,9 @@
 <script lang="ts">
-  interface Props {
-    class?: string;
-  }
-  let { class: cls = "" }: Props = $props();
+  import type { ClassValue } from "svelte/elements";
+
+  let { class: cls }: { class?: ClassValue } = $props();
 </script>
 
-<span class="font-bold {cls}"
-  ><span class="text-ink">lrc</span><span class="text-cue">mux</span></span
+<span class={["font-bold tracking-tight", cls]}
+  >lrc<span class="text-cue">mux</span></span
 >

@@ -1,54 +1,27 @@
 <script lang="ts">
   import "../app.css";
+  import { setLucideProps } from "@lucide/svelte";
+  import { onNavigate } from "$app/navigation";
   import Header from "$components/Header.svelte";
-  import { navigating } from "$app/state";
-  import { fade } from "svelte/transition";
 
   let { children } = $props();
+
+  setLucideProps({ size: 16, strokeWidth: 1.75 });
+
+  onNavigate((navigation) => {
+    if (!document.startViewTransition) return;
+    return new Promise((resolve) => {
+      document.startViewTransition(async () => {
+        resolve();
+        await navigation.complete;
+      });
+    });
+  });
 </script>
 
-<svelte:head>
-  <script async src="/x/script.js"></script>
-  <script>
-    window.plausible =
-      window.plausible ||
-      function () {
-        (plausible.q = plausible.q || []).push(arguments);
-      };
-    plausible.init =
-      plausible.init ||
-      function (i) {
-        plausible.o = i || {};
-      };
-    plausible.init({ endpoint: "/x/event" });
-  </script>
-</svelte:head>
-
-{#if navigating.to}
-  <div
-    class="nav-bar fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-cue"
-    out:fade={{ duration: 200 }}
-  ></div>
-{/if}
-
-<div class="min-h-screen flex flex-col">
+<div class="flex min-h-screen flex-col">
   <Header />
-  <main class="flex-1 flex flex-col items-center">
+  <main class="flex flex-1 flex-col">
     {@render children()}
   </main>
 </div>
-
-<style>
-  .nav-bar {
-    animation: nav-bar-fill 6s ease-out forwards;
-  }
-
-  @keyframes nav-bar-fill {
-    from {
-      transform: scaleX(0);
-    }
-    to {
-      transform: scaleX(0.85);
-    }
-  }
-</style>

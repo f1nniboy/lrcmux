@@ -8,7 +8,7 @@ import type {
 const BASE_URL = "https://api.deezer.com";
 
 export interface DeezerRequestOptions {
-  fetch?: typeof globalThis.fetch;
+  fetch: typeof globalThis.fetch;
   signal?: AbortSignal;
 }
 
@@ -24,8 +24,7 @@ async function deezerRequest<T>(
   const url = new URL(`${BASE_URL}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-  const fetchFn = opts.fetch ?? globalThis.fetch;
-  const res = await fetchFn(url.toString(), { signal: opts.signal });
+  const res = await opts.fetch(url.toString(), { signal: opts.signal });
   if (!res.ok) throw new Error(`Deezer request failed (${res.status})`);
   const data: unknown = await res.json();
 
@@ -37,7 +36,8 @@ async function deezerRequest<T>(
 
 export function deezerToAPITrack(dt: DeezerTrack): Track {
   return {
-    isrc: dt.isrc,
+    // chart and top-track listings have no isrc, the deezer id works as a list key
+    isrc: dt.isrc ?? String(dt.id),
     title: dt.title,
     duration: dt.duration,
     artist: dt.artist.name,
@@ -72,16 +72,16 @@ export async function searchDeezer(
   );
 }
 
-export async function getTrending(
+export async function getChart(
   opts: DeezerRequestOptions,
-  limit = 12,
+  limit: number,
 ): Promise<DeezerTrack[]> {
   const data = await deezerRequest<DeezerSearchResponse>(
     opts,
     "/chart/0/tracks",
     { limit: String(limit) },
   );
-  return (data.data ?? []).filter((t) => t.title && t.artist?.name);
+  return data.data ?? [];
 }
 
 export async function getArtistByName(
@@ -91,9 +91,15 @@ export async function getArtistByName(
   const data = await deezerRequest<{ data: DeezerArtist[] }>(
     opts,
     "/search/artist",
-    { q: name, limit: "1" },
+    { q: name, limit: "10" },
   );
-  return data.data?.[0] ?? null;
+  const artists = data.data ?? [];
+  // deezer can rank a similar name first, and several artists can share one name
+  const wanted = name.toLowerCase();
+  const exact = artists
+    .filter((a) => a.name.toLowerCase() === wanted)
+    .sort((a, b) => (b.nb_fan ?? 0) - (a.nb_fan ?? 0));
+  return exact[0] ?? artists[0] ?? null;
 }
 
 export async function getArtistTopTracks(

@@ -40,3 +40,7 @@ export function debounce<Args extends unknown[], T>(
 
   return { run, abort };
 }
+
+export function fmtDuration(s: number): string {
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}

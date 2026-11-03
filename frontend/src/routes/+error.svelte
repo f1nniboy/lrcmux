@@ -24,21 +24,12 @@
   <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<div
-  class="flex-1 flex flex-col items-center justify-center gap-6 px-5 min-w-0"
->
-  <h1 class="text-9xl font-black text-cue tracking-tight leading-none">
-    {page.status}
-  </h1>
-  <p class="text-muted text-center max-w-sm">
-    {message}
-  </p>
-  {#if page.url.pathname !== resolve("/")}
-    <a
-      class="inline-flex items-center gap-1.5 text-sm font-medium text-paper bg-ink px-4 py-2 rounded-md hover:opacity-80 transition-all no-underline"
-      href={resolve("/")}
-    >
-      Go home
-    </a>
+<div class="page flex-1 items-center justify-center gap-6 py-24 text-center">
+  <div class="flex flex-col gap-1.5">
+    <p class="font-mono text-sm text-cue-text">{page.status}</p>
+    <h1 class="section-title">{message}</h1>
+  </div>
+  {#if page.route.id !== "/"}
+    <a class="button" href={resolve("/")}>Go home</a>
   {/if}
 </div>

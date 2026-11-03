@@ -1,116 +1,170 @@
 <script lang="ts">
+  import { Search } from "@lucide/svelte";
+  import { goto } from "$app/navigation";
   import { debounce } from "$lib/utils";
+  import { resolve } from "$app/paths";
+  import { toSlug } from "$lib/slug";
   import type { Track } from "$lib/types";
-  import Spinner from "$components/Spinner.svelte";
-  import TrackItem from "./TrackItem.svelte";
+  import Spinner from "./Spinner.svelte";
+  import TrackRow from "./TrackRow.svelte";
 
-  interface Props {
-    slim?: boolean;
-  }
-  let { slim = false }: Props = $props();
+  let { large = false }: { large?: boolean } = $props();
 
+  const id = $props.id();
+
+  let root = $state<HTMLDivElement>();
   let query = $state("");
   let tracks = $state<Track[]>([]);
+  // the highlighted result, none until the mouse or the arrow keys pick one
+  let active = $state(-1);
   let loading = $state(false);
-  let error = $state<string | null>(null);
+  let error = $state<string>();
+  let open = $state(false);
 
   const search = debounce(async (signal: AbortSignal, q: string) => {
-    const p = new URLSearchParams({ q, limit: "5" });
-    const res = await fetch(`/api/search?${p}`, { signal });
+    const res = await fetch(
+      `/api/search?${new URLSearchParams({ q, limit: "5" })}`,
+      { signal },
+    );
     if (!res.ok) throw new Error("Search failed");
     return res.json() as Promise<Track[]>;
   }, 300);
 
-  const showDropdown = $derived(
-    query.trim().length >= 2 && (!!error || tracks.length > 0 || !loading),
+  const showResults = $derived(
+    open &&
+      query.trim().length >= 2 &&
+      (!!error || tracks.length > 0 || !loading),
   );
-
-  const dropdownClass = $derived(
-    slim
-      ? "fixed inset-x-0 top-14 border-y border-rule bg-paper shadow-lg z-50 overflow-hidden sm:absolute sm:inset-x-0 sm:top-full sm:mt-1 sm:border sm:rounded-lg"
-      : "absolute top-full left-0 right-0 z-50 mt-1 border border-rule rounded-lg bg-paper shadow-lg overflow-hidden",
-  );
+  const listed = $derived(showResults && !error && tracks.length > 0);
+  const status = $derived.by(() => {
+    if (!showResults) return "";
+    if (error) return error;
+    if (!tracks.length) return "No matches.";
+    return tracks.length === 1 ? "1 result" : `${tracks.length} results`;
+  });
 
   $effect(() => {
     const q = query.trim();
     if (q.length < 2) {
       tracks = [];
       loading = false;
-      error = null;
+      error = undefined;
       search.abort();
       return;
     }
     loading = true;
-    error = null;
-    search
-      .run(q)
-      .then((r) => {
+    error = undefined;
+    search.run(q).then(
+      (r) => {
         tracks = r;
+        active = -1;
         loading = false;
-      })
-      .catch((e: Error) => {
+      },
+      (e: Error) => {
         if (e.name === "AbortError") return;
         loading = false;
-        error = e.message ?? "Search failed";
-      });
+        error = e.message;
+      },
+    );
   });
+
+  function close() {
+    open = false;
+    query = "";
+  }
+
+  function onkeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") return close();
+    if (!listed) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const n = tracks.length;
+      if (e.key === "ArrowDown") active = (active + 1) % n;
+      else active = active <= 0 ? n - 1 : active - 1;
+    } else if (e.key === "Enter" && active >= 0) {
+      e.preventDefault();
+      const track = tracks[active];
+      close();
+      void goto(
+        resolve("/s/[artist]/[title]", {
+          artist: toSlug(track.artist),
+          title: toSlug(track.title),
+        }),
+      );
+    }
+  }
 </script>
 
-<div class="w-full relative">
+<div
+  bind:this={root}
+  class="relative w-full"
+  onfocusout={(e) => {
+    if (!root?.contains(e.relatedTarget as Node)) open = false;
+  }}
+>
   <label
-    class="flex items-center {slim
-      ? 'gap-2 px-4 py-2.5'
-      : 'gap-3 px-5 py-4'} border border-rule rounded-lg focus-within:border-cue transition-colors bg-paper-2"
+    class={[
+      "flex items-center rounded-xl border border-border-strong bg-card transition-colors focus-within:border-cue-text",
+      large ? "h-16 gap-4 px-5" : "h-9 gap-2 rounded-lg px-3",
+    ]}
   >
-    <svg
-      class="{slim ? 'w-4 h-4' : 'w-5 h-5'} text-muted shrink-0"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2.5"
-      viewBox="0 0 24 24"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" stroke-linecap="round" />
-    </svg>
-    <span class="sr-only">Search for a track</span>
+    <Search class="shrink-0 text-muted-foreground" size={large ? 22 : 15} />
+    <span class="sr-only">Search for a track...</span>
     <input
-      class="flex-1 bg-transparent outline-none text-ink {slim
-        ? 'text-sm min-w-0'
-        : 'text-base sm:text-lg'} placeholder:text-muted/70"
+      class={[
+        "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
+        large ? "text-lg sm:text-xl" : "text-sm",
+      ]}
+      aria-activedescendant={listed && active >= 0
+        ? `${id}-${active}`
+        : undefined}
+      aria-autocomplete="list"
+      aria-controls={listed ? `${id}-list` : undefined}
+      aria-expanded={listed}
       autocomplete="off"
-      placeholder={slim ? "Search..." : "Search for a track..."}
+      onfocus={() => (open = true)}
+      oninput={() => (open = true)}
+      {onkeydown}
+      placeholder="Search for a track..."
+      role="combobox"
       spellcheck="false"
       type="search"
       bind:value={query}
     />
     {#if loading}
-      <span class="text-muted shrink-0 flex items-center"
-        ><Spinner size={18} /></span
+      <span class="flex shrink-0 text-muted-foreground" aria-hidden="true"
+        ><Spinner size={16} /></span
       >
     {/if}
   </label>
 
-  {#if showDropdown}
-    <div class={dropdownClass}>
+  <p class="sr-only" role="status">{status}</p>
+
+  {#if showResults}
+    <!-- keeps focus in the input, so a click on a result lands before the popup closes -->
+    <div
+      class="absolute inset-x-0 top-full z-40 mt-1.5 overflow-hidden popover p-1"
+      onmousedown={(e) => e.preventDefault()}
+      role="presentation"
+    >
       {#if error}
-        <p class="px-4 py-3 text-sm text-peak">{error}</p>
+        <p class="px-3 py-2.5 text-sm text-danger">{error}</p>
       {:else if tracks.length}
-        <ul class="divide-y divide-rule">
-          {#each tracks as track (track.isrc)}
-            <li>
-              <TrackItem
-                onclick={() => {
-                  query = "";
-                  tracks = [];
-                }}
+        <ul id="{id}-list" onpointerleave={() => (active = -1)} role="listbox">
+          {#each tracks as track, i (track.isrc)}
+            <li id="{id}-{i}" aria-selected={i === active} role="option">
+              <TrackRow
+                active={i === active}
+                onclick={close}
+                onpointerenter={() => (active = i)}
+                tabindex={-1}
                 {track}
               />
             </li>
           {/each}
         </ul>
-      {:else if !loading}
-        <p class="px-4 py-3 text-sm text-muted">No matches.</p>
+      {:else}
+        <p class="px-3 py-2.5 text-sm text-muted-foreground">No matches.</p>
       {/if}
     </div>
   {/if}

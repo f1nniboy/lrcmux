@@ -1,9 +1,9 @@
 <script lang="ts">
   import Meta from "$lib/Meta.svelte";
-  import TrackItem from "$components/TrackItem.svelte";
-  import type { PageData } from "./$types";
+  import Cover from "$components/Cover.svelte";
+  import TrackRow from "$components/TrackRow.svelte";
 
-  let { data }: { data: PageData } = $props();
+  let { data } = $props();
 </script>
 
 <Meta
@@ -12,33 +12,31 @@
   title={data.artist.name}
 />
 
-<div
-  class="w-full max-w-3xl min-w-0 px-5 sm:px-8 pt-12 pb-16 flex flex-col gap-8"
->
-  <header class="flex items-center gap-5">
-    {#if data.artist.picture_medium}
-      <img
-        class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-md shrink-0"
-        alt=""
-        src={data.artist.picture_medium}
-      />
-    {:else}
-      <div
-        class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-paper-2 shrink-0"
-      ></div>
-    {/if}
-    <h1 class="text-3xl sm:text-4xl font-bold text-ink leading-tight">
+<div class="page gap-10 pt-10 pb-24 sm:pt-14">
+  <header class="flex items-center gap-5 sm:gap-6">
+    <Cover
+      class="size-28 sm:size-44"
+      round
+      src={data.artist.picture_big ?? data.artist.picture_medium}
+    />
+    <h1
+      class="text-3xl/tight font-semibold tracking-tight text-balance sm:text-4xl/tight"
+    >
       {data.artist.name}
     </h1>
   </header>
 
-  {#if data.tracks.length > 0}
-    <div class="divide-y divide-rule">
-      {#each data.tracks as track (track.isrc)}
-        <TrackItem {track} />
-      {/each}
-    </div>
-  {:else}
-    <p class="text-muted text-sm">No top tracks available.</p>
-  {/if}
+  <section>
+    {#if data.tracks.length > 0}
+      <ul class="-mx-2.5">
+        {#each data.tracks as track (track.isrc)}
+          <li>
+            <TrackRow artist={track.artist !== data.artist.name} {track} />
+          </li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="text-muted-foreground">No top tracks available.</p>
+    {/if}
+  </section>
 </div>

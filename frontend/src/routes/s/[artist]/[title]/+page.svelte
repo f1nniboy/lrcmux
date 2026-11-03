@@ -1,179 +1,199 @@
-<script lang="ts">
+<script lang="ts" module>
   import type { LyricsResult } from "$lib/types";
-  import type { PageData } from "./+page.server";
+
+  type Outcome =
+    | { ok: true; result: LyricsResult }
+    | { ok: false; code: number; message: string; retryAfter?: number };
+
+  async function fetchLyrics(url: string): Promise<Outcome> {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return { ok: true, result: await res.json() };
+      const body = await res.json().catch(() => null);
+      return {
+        ok: false,
+        code: res.status,
+        message: body?.detail ?? `Request failed with status ${res.status}`,
+        retryAfter: Number(res.headers.get("Retry-After")) || undefined,
+      };
+    } catch (e) {
+      return { ok: false, code: 0, message: (e as Error).message };
+    }
+  }
+</script>
+
+<script lang="ts">
+  import { browser } from "$app/environment";
+  import ExternalLink from "$components/ExternalLink.svelte";
   import { resolve } from "$app/paths";
   import { toSlug } from "$lib/slug";
   import { API_URL } from "$lib/env";
+  import { fmtDuration } from "$lib/utils";
+  import {
+    ArrowUpRight,
+    AudioLines,
+    Clock,
+    Disc3,
+    Radio,
+  } from "@lucide/svelte";
   import Meta from "$lib/Meta.svelte";
+  import Cover from "$components/Cover.svelte";
+  import DownloadMenu from "$components/DownloadMenu.svelte";
+  import Lyrics from "$components/Lyrics.svelte";
   import Spinner from "$components/Spinner.svelte";
-  import UseItInYourApp from "$components/UseItInYourApp.svelte";
 
-  let { data }: { data: PageData } = $props();
+  let { data } = $props();
 
-  type FetchState =
-    | { status: "loading" }
-    | { status: "ok"; result: LyricsResult }
-    | { status: "error"; code: number; message: string; retryAfter?: number };
-
-  let fetchState = $state<FetchState>({ status: "loading" });
-
-  const lyrics = $derived<LyricsResult | null>(
-    data.lyrics ?? (fetchState.status === "ok" ? fetchState.result : null),
-  );
-
-  const track = $derived(lyrics?.track);
-
-  const description = $derived(
-    lyrics
-      ? `View the full lyrics for ${lyrics.track.title} by ${lyrics.track.artist}.`
+  // a miss is fetched by the browser, so it counts against the visitor's rate limit
+  // rather than the one the site's server shares with everyone
+  const pending = $derived(
+    !data.lyrics && browser
+      ? fetchLyrics(
+          `${API_URL}/get?${new URLSearchParams({ artist: data.artist, title: data.title })}`,
+        )
       : undefined,
   );
-
-  $effect(() => {
-    if (data.lyrics) return;
-
-    fetchState = { status: "loading" };
-    const controller = new AbortController();
-    const p = new URLSearchParams({ artist: data.artist, title: data.title });
-
-    fetch(`${API_URL}/get?${p}`, { signal: controller.signal })
-      .then(async (res) => {
-        if (res.ok) {
-          fetchState = { status: "ok", result: await res.json() };
-          return;
-        }
-        const body = await res.json().catch(() => null);
-        fetchState = {
-          status: "error",
-          code: res.status,
-          message: body?.detail ?? `Request failed with status ${res.status}`,
-          retryAfter:
-            parseInt(res.headers.get("Retry-After") ?? "0", 10) || undefined,
-        };
-      })
-      .catch((e: Error) => {
-        if (e.name === "AbortError") return;
-        fetchState = { status: "error", code: 0, message: e.message };
-      });
-
-    return () => controller.abort();
-  });
 </script>
 
 <Meta
-  {description}
+  description={data.lyrics
+    ? `View the full lyrics for ${data.lyrics.track.title} by ${data.lyrics.track.artist}.`
+    : undefined}
   og={data.lyrics
     ? { type: "music.song", image: data.lyrics.track.cover.medium }
     : undefined}
   title="{data.title} by {data.artist}"
 />
 
-<div
-  class="flex flex-col gap-12 sm:gap-16 w-full max-w-3xl min-w-0 px-5 sm:px-8 pt-12 pb-16 flex-1"
->
-  {#if lyrics && track}
-    <div class="flex flex-col gap-8">
-      <header class="flex items-start gap-4">
-        {#if track.cover.medium}
-          <img
-            class="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-md shadow-md shrink-0"
-            alt=""
-            src={track.cover.medium}
-          />
-        {:else}
-          <div
-            class="w-20 h-20 sm:w-24 sm:h-24 rounded-md bg-paper-2 shrink-0"
-          ></div>
-        {/if}
-        <div class="flex-1 min-w-0 pt-1">
-          <h1 class="text-2xl sm:text-3xl font-semibold text-ink leading-tight">
+{#if data.lyrics}
+  {@render song(data.lyrics)}
+{:else if pending}
+  {#await pending}
+    {@render loading()}
+  {:then outcome}
+    {#if outcome.ok}
+      {@render song(outcome.result)}
+    {:else}
+      {@render failure(outcome)}
+    {/if}
+  {/await}
+{:else}
+  {@render loading()}
+{/if}
+
+{#snippet song(lyrics: LyricsResult)}
+  {const track = lyrics.track}
+  <div class="page gap-10 pt-10 pb-24 sm:pt-14">
+    <header class="flex items-center gap-5 sm:items-start sm:gap-6">
+      <Cover
+        class="size-28 sm:size-44"
+        src={track.cover.big ?? track.cover.medium}
+      />
+      <div class="flex min-w-0 flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <h1
+            class="text-2xl/tight font-semibold tracking-tight text-balance sm:text-3xl/tight"
+          >
             {track.title}
           </h1>
           <a
-            class="text-muted mt-1 hover:underline no-underline"
+            class="self-start link"
             href={resolve("/s/[artist]", { artist: toSlug(track.artist) })}
+            >{track.artist}</a
           >
-            {track.artist}
-          </a>
         </div>
-      </header>
-
-      <div>
-        <div
-          class="border border-rule rounded-md bg-paper-2 p-5 text-ink text-base leading-9 whitespace-pre-wrap"
-        >
-          {#if lyrics.meta.instrumental}
-            <span class="block text-center text-muted">
-              This track is instrumental.
-            </span>
-          {:else}
-            {lyrics.lines.map((l) => l.text).join("\n")}
-          {/if}
-        </div>
-        {#if lyrics.meta.source}
-          <p class="mt-3 text-xs text-muted text-center">
-            via
-            {#if lyrics.meta.source.url}
-              <!-- eslint-disable svelte/no-navigation-without-resolve -->
-              <a
-                class="hover:underline"
-                href={lyrics.meta.source.url}
-                rel="noopener noreferrer"
-                target="_blank">{lyrics.meta.source.name}</a
+        <ul class="flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+          {#if track.album}
+            <li class="flex min-w-0 items-center gap-2">
+              <Disc3 class="shrink-0 text-muted-foreground" /><span
+                class="truncate">{track.album}</span
               >
-              <!-- eslint-enable svelte/no-navigation-without-resolve -->
-            {:else}
-              {lyrics.meta.source.name}
-            {/if}
-          </p>
+            </li>
+          {/if}
+          <li class="flex items-center gap-2">
+            <Clock class="shrink-0 text-muted-foreground" /><span
+              class="tabular-nums">{fmtDuration(track.duration)}</span
+            >
+          </li>
+          {#if lyrics.meta.source}
+            <li class="flex items-center gap-2">
+              <Radio class="shrink-0 text-muted-foreground" />
+              {#if lyrics.meta.source.url}
+                <ExternalLink class="link" href={lyrics.meta.source.url}
+                  >{lyrics.meta.source.name}</ExternalLink
+                >
+              {:else}
+                {lyrics.meta.source.name}
+              {/if}
+            </li>
+          {/if}
+        </ul>
+        {#if !lyrics.meta.instrumental}
+          <DownloadMenu
+            artist={data.artist}
+            level={lyrics.meta.level}
+            title={data.title}
+          />
         {/if}
       </div>
-    </div>
+    </header>
 
-    <hr class="m-0 border-rule" />
+    <section class="surface px-4 py-5 sm:p-8">
+      {#if lyrics.meta.instrumental}
+        <div class="flex flex-col items-center gap-3 py-10 text-center">
+          <span
+            class="grid size-12 place-items-center rounded-full bg-muted text-muted-foreground"
+            ><AudioLines size={22} /></span
+          >
+          <p class="text-sm text-muted-foreground">This track has no lyrics.</p>
+        </div>
+      {:else}
+        <Lyrics lines={lyrics.lines} synced={lyrics.meta.level !== "none"} />
+      {/if}
+    </section>
+  </div>
+{/snippet}
 
-    <UseItInYourApp />
-  {:else if fetchState.status === "loading"}
-    <div class="flex-1 flex flex-col items-center justify-center gap-5">
-      <span class="text-muted"><Spinner size={48} /></span>
-      <p class="text-muted text-sm text-center">
-        <span class="text-ink font-medium">{data.title}</span> by
-        <span class="text-ink font-medium">{data.artist}</span>
+{#snippet loading()}
+  <div class="page flex-1 items-center justify-center gap-4 py-24 text-center">
+    <span class="text-muted-foreground"><Spinner size={32} /></span>
+    <p class="text-sm text-muted-foreground">
+      <span class="font-medium text-foreground">{data.title}</span> by
+      <span class="font-medium text-foreground">{data.artist}</span>
+    </p>
+  </div>
+{/snippet}
+
+{#snippet failure(f: Extract<Outcome, { ok: false }>)}
+  <div class="page flex-1 items-center justify-center gap-6 py-24 text-center">
+    <div class="flex flex-col gap-1.5">
+      <h1 class="section-title">
+        {f.code === 404
+          ? "We couldn't find the lyrics for this song."
+          : f.code === 429
+            ? "Slow down a bit."
+            : "Something went wrong."}
+      </h1>
+      <p class="text-muted-foreground">
+        {#if f.code === 404}
+          Know a source that has it?
+        {:else if f.code === 429}
+          Try again in <strong>{f.retryAfter ?? "a few"}</strong>
+          {f.retryAfter === 1 ? "second" : "seconds"}.
+        {:else}
+          {f.message}
+        {/if}
       </p>
     </div>
-  {:else if fetchState.status === "error"}
-    <div class="flex-1 flex flex-col items-center justify-center gap-5">
-      <div class="flex flex-col items-center gap-3">
-        <p class="text-2xl font-semibold text-ink text-center">
-          {fetchState.code === 404
-            ? "We couldn't find the lyrics for this song."
-            : fetchState.code === 429
-              ? "Slow down a bit."
-              : "Something went wrong."}
-        </p>
-        <p class="text-muted text-center">
-          {#if fetchState.code === 404}
-            Know a source that has it?
-          {:else if fetchState.code === 429}
-            Try again in <strong>{fetchState.retryAfter ?? "a few"}</strong>
-            {fetchState.retryAfter === 1 ? "second" : "seconds"}.
-          {:else}
-            {fetchState.message}
-          {/if}
-        </p>
-      </div>
-      {#if fetchState.code === 404}
-        <a
-          class="inline-flex items-center gap-2 bg-ink text-paper px-3 py-2 rounded-md font-medium hover:bg-cue transition-colors"
-          href="https://github.com/f1nniboy/lrcmux/issues/new?template=04-new-provider.yml&example={encodeURIComponent(
-            `${data.artist} - ${data.title}`,
-          )}"
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          Request a provider
-        </a>
-      {/if}
-    </div>
-  {/if}
-</div>
+    {#if f.code === 404}
+      <ExternalLink
+        class="button-cue"
+        href="https://github.com/f1nniboy/lrcmux/issues/new?template=04-new-provider.yml&example={encodeURIComponent(
+          `${data.artist} - ${data.title}`,
+        )}"
+      >
+        Request a provider<ArrowUpRight />
+      </ExternalLink>
+    {/if}
+  </div>
+{/snippet}

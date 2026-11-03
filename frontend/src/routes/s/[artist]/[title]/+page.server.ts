@@ -1,11 +1,7 @@
-import { env } from "$env/dynamic/private";
+import { API_URL } from "$lib/server/env";
 import type { LyricsResult } from "$lib/types";
 import { fromSlug } from "$lib/slug";
 import type { PageServerLoad } from "./$types";
-
-const apiUrl = env.API_URL ?? "http://localhost:8080";
-
-export type { PageData } from "./$types";
 
 export const load: PageServerLoad = async ({
   params,
@@ -21,7 +17,7 @@ export const load: PageServerLoad = async ({
 
   try {
     const res = await fetch(
-      `${apiUrl}/get?${new URLSearchParams({ artist, title, fetch: "cache" })}`,
+      `${API_URL}/get?${new URLSearchParams({ artist, title, fetch: "cache" })}`,
       { headers: { "User-Agent": ua } },
     );
     if (res.ok) {

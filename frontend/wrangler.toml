@@ -10,4 +10,3 @@ binding = "ASSETS"
 [vars]
 PUBLIC_API_URL = "https://api.lrcmux.dev"
 API_URL = "https://api.lrcmux.dev"
-PLAUSIBLE_KEY = "pa-clOrwruh22gIhXW1ATZzv"

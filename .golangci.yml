@@ -24,6 +24,7 @@ linters:
         # godoc "FuncName ..." form required
         - -ST1020
         - -ST1021
+        - -ST1022
         # suggest removing redundant embedded field selectors, it's fine
         - -QF1008
     revive:

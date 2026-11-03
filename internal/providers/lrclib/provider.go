@@ -78,6 +78,7 @@ func (p *Provider) do(ctx context.Context, endpoint string, out any) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", providers.AppUserAgent)
 	if p.APIKey != "" {
 		req.Header.Set("Lrclib-Api-Key", p.APIKey)
 	}

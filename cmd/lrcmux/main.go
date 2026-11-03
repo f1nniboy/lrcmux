@@ -22,6 +22,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/meta"
 	"github.com/f1nniboy/lrcmux/internal/metrics"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
+	"github.com/f1nniboy/lrcmux/internal/providers"
 	"github.com/f1nniboy/lrcmux/internal/providers/registry"
 	"github.com/f1nniboy/lrcmux/internal/proxy"
 	"github.com/f1nniboy/lrcmux/internal/ratelimit"
@@ -94,7 +95,7 @@ func run(cfgPath string) error {
 		log.Info("metrics enabled", "addr", cfg.Metrics.Listen)
 	}
 
-	isrcResolver := isrc.New(&http.Client{Timeout: isrc.Timeout}, cacheLayer, cfg.Cache.TTL.Miss.Duration, logging.New("isrc"))
+	isrcResolver := isrc.New(providers.WithUserAgent(&http.Client{Timeout: isrc.Timeout}), cacheLayer, cfg.Cache.TTL.Miss.Duration, logging.New("isrc"))
 
 	breaker := orchestrator.NewBreaker(cacheLayer, logging.New("breaker"))
 	orch := orchestrator.New(provs, cacheLayer, breaker, isrcResolver, coll, orchestrator.Options{

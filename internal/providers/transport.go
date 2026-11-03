@@ -6,7 +6,11 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/meta"
 )
 
-var UserAgent = meta.AppName + "/" + meta.Version + " (https://" + meta.AppDomain + ")"
+// sent unless a request sets its own
+const UserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0"
+
+// for open APIs that ask clients to identify themselves
+var AppUserAgent = meta.AppName + "/" + meta.Version + " (https://" + meta.AppDomain + ")"
 
 type uaTransport struct{ inner http.RoundTripper }
 

@@ -16,8 +16,7 @@ import (
 const (
 	searchURL = "https://genius.com/api/search/multi"
 	// the embed page is way smaller than the normal song page
-	embedURL  = "https://genius.com/songs/%d/embed.js"
-	userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0"
+	embedURL = "https://genius.com/songs/%d/embed.js"
 )
 
 type Provider struct {
@@ -72,7 +71,6 @@ func (p *Provider) findSong(ctx context.Context, q lyrics.Query) (id int, instru
 	if err != nil {
 		return 0, false, err
 	}
-	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
@@ -119,7 +117,6 @@ func (p *Provider) lyrics(ctx context.Context, id int) ([]lyrics.Line, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Sec-Fetch-Dest", "script")

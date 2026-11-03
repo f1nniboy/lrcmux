@@ -17,6 +17,7 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/logging"
 	"github.com/f1nniboy/lrcmux/internal/lyrics"
 	"github.com/f1nniboy/lrcmux/internal/orchestrator"
+	"github.com/f1nniboy/lrcmux/internal/providers"
 	"github.com/f1nniboy/lrcmux/internal/providers/registry"
 	"github.com/f1nniboy/lrcmux/internal/proxy"
 )
@@ -74,7 +75,7 @@ func run(cfgPath, levelName, formatName string, req orchestrator.Request) error 
 	if err != nil {
 		return err
 	}
-	resolver := isrc.New(&http.Client{Timeout: isrc.Timeout}, c, cfg.Cache.TTL.Miss.Duration, logging.New("isrc"))
+	resolver := isrc.New(providers.WithUserAgent(&http.Client{Timeout: isrc.Timeout}), c, cfg.Cache.TTL.Miss.Duration, logging.New("isrc"))
 	orch := orchestrator.New(provs, c, orchestrator.NewBreaker(c, logging.New("breaker")), resolver, nil, orchestrator.Options{
 		Timeout: cfg.Provider.Timeout.Duration,
 		TTL:     cfg.Cache.TTL,

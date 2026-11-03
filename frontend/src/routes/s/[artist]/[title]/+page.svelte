@@ -44,10 +44,8 @@
 
   let { data } = $props();
 
-  // a miss is fetched by the browser, so it counts against the visitor's rate limit
-  // rather than the one the site's server shares with everyone
   const pending = $derived(
-    !data.lyrics && browser
+    browser
       ? fetchLyrics(
           `${API_URL}/get?${new URLSearchParams({ artist: data.artist, title: data.title })}`,
         )
@@ -55,19 +53,9 @@
   );
 </script>
 
-<Meta
-  description={data.lyrics
-    ? `View the full lyrics for ${data.lyrics.track.title} by ${data.lyrics.track.artist}.`
-    : undefined}
-  og={data.lyrics
-    ? { type: "music.song", image: data.lyrics.track.cover.medium }
-    : undefined}
-  title="{data.title} by {data.artist}"
-/>
+<Meta title="{data.title} by {data.artist}" />
 
-{#if data.lyrics}
-  {@render song(data.lyrics)}
-{:else if pending}
+{#if pending}
   {#await pending}
     {@render loading()}
   {:then outcome}

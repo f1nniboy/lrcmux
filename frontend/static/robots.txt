@@ -1,5 +1,2 @@
 User-agent: *
 Allow: /
-Disallow: /s/
-
-Sitemap: https://lrcmux.dev/sitemap.xml

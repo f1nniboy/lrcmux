@@ -4,18 +4,23 @@
   interface Props {
     title?: string;
     description?: string;
-    og?: { type?: "website" | "music.song"; image?: string };
+    og?: { image?: string };
+    // only pages about the service itself are indexed
+    index?: boolean;
   }
-  let { title, description, og }: Props = $props();
+  let { title, description, og, index = false }: Props = $props();
 </script>
 
 <svelte:head>
   <title>{title ? `${title} - ${page.url.hostname}` : page.url.hostname}</title>
+  {#if !index}
+    <meta name="robots" content="noindex" />
+  {/if}
   {#if description}
     <meta name="description" content={description} />
   {/if}
   {#if og}
-    <meta content={og.type ?? "website"} property="og:type" />
+    <meta content="website" property="og:type" />
     <meta content={page.url.href} property="og:url" />
     <meta content={title || page.url.hostname} property="og:title" />
     {#if title}

@@ -17,6 +17,7 @@
 
 <Meta
   description="Free synchronized lyrics for any song. LRC, word-by-word, and plain text, powered by multiple providers. Free lyrics API, no key required."
+  index
   og={{ image: "/logo.png" }}
 />
 
@@ -87,7 +88,7 @@
       >
       <ExternalLink
         class="button button-lg"
-        href="https://github.com/f1nniboy/lrcmux/issues/new/choose"
+        href="https://github.com/f1nniboy/lrcmux/issues"
         ><BrandIcon icon={siGithub} />Open an issue</ExternalLink
       >
     </div>

@@ -68,9 +68,6 @@ enable = true
 # ID of that application
 # app_id = '...'
 
-[providers.musixmatch]
-enable = true
-
 [providers.netease]
 enable = true
 

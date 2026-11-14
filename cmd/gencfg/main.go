@@ -14,7 +14,6 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers/genius"
 	"github.com/f1nniboy/lrcmux/internal/providers/kugou"
 	"github.com/f1nniboy/lrcmux/internal/providers/lrclib"
-	"github.com/f1nniboy/lrcmux/internal/providers/musixmatch"
 	"github.com/f1nniboy/lrcmux/internal/providers/netease"
 	"github.com/f1nniboy/lrcmux/internal/providers/ytmusic"
 )
@@ -51,13 +50,12 @@ func main() {
 			"mypool": {URLs: []string{"socks5://user:pass@proxy1.example.com:1080"}},
 		},
 		Providers: map[string]any{
-			"deezer":     deezer.Provider{Common: enabled},
-			"genius":     genius.Provider{Common: providers.Common{Enable: true, Proxy: "mypool"}},
-			"kugou":      kugou.Provider{Common: enabled},
-			"lrclib":     lrclib.Provider{Common: enabled, BaseURL: "https://lrclib.net", APIKey: "...", AppID: "..."},
-			"musixmatch": musixmatch.Provider{Common: enabled},
-			"netease":    netease.Provider{Common: enabled},
-			"ytmusic":    ytmusic.Provider{Common: enabled},
+			"deezer":  deezer.Provider{Common: enabled},
+			"genius":  genius.Provider{Common: providers.Common{Enable: true, Proxy: "mypool"}},
+			"kugou":   kugou.Provider{Common: enabled},
+			"lrclib":  lrclib.Provider{Common: enabled, BaseURL: "https://lrclib.net", APIKey: "...", AppID: "..."},
+			"netease": netease.Provider{Common: enabled},
+			"ytmusic": ytmusic.Provider{Common: enabled},
 		},
 	}
 

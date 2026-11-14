@@ -16,7 +16,6 @@ import (
 	"github.com/f1nniboy/lrcmux/internal/providers/genius"
 	"github.com/f1nniboy/lrcmux/internal/providers/kugou"
 	"github.com/f1nniboy/lrcmux/internal/providers/lrclib"
-	"github.com/f1nniboy/lrcmux/internal/providers/musixmatch"
 	"github.com/f1nniboy/lrcmux/internal/providers/netease"
 	"github.com/f1nniboy/lrcmux/internal/providers/stub"
 	"github.com/f1nniboy/lrcmux/internal/providers/ytmusic"
@@ -30,7 +29,6 @@ func Build(cfg *config.Root, c cache.Cache, pools *proxy.Registry, log *slog.Log
 		&genius.Provider{},
 		&kugou.Provider{},
 		&lrclib.Provider{},
-		&musixmatch.Provider{},
 		&netease.Provider{},
 		&stub.Provider{},
 		&ytmusic.Provider{},

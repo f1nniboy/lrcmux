@@ -21,7 +21,6 @@ body:
         - Genius
         - KuGou
         - LRCLIB
-        - Musixmatch
         - NetEase
         - YouTube Music
     validations:
